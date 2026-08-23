@@ -19,6 +19,7 @@ export const OrderTable: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterUpcomingOnly, setFilterUpcomingOnly] = useState(false);
   const [filterPago, setFilterPago] = useState('all');
+  const [sortBy, setSortBy] = useState<'date_desc' | 'delivery_asc' | 'saldo_desc'>('date_desc');
 
   // Helper to calculate days until delivery
   const getDeliveryInfo = (order: Order) => {
@@ -51,9 +52,20 @@ export const OrderTable: React.FC = () => {
   const [addCostType, setAddCostType] = useState('arreglos');
   const [addCostAmount, setAddCostAmount] = useState(0);
 
-  const sortedOrders = [...orders].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const sortedOrders = [...orders].sort((a, b) => {
+    if (sortBy === 'delivery_asc') {
+      if (a.status === '🟢 Entregado' && b.status !== '🟢 Entregado') return 1;
+      if (a.status !== '🟢 Entregado' && b.status === '🟢 Entregado') return -1;
+
+      const dateA = a.deliveryDate || a.date;
+      const dateB = b.deliveryDate || b.date;
+      return new Date(dateA + 'T00:00:00').getTime() - new Date(dateB + 'T00:00:00').getTime();
+    } else if (sortBy === 'saldo_desc') {
+      return (b.saldo || 0) - (a.saldo || 0);
+    } else {
+      return new Date(b.date + 'T00:00:00').getTime() - new Date(a.date + 'T00:00:00').getTime();
+    }
+  });
 
   const filteredOrders = sortedOrders.filter((order) => {
     const d = new Date(order.date + 'T12:00:00');
@@ -166,7 +178,7 @@ export const OrderTable: React.FC = () => {
 
       {/* Filter Section */}
       <div className="bg-ragucci-bg p-4 rounded-lg border border-ragucci-gold-light mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
           <div>
             <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
               Buscar (Cliente / Producto)
@@ -228,6 +240,21 @@ export const OrderTable: React.FC = () => {
               <option value="all">Todas las órdenes</option>
               <option value="pendientes">Con Saldo Pendiente</option>
               <option value="pagadas">Pagadas Completas</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+              Ordenar por
+            </label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="w-full p-1.5 border border-amber-300 bg-amber-50/60 text-amber-900 rounded text-xs font-extrabold focus:outline-none focus:border-ragucci-gold cursor-pointer"
+            >
+              <option value="date_desc">📅 Fecha Venta (Recientes)</option>
+              <option value="delivery_asc">⏰ Entregas (Más Urgentes)</option>
+              <option value="saldo_desc">💰 Saldo Pendiente (Mayor)</option>
             </select>
           </div>
         </div>
