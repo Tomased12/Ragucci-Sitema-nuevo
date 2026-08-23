@@ -2,13 +2,36 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatMoney } from '../../utils/formatters';
 import { MoneyInput } from '../common/MoneyInput';
-import { RefreshCw, Save, TrendingUp, Wallet, ArrowDownRight, Award, Scissors, ShoppingBag } from 'lucide-react';
+import { Modal } from '../common/Modal';
+import { 
+  RefreshCw, 
+  Save, 
+  TrendingUp, 
+  Wallet, 
+  ArrowDownRight, 
+  Award, 
+  Scissors, 
+  ShoppingBag, 
+  Info,
+  HelpCircle,
+  Calculator,
+  CheckCircle2
+} from 'lucide-react';
+
+interface ExplanationModalData {
+  title: string;
+  formula: string;
+  explanation: string;
+  details: { label: string; value: string; color?: string }[];
+  note?: string;
+}
 
 export const BalanceDashboard: React.FC = () => {
   const { orders, config, dolarBlueVenta, saveConfigData } = useApp();
 
   const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
+  const [activeExplanation, setActiveExplanation] = useState<ExplanationModalData | null>(null);
 
   // Fixed Costs Local Form State
   const [alquilerUsd, setAlquilerUsd] = useState(config.gasto_alquiler_usd !== undefined ? config.gasto_alquiler_usd : 1500);
@@ -99,6 +122,106 @@ export const BalanceDashboard: React.FC = () => {
     avios: 'Avios / Embalaje',
     comision: 'Comisión Tomy',
     otros: 'Otras Categorías / Extras'
+  };
+
+  // Card Explanations Data Handlers
+  const showVentaExplanation = () => {
+    setActiveExplanation({
+      title: '📈 Venta Bruta Total',
+      formula: 'Suma de (Precio de Venta de cada orden cargada en el período)',
+      explanation: 'Es la suma total de todo el dinero contratado y facturado por prendas a medida, arreglos y productos terminados (RTW) durante el período seleccionado, independientemente de si el cliente ya lo pagó todo o dejó saldo pendiente.',
+      details: [
+        { label: 'Cantidad de Órdenes en el período:', value: `${filteredOrders.length} órdenes` },
+        { label: 'Suma Total Facturada (Bruta):', value: `$${formatMoney(totals.venta)}`, color: 'text-emerald-600 font-extrabold' }
+      ],
+      note: 'Representa el volumen total de ventas generadas por el negocio antes de descontar insumos, talleres o gastos fijos.'
+    });
+  };
+
+  const showPendienteExplanation = () => {
+    setActiveExplanation({
+      title: '↘️ Pendiente a Cobrar',
+      formula: 'Suma de (Saldos no abonados de órdenes con seña o pago parcial)',
+      explanation: 'Es el dinero acumulado de ventas ya pactadas que los clientes aún no han terminado de abonar (por ejemplo, saldos a cobrar contra entrega de la prenda o al finalizar el traje).',
+      details: [
+        { label: 'Venta Bruta Acordada:', value: `$${formatMoney(totals.venta)}` },
+        { label: 'Dinero Cobrado Efectivamente:', value: `$${formatMoney(totals.venta - totals.saldoPendiente)}`, color: 'text-sky-600' },
+        { label: 'Saldo Pendiente a Recaudar:', value: `$${formatMoney(totals.saldoPendiente)}`, color: 'text-red-500 font-extrabold' }
+      ],
+      note: 'A medida que los clientes abonen sus saldos pendientes en el Registro General, este monto disminuirá y pasará automáticamente a Dinero Real Ingresado.'
+    });
+  };
+
+  const showIngresadoExplanation = () => {
+    setActiveExplanation({
+      title: '👛 Dinero Real Ingresado (Cash Flow)',
+      formula: 'Venta Bruta Total - Pendiente a Cobrar',
+      explanation: 'Es la liquidez real o flujo de caja efectivo que ya cobraste e ingresó a tu caja/banco durante el período seleccionado (señas + saldos ya pagados).',
+      details: [
+        { label: 'Venta Bruta Total:', value: `$${formatMoney(totals.venta)}` },
+        { label: 'Menos Pendiente de Cobro:', value: `-$${formatMoney(totals.saldoPendiente)}` },
+        { label: 'Efectivo / Transferencias Ingresadas:', value: `$${formatMoney(totals.venta - totals.saldoPendiente)}`, color: 'text-sky-600 font-extrabold' }
+      ],
+      note: 'Es el dinero real disponible en tu mano para hacer frente a los compromisos de talleres y gastos del mes.'
+    });
+  };
+
+  const showGananciaNetaExplanation = () => {
+    setActiveExplanation({
+      title: '🏆 Ganancia Neta Real',
+      formula: 'Venta Bruta Total - (Costos Directos de Confección/RTW + Gastos Fijos)',
+      explanation: 'Es el resultado económico neto y real de la sastrería. Muestra tu beneficio neto descontando de las ventas todos los costos de producción (Santiago sastre, camiseros, modistas, telas, forrería, RTW, envíos, avíos) y la totalidad de tus gastos fijos de estructura (Alquiler en USD convertido a Dólar Blue, expensas, luz/gas, internet, redes y publicidad).',
+      details: [
+        { label: 'Venta Bruta del Período:', value: `$${formatMoney(totals.venta)}`, color: 'text-emerald-600' },
+        { label: 'Menos Costos Directos de Insumos & Talleres:', value: `-$${formatMoney(totals.costo)}`, color: 'text-amber-800' },
+        { label: 'Menos Gastos Fijos Mensuales (Alquiler USD + Servicios):', value: `-$${formatMoney(Math.round(totalGastosFijosPeriodo))}`, color: 'text-red-600' },
+        { label: 'Resultado Neto Final:', value: `$${formatMoney(Math.round(gananciaNetaReal))}`, color: gananciaNetaReal >= 0 ? 'text-emerald-600 font-extrabold' : 'text-red-500 font-extrabold' }
+      ],
+      note: 'Si el resultado figura negativo, se debe a que la facturación de las órdenes de ese mes en particular aún no supera el costo fijo de la estructura del local (por ejemplo, el alquiler de USD 1.500 al valor del Dólar Blue).'
+    });
+  };
+
+  const showTalleresExplanation = () => {
+    setActiveExplanation({
+      title: '✂️ Talleres & Mano de Obra (M.O)',
+      formula: 'Santiago Sastre + Camiseros (Diego/Guillermo) + Modistas (María/Jesús/Arturo)',
+      explanation: 'Es el total que debes liquidar únicamente al personal de talleres por su trabajo artesanal de confección y arreglos en las órdenes de este período.',
+      details: [
+        { label: 'Santiago (Sastre):', value: `$${formatMoney(costsBreakdown.sastre)}` },
+        { label: 'Camiseros (Diego / Guillermo):', value: `$${formatMoney(costsBreakdown.camisero)}` },
+        { label: 'Modistas (María / Jesús / Arturo):', value: `$${formatMoney(costsBreakdown.arreglos)}` },
+        { label: 'Total Mano de Obra a Pagar:', value: `$${formatMoney(costoManoDeObraTalleres)}`, color: 'text-ragucci-primary font-extrabold' }
+      ]
+    });
+  };
+
+  const showTelasExplanation = () => {
+    setActiveExplanation({
+      title: '🧵 Telas & Forrería (A Medida)',
+      formula: 'Costo de Telas + Costo de Forrería de órdenes a medida',
+      explanation: 'Corresponde al gasto en insumos directos comprados para las prendas a medida solicitadas por los clientes en este mes.',
+      details: [
+        { label: 'Telas:', value: `$${formatMoney(costsBreakdown.telas)}` },
+        { label: 'Forrería:', value: `$${formatMoney(costsBreakdown.forreria)}` },
+        { label: 'Total Insumos A Medida:', value: `$${formatMoney(costoTelasYForreria)}`, color: 'text-ragucci-primary font-extrabold' }
+      ]
+    });
+  };
+
+  const showCompromisoTotalExplanation = () => {
+    setActiveExplanation({
+      title: '💼 Total a Pagar en el Mes (Compromiso Operativo)',
+      formula: 'Talleres (M.O) + Telas/Forrería + Gastos Fijos (Alquiler, Servicios) + Avíos/Envíos',
+      explanation: 'Calcula la suma exacta de dinero que necesitas desembolsar este mes para estar al día con talleres, proveedores de telas y costos fijos de local, EXCLUYENDO compras de stock de productos terminados (RTW) que son inversiones futuras.',
+      details: [
+        { label: 'Mano de Obra & Talleres:', value: `$${formatMoney(costoManoDeObraTalleres)}` },
+        { label: 'Telas & Forrería:', value: `$${formatMoney(costoTelasYForreria)}` },
+        { label: 'Gastos Fijos Mensuales (Alquiler + Expensas + Serv.):', value: `$${formatMoney(Math.round(totalGastosFijosPeriodo))}` },
+        { label: 'Envíos, Avíos y Comisiones:', value: `$${formatMoney(costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros)}` },
+        { label: 'Compromiso Total a Saldar en el Mes:', value: `$${formatMoney(Math.round(totalAPagarMesSinRTW))}`, color: 'text-ragucci-primary font-extrabold' }
+      ],
+      note: 'Este número te indica exactamente cuánta liquidez necesitas tener para cubrir la operación mensual sin atrasos.'
+    });
   };
 
   return (
@@ -194,42 +317,75 @@ export const BalanceDashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* Financial Overview Cards */}
+      <div className="text-xs text-gray-500 mb-3 flex items-center gap-1">
+        <Info className="w-4 h-4 text-ragucci-gold" />
+        <span>💡 <em>Haz clic sobre cualquier tarjeta para ver el desglose detallado y la fórmula de cálculo.</em></span>
+      </div>
+
+      {/* Financial Overview Cards (Clickable) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center">
+        <div 
+          onClick={showVentaExplanation}
+          className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all group relative"
+        >
+          <div className="absolute top-2 right-2 text-gray-300 group-hover:text-emerald-500 transition-colors">
+            <HelpCircle className="w-4 h-4" />
+          </div>
           <div className="flex justify-center text-emerald-600 mb-1">
             <TrendingUp className="w-6 h-6" />
           </div>
           <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Venta Bruta Total</h4>
           <div className="text-2xl font-extrabold text-emerald-600 font-sans mt-2">${formatMoney(totals.venta)}</div>
+          <span className="text-[10px] text-gray-400 block mt-1">Ver fórmula de cálculo ➔</span>
         </div>
 
-        <div className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center">
+        <div 
+          onClick={showPendienteExplanation}
+          className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-red-400 hover:shadow-md transition-all group relative"
+        >
+          <div className="absolute top-2 right-2 text-gray-300 group-hover:text-red-400 transition-colors">
+            <HelpCircle className="w-4 h-4" />
+          </div>
           <div className="flex justify-center text-red-500 mb-1">
             <ArrowDownRight className="w-6 h-6" />
           </div>
           <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Pendiente a Cobrar</h4>
           <div className="text-2xl font-extrabold text-red-500 font-sans mt-2">${formatMoney(totals.saldoPendiente)}</div>
+          <span className="text-[10px] text-gray-400 block mt-1">Ver fórmula de cálculo ➔</span>
         </div>
 
-        <div className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center">
+        <div 
+          onClick={showIngresadoExplanation}
+          className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-sky-500 hover:shadow-md transition-all group relative"
+        >
+          <div className="absolute top-2 right-2 text-gray-300 group-hover:text-sky-500 transition-colors">
+            <HelpCircle className="w-4 h-4" />
+          </div>
           <div className="flex justify-center text-sky-600 mb-1">
             <Wallet className="w-6 h-6" />
           </div>
           <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Dinero Real Ingresado</h4>
           <div className="text-2xl font-extrabold text-sky-600 font-sans mt-2">${formatMoney(totals.venta - totals.saldoPendiente)}</div>
+          <span className="text-[10px] text-gray-400 block mt-1">Ver fórmula de cálculo ➔</span>
         </div>
 
-        <div className="bg-ragucci-primary text-ragucci-gold p-5 border-b-4 border-ragucci-gold rounded-lg shadow-md text-center">
+        <div 
+          onClick={showGananciaNetaExplanation}
+          className="bg-ragucci-primary text-ragucci-gold p-5 border-b-4 border-ragucci-gold rounded-lg shadow-md text-center cursor-pointer hover:bg-ragucci-primary-light hover:shadow-lg transition-all group relative"
+        >
+          <div className="absolute top-2 right-2 text-ragucci-gold/40 group-hover:text-ragucci-gold transition-colors">
+            <HelpCircle className="w-4 h-4" />
+          </div>
           <div className="flex justify-center text-ragucci-gold mb-1">
             <Award className="w-6 h-6" />
           </div>
           <h4 className="text-xs uppercase font-extrabold text-ragucci-gold-light tracking-wider">Ganancia Neta Real</h4>
           <div className="text-2xl font-extrabold text-ragucci-gold font-sans mt-2">${formatMoney(Math.round(gananciaNetaReal))}</div>
+          <span className="text-[10px] text-ragucci-gold-light/60 block mt-1">Ver fórmula de cálculo ➔</span>
         </div>
       </div>
 
-      {/* Nueva Subdivisión: Egresos Operativos Mensuales (M.O, Talleres y Telas - Sin RTW) */}
+      {/* Subdivisión: Egresos Operativos Mensuales (M.O, Talleres y Telas - Sin RTW) */}
       <div className="border border-ragucci-gold-light bg-[#fffdfa] p-5 rounded-lg mb-8 shadow-sm">
         <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-2 mb-3">
           <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary tracking-wide flex items-center gap-2">
@@ -246,36 +402,52 @@ export const BalanceDashboard: React.FC = () => {
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="bg-white p-4 border border-ragucci-gold-light rounded shadow-sm text-center">
+          <div 
+            onClick={showTalleresExplanation}
+            className="bg-white p-4 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
+          >
             <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">1. Talleres & Mano de Obra</h4>
             <p className="text-[10px] text-gray-500">Santiago + Camiseros + Modistas</p>
             <div className="text-xl font-extrabold text-ragucci-primary font-sans mt-1">
               ${formatMoney(costoManoDeObraTalleres)}
             </div>
+            <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
           </div>
 
-          <div className="bg-white p-4 border border-ragucci-gold-light rounded shadow-sm text-center">
+          <div 
+            onClick={showTelasExplanation}
+            className="bg-white p-4 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
+          >
             <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">2. Telas & Forrería (A Medida)</h4>
             <p className="text-[10px] text-gray-500">Insumos directos de confección</p>
             <div className="text-xl font-extrabold text-ragucci-primary font-sans mt-1">
               ${formatMoney(costoTelasYForreria)}
             </div>
+            <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
           </div>
 
-          <div className="bg-white p-4 border border-amber-300 bg-amber-50/50 rounded shadow-sm text-center">
+          <div 
+            onClick={showCompromisoTotalExplanation}
+            className="bg-white p-4 border border-amber-300 bg-amber-50/50 rounded shadow-sm text-center cursor-pointer hover:border-amber-500 hover:shadow transition-all"
+          >
             <h4 className="text-[11px] uppercase font-bold text-amber-900">3. Subtotal Confección & Insumos</h4>
             <p className="text-[10px] text-amber-700">M.O. + Telas + Forrería</p>
             <div className="text-xl font-extrabold text-amber-900 font-sans mt-1">
               ${formatMoney(costoTalleresYConfeccion)}
             </div>
+            <span className="text-[9px] text-amber-800 block mt-1">Clic para detalle ➔</span>
           </div>
 
-          <div className="bg-ragucci-primary text-white p-4 rounded shadow-sm text-center border-l-4 border-l-ragucci-gold">
+          <div 
+            onClick={showCompromisoTotalExplanation}
+            className="bg-ragucci-primary text-white p-4 rounded shadow-sm text-center border-l-4 border-l-ragucci-gold cursor-pointer hover:bg-ragucci-primary-light hover:shadow transition-all"
+          >
             <h4 className="text-[11px] uppercase font-bold text-ragucci-gold tracking-wider">Total a Pagar en el Mes</h4>
             <p className="text-[10px] text-ragucci-gold-light">Talleres + Telas + Gastos Fijos</p>
             <div className="text-xl font-extrabold text-ragucci-gold font-sans mt-1">
               ${formatMoney(Math.round(totalAPagarMesSinRTW))}
             </div>
+            <span className="text-[9px] text-ragucci-gold-light/70 block mt-1">Clic para detalle ➔</span>
           </div>
         </div>
 
@@ -322,6 +494,61 @@ export const BalanceDashboard: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Explanation Modal */}
+      {activeExplanation && (
+        <Modal
+          isOpen={!!activeExplanation}
+          onClose={() => setActiveExplanation(null)}
+          title={activeExplanation.title}
+        >
+          <div className="space-y-4 text-xs">
+            {/* Formula Block */}
+            <div className="bg-ragucci-primary text-ragucci-gold p-3 rounded-lg border border-ragucci-gold/30">
+              <div className="flex items-center gap-1.5 font-extrabold text-xs uppercase tracking-wider mb-1 text-ragucci-gold-light">
+                <Calculator className="w-4 h-4 text-emerald-400" />
+                <span>Fórmula de Cálculo:</span>
+              </div>
+              <div className="font-mono text-xs font-bold text-white bg-ragucci-primary-light/80 p-2 rounded border border-ragucci-gold/20">
+                {activeExplanation.formula}
+              </div>
+            </div>
+
+            {/* Explanation text */}
+            <div className="bg-amber-50/60 p-3 rounded border border-amber-200 text-gray-800 leading-relaxed font-medium">
+              {activeExplanation.explanation}
+            </div>
+
+            {/* Details List */}
+            <div className="border border-gray-200 rounded p-3 bg-white space-y-2">
+              <h4 className="font-bold text-ragucci-primary uppercase text-[11px] border-b pb-1">Desglose del Período Seleccionado:</h4>
+              {activeExplanation.details.map((d, i) => (
+                <div key={i} className="flex justify-between items-center text-xs py-0.5">
+                  <span className="text-gray-600 font-medium">{d.label}</span>
+                  <span className={`font-bold font-sans ${d.color || 'text-ragucci-primary'}`}>{d.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Note if present */}
+            {activeExplanation.note && (
+              <div className="flex items-start gap-2 bg-blue-50 p-2.5 rounded border border-blue-200 text-[11px] text-blue-900 font-medium">
+                <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <span>{activeExplanation.note}</span>
+              </div>
+            )}
+
+            <div className="pt-2 text-right">
+              <button
+                onClick={() => setActiveExplanation(null)}
+                className="bg-ragucci-primary hover:bg-ragucci-primary-light text-ragucci-gold font-bold py-1.5 px-4 rounded text-xs transition-colors"
+              >
+                Entendido / Cerrar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
