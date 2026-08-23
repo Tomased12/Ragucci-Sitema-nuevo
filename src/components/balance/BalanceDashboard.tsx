@@ -247,6 +247,48 @@ export const BalanceDashboard: React.FC = () => {
     });
   };
 
+  const showRecordMonthExplanation = () => {
+    setActiveExplanation({
+      title: '🏆 Mes Récord de Ventas',
+      formula: 'Mes calendario con mayor volumen de facturación bruta en el año',
+      explanation: 'Indica el mes del año en el que Sastrería Ragucci contrató el mayor volumen de facturación. Te permite identificar la temporada alta de mayor demanda (casamientos, eventos o colaciones) para anticipar stock de telas y capacidad de talleres.',
+      details: [
+        { label: 'Mes de Mayor Venta en ' + filterYear + ':', value: recordMonth ? `${recordMonth.name}` : '-' },
+        { label: 'Cantidad de Órdenes Cargadas:', value: recordMonth ? `${recordMonth.count} órdenes` : '0 órdenes' },
+        { label: 'Facturación Bruta de ese Mes:', value: recordMonth ? `$${formatMoney(recordMonth.venta)}` : '$0', color: 'text-amber-600 font-extrabold' }
+      ],
+      note: 'Representa el pico máximo de ventas contratadas alcanzado en un solo mes.'
+    });
+  };
+
+  const showPromedioMensualExplanation = () => {
+    setActiveExplanation({
+      title: '📈 Promedio Venta Mensual (Base 12 Meses)',
+      formula: '(Suma de Venta Anual Total) ÷ (12 Meses del Año)',
+      explanation: 'Es la venta promedio mensual si distribuyeras la facturación acumulada de todo el año en 12 partes iguales. Sirve para proyectar el nivel medio de ingresos requerido por mes para mantener el negocio saludable.',
+      details: [
+        { label: 'Venta Anual Total Acumulada (' + filterYear + '):', value: `$${formatMoney(totalVentaAnual)}` },
+        { label: 'Divisor Calendario:', value: '12 meses del año' },
+        { label: 'Promedio Resultante por Mes:', value: `$${formatMoney(Math.round(promedioVentaMensual12))} / mes`, color: 'text-emerald-600 font-extrabold' },
+        { label: 'Promedio en Meses Activos con Ventas (' + activeMonthsInYearCount + ' mes):', value: `$${formatMoney(Math.round(promedioVentaMensualActivos))}`, color: 'text-sky-600 font-bold' }
+      ],
+      note: 'Conforme cargues órdenes en los demás meses del año, el promedio se ajustará progresivamente con mayor representatividad.'
+    });
+  };
+
+  const showVentaAnualExplanation = () => {
+    setActiveExplanation({
+      title: '👑 Venta Anual Total y Ganancia Directa',
+      formula: 'Suma de todas las ventas contratadas en el año seleccionado',
+      explanation: 'Muestra la cifra total bruta facturada por Sastrería Ragucci durante el año y la Ganancia Directa acumulada resultante tras abonar los insumos (telas, forrería) y talleres de confección (sastres y camiseros).',
+      details: [
+        { label: 'Facturación Anual Bruta Total (' + filterYear + '):', value: `$${formatMoney(totalVentaAnual)}`, color: 'text-ragucci-primary font-extrabold' },
+        { label: 'Ganancia Directa de Insumos y Talleres:', value: `$${formatMoney(totalGananciaAnual)}`, color: 'text-emerald-600 font-extrabold' }
+      ],
+      note: 'No descuenta los gastos fijos del local (alquiler, expensas, luz, etc.), los cuales se calculan sobre el resultado neto final.'
+    });
+  };
+
   const showTalleresExplanation = () => {
     setActiveExplanation({
       title: '✂️ Talleres & Mano de Obra (M.O)',
@@ -584,7 +626,13 @@ export const BalanceDashboard: React.FC = () => {
 
         {/* Annual KPI Highlight Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-amber-500 to-amber-700 text-white p-4 rounded-lg shadow-md flex items-center gap-3">
+          <div 
+            onClick={showRecordMonthExplanation}
+            className="bg-gradient-to-br from-amber-500 to-amber-700 text-white p-4 rounded-lg shadow-md flex items-center gap-3 cursor-pointer hover:shadow-lg transition-all group relative"
+          >
+            <div className="absolute top-2 right-2 text-white/40 group-hover:text-white transition-colors">
+              <HelpCircle className="w-4 h-4" />
+            </div>
             <div className="p-3 bg-white/20 rounded-full shrink-0">
               <Trophy className="w-6 h-6 text-white" />
             </div>
@@ -592,10 +640,17 @@ export const BalanceDashboard: React.FC = () => {
               <span className="text-[10px] uppercase font-bold text-amber-100 tracking-wider block">Mes Récord de Ventas</span>
               <strong className="text-lg font-extrabold">{recordMonth ? `${recordMonth.name} (${recordMonth.count} ord)` : '-'}</strong>
               <span className="block text-xs font-bold text-amber-100">${formatMoney(recordMonth ? recordMonth.venta : 0)}</span>
+              <span className="text-[9px] text-amber-200 block mt-0.5">Clic para ver detalle ➔</span>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-600 to-teal-800 text-white p-4 rounded-lg shadow-md flex items-center gap-3">
+          <div 
+            onClick={showPromedioMensualExplanation}
+            className="bg-gradient-to-br from-emerald-600 to-teal-800 text-white p-4 rounded-lg shadow-md flex items-center gap-3 cursor-pointer hover:shadow-lg transition-all group relative"
+          >
+            <div className="absolute top-2 right-2 text-white/40 group-hover:text-white transition-colors">
+              <HelpCircle className="w-4 h-4" />
+            </div>
             <div className="p-3 bg-white/20 rounded-full shrink-0">
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
@@ -605,10 +660,17 @@ export const BalanceDashboard: React.FC = () => {
               <span className="block text-[10px] text-emerald-100/90 font-medium mt-0.5">
                 Total anual ÷ 12 meses del año
               </span>
+              <span className="text-[9px] text-emerald-200 block mt-0.5">Clic para ver detalle ➔</span>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-ragucci-primary to-ragucci-primary-light text-ragucci-gold p-4 rounded-lg shadow-md border-l-4 border-ragucci-gold flex items-center gap-3">
+          <div 
+            onClick={showVentaAnualExplanation}
+            className="bg-gradient-to-br from-ragucci-primary to-ragucci-primary-light text-ragucci-gold p-4 rounded-lg shadow-md border-l-4 border-ragucci-gold flex items-center gap-3 cursor-pointer hover:shadow-lg transition-all group relative"
+          >
+            <div className="absolute top-2 right-2 text-ragucci-gold/40 group-hover:text-ragucci-gold transition-colors">
+              <HelpCircle className="w-4 h-4" />
+            </div>
             <div className="p-3 bg-ragucci-gold/20 rounded-full shrink-0">
               <Award className="w-6 h-6 text-ragucci-gold" />
             </div>
@@ -616,6 +678,7 @@ export const BalanceDashboard: React.FC = () => {
               <span className="text-[10px] uppercase font-bold text-ragucci-gold-light tracking-wider block">Venta Anual Total ({filterYear})</span>
               <strong className="text-xl font-extrabold text-white">${formatMoney(totalVentaAnual)}</strong>
               <span className="block text-xs text-ragucci-gold-light">Ganancia Directa: ${formatMoney(totalGananciaAnual)}</span>
+              <span className="text-[9px] text-ragucci-gold-light/70 block mt-0.5">Clic para ver detalle ➔</span>
             </div>
           </div>
         </div>
