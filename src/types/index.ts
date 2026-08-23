@@ -52,6 +52,49 @@ export interface CostsBreakdown {
 }
 
 export interface ClientMeasurements {
+  // SACO
+  sacoLargoMangas?: string;
+  sacoPecho?: string;
+  sacoCintura?: string;
+  sacoCadera?: string;
+  sacoAbdomen?: string;
+  sacoLargoTotal?: string;
+  sacoHombro?: string;
+
+  // CHALECO
+  chalecoPecho?: string;
+  chalecoLargoDelantero?: string;
+  chalecoLargoTrasero?: string;
+  chalecoEscote?: string;
+
+  // PANTALÓN
+  pantCintura?: string;
+  pantCadera?: string;
+  pantLargoConCintura?: string;
+  pantTiro?: string;
+  pantRodilla?: string;
+  pantBota?: string;
+
+  // CAMISA
+  camisaCuello?: string;
+  camisaEspalda?: string;
+  camisaPecho?: string;
+  camisaAbdomen?: string;
+  camisaCintura?: string;
+  camisaLargo?: string;
+  camisaManga?: string;
+  camisaBicep?: string;
+  camisaAntebrazo?: string;
+  camisaPunoIzq?: string;
+  camisaPunoDer?: string;
+  camisaTipoCuello?: string;
+  camisaTipoPuno?: string;
+  camisaMonograma?: string;
+
+  // Observaciones & Postura
+  posturaNotes?: string;
+
+  // Compatibilidad con campos anteriores
   hombro?: string;
   torax?: string;
   cinturaSaco?: string;
@@ -59,20 +102,16 @@ export interface ClientMeasurements {
   largoSaco?: string;
   largoManga?: string;
   espalda?: string;
-
   cinturaPant?: string;
   caderaPant?: string;
   largoPant?: string;
   tiro?: string;
   muslo?: string;
   botamanga?: string;
-
   cuello?: string;
   cinturaCamisa?: string;
   largoMangaCamisa?: string;
   puno?: string;
-
-  posturaNotes?: string;
 }
 
 export interface Order {

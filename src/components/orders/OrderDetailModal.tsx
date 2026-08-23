@@ -61,50 +61,79 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
       {order.measurements && (
         <div className="mb-4">
           <h4 className="font-extrabold text-sm text-ragucci-primary uppercase border-b border-ragucci-border pb-1 mb-2">
-            🧵 Ficha de Medidas Sartoriales
+            🧵 Ficha de medidas
           </h4>
           <div className="bg-[#fffdfa] p-3 border border-ragucci-gold-light rounded text-xs space-y-2">
-            {(order.measurements.hombro || order.measurements.torax || order.measurements.cinturaSaco || order.measurements.largoManga) && (
+            {/* SACO */}
+            {(order.measurements.sacoLargoMangas || order.measurements.sacoPecho || order.measurements.sacoCintura || order.measurements.sacoHombro || order.measurements.hombro) && (
               <div>
-                <strong className="text-ragucci-primary font-extrabold">• Saco / Chaleco: </strong>
+                <strong className="text-ragucci-primary font-extrabold">• SACO: </strong>
                 <span className="text-gray-700">
                   {[
-                    order.measurements.hombro && `Hombro: ${order.measurements.hombro}cm`,
-                    order.measurements.torax && `Tórax: ${order.measurements.torax}cm`,
-                    order.measurements.cinturaSaco && `Cintura: ${order.measurements.cinturaSaco}cm`,
-                    order.measurements.largoSaco && `Largo: ${order.measurements.largoSaco}cm`,
-                    order.measurements.largoManga && `Manga: ${order.measurements.largoManga}cm`,
-                    order.measurements.espalda && `Espalda: ${order.measurements.espalda}cm`
+                    (order.measurements.sacoLargoMangas || order.measurements.largoManga) && `Largo Mangas: ${order.measurements.sacoLargoMangas || order.measurements.largoManga}`,
+                    (order.measurements.sacoPecho || order.measurements.torax) && `Pecho: ${order.measurements.sacoPecho || order.measurements.torax}`,
+                    (order.measurements.sacoCintura || order.measurements.cinturaSaco) && `Cintura: ${order.measurements.sacoCintura || order.measurements.cinturaSaco}`,
+                    (order.measurements.sacoCadera || order.measurements.caderaSaco) && `Cadera: ${order.measurements.sacoCadera || order.measurements.caderaSaco}`,
+                    order.measurements.sacoAbdomen && `Abdomen: ${order.measurements.sacoAbdomen}`,
+                    (order.measurements.sacoLargoTotal || order.measurements.largoSaco) && `Largo total: ${order.measurements.sacoLargoTotal || order.measurements.largoSaco}`,
+                    (order.measurements.sacoHombro || order.measurements.hombro) && `Hombro: ${order.measurements.sacoHombro || order.measurements.hombro}`
                   ].filter(Boolean).join(' | ')}
                 </span>
               </div>
             )}
 
-            {(order.measurements.cinturaPant || order.measurements.largoPant || order.measurements.tiro) && (
+            {/* CHALECO */}
+            {(order.measurements.chalecoPecho || order.measurements.chalecoLargoDelantero || order.measurements.chalecoLargoTrasero || order.measurements.chalecoEscote) && (
               <div>
-                <strong className="text-ragucci-primary font-extrabold">• Pantalón: </strong>
+                <strong className="text-ragucci-primary font-extrabold">• CHALECO: </strong>
                 <span className="text-gray-700">
                   {[
-                    order.measurements.cinturaPant && `Cintura: ${order.measurements.cinturaPant}cm`,
-                    order.measurements.caderaPant && `Cadera: ${order.measurements.caderaPant}cm`,
-                    order.measurements.largoPant && `Largo: ${order.measurements.largoPant}cm`,
-                    order.measurements.tiro && `Tiro: ${order.measurements.tiro}cm`,
-                    order.measurements.muslo && `Muslo: ${order.measurements.muslo}cm`,
-                    order.measurements.botamanga && `Ruedo: ${order.measurements.botamanga}cm`
+                    order.measurements.chalecoPecho && `Pecho: ${order.measurements.chalecoPecho}`,
+                    order.measurements.chalecoLargoDelantero && `Largo delantero: ${order.measurements.chalecoLargoDelantero}`,
+                    order.measurements.chalecoLargoTrasero && `Largo trasero: ${order.measurements.chalecoLargoTrasero}`,
+                    order.measurements.chalecoEscote && `Escote: ${order.measurements.chalecoEscote}`
                   ].filter(Boolean).join(' | ')}
                 </span>
               </div>
             )}
 
-            {(order.measurements.cuello || order.measurements.cinturaCamisa || order.measurements.largoMangaCamisa) && (
+            {/* PANTALÓN */}
+            {(order.measurements.pantCintura || order.measurements.pantCadera || order.measurements.pantLargoConCintura || order.measurements.pantTiro || order.measurements.cinturaPant) && (
               <div>
-                <strong className="text-ragucci-primary font-extrabold">• Camisa: </strong>
+                <strong className="text-ragucci-primary font-extrabold">• PANTALÓN: </strong>
                 <span className="text-gray-700">
                   {[
-                    order.measurements.cuello && `Cuello: ${order.measurements.cuello}cm`,
-                    order.measurements.cinturaCamisa && `Cintura: ${order.measurements.cinturaCamisa}cm`,
-                    order.measurements.largoMangaCamisa && `Manga: ${order.measurements.largoMangaCamisa}cm`,
-                    order.measurements.puno && `Puño: ${order.measurements.puno}cm`
+                    (order.measurements.pantCintura || order.measurements.cinturaPant) && `Cintura: ${order.measurements.pantCintura || order.measurements.cinturaPant}`,
+                    (order.measurements.pantCadera || order.measurements.caderaPant) && `Cadera: ${order.measurements.pantCadera || order.measurements.caderaPant}`,
+                    (order.measurements.pantLargoConCintura || order.measurements.largoPant) && `Largo con cintura: ${order.measurements.pantLargoConCintura || order.measurements.largoPant}`,
+                    (order.measurements.pantTiro || order.measurements.tiro) && `Tiro: ${order.measurements.pantTiro || order.measurements.tiro}`,
+                    order.measurements.pantRodilla && `Rodilla: ${order.measurements.pantRodilla}`,
+                    (order.measurements.pantBota || order.measurements.botamanga) && `Bota: ${order.measurements.pantBota || order.measurements.botamanga}`
+                  ].filter(Boolean).join(' | ')}
+                </span>
+              </div>
+            )}
+
+            {/* CAMISA */}
+            {(order.measurements.camisaCuello || order.measurements.camisaEspalda || order.measurements.camisaPecho || order.measurements.camisaAbdomen || order.measurements.camisaCintura || order.measurements.camisaManga || order.measurements.cuello) && (
+              <div>
+                <strong className="text-ragucci-primary font-extrabold">• CAMISA: </strong>
+                <span className="text-gray-700">
+                  {[
+                    (order.measurements.camisaCuello || order.measurements.cuello) && `Cuello: ${order.measurements.camisaCuello || order.measurements.cuello}`,
+                    order.measurements.camisaEspalda && `Espalda: ${order.measurements.camisaEspalda}`,
+                    order.measurements.camisaPecho && `Pecho: ${order.measurements.camisaPecho}`,
+                    order.measurements.camisaAbdomen && `Abdomen: ${order.measurements.camisaAbdomen}`,
+                    (order.measurements.camisaCintura || order.measurements.cinturaCamisa) && `Cintura: ${order.measurements.camisaCintura || order.measurements.cinturaCamisa}`,
+                    order.measurements.camisaLargo && `Largo: ${order.measurements.camisaLargo}`,
+                    (order.measurements.camisaManga || order.measurements.largoMangaCamisa) && `Manga: ${order.measurements.camisaManga || order.measurements.largoMangaCamisa}`,
+                    order.measurements.camisaBicep && `Bicep: ${order.measurements.camisaBicep}`,
+                    order.measurements.camisaAntebrazo && `Antebrazo: ${order.measurements.camisaAntebrazo}`,
+                    (order.measurements.camisaPunoIzq || order.measurements.puno) && `Puño Izq: ${order.measurements.camisaPunoIzq || order.measurements.puno}`,
+                    (order.measurements.camisaPunoDer || order.measurements.puno) && `Puño Der: ${order.measurements.camisaPunoDer || order.measurements.puno}`,
+                    order.measurements.camisaTipoCuello && `Tipo de cuello: ${order.measurements.camisaTipoCuello}`,
+                    order.measurements.camisaTipoPuno && `Tipo de puño: ${order.measurements.camisaTipoPuno}`,
+                    order.measurements.camisaMonograma && `Monograma: ${order.measurements.camisaMonograma}`
                   ].filter(Boolean).join(' | ')}
                 </span>
               </div>
