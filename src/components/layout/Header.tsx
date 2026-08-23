@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, CloudOff, Smartphone } from 'lucide-react';
+import { Cloud, CloudOff, Smartphone, Moon, Sun } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const Header: React.FC = () => {
-  const { loading } = useApp();
+  const { loading, darkMode, toggleDarkMode } = useApp();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
@@ -27,18 +27,39 @@ export const Header: React.FC = () => {
 
   return (
     <header className="bg-ragucci-primary text-ragucci-gold-light p-6 md:p-8 text-center rounded-lg mb-6 border-b-4 border-ragucci-gold shadow-md relative overflow-hidden">
-      <div className="absolute top-3 right-4 flex items-center gap-2 text-xs font-semibold text-ragucci-gold bg-ragucci-primary-light/50 px-3 py-1 rounded-full border border-ragucci-gold/30">
-        {loading ? (
-          <>
-            <CloudOff className="w-3.5 h-3.5 animate-pulse text-amber-400" />
-            <span>Sincronizando...</span>
-          </>
-        ) : (
-          <>
-            <Cloud className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Cloud Sync Activo (Firebase)</span>
-          </>
-        )}
+      {/* Top Controls: Cloud Status + Dark Mode Toggle */}
+      <div className="absolute top-3 right-4 flex items-center gap-2">
+        <button
+          onClick={toggleDarkMode}
+          className="flex items-center gap-1.5 text-xs font-bold text-ragucci-gold bg-ragucci-primary-light/80 hover:bg-ragucci-primary px-3 py-1 rounded-full border border-ragucci-gold/40 transition-colors cursor-pointer shadow-sm"
+          title="Cambiar tema visual (Modo Oscuro / Claro)"
+        >
+          {darkMode ? (
+            <>
+              <Sun className="w-3.5 h-3.5 text-amber-300" />
+              <span>Modo Claro</span>
+            </>
+          ) : (
+            <>
+              <Moon className="w-3.5 h-3.5 text-ragucci-gold" />
+              <span>Modo Oscuro</span>
+            </>
+          )}
+        </button>
+
+        <div className="flex items-center gap-2 text-xs font-semibold text-ragucci-gold bg-ragucci-primary-light/50 px-3 py-1 rounded-full border border-ragucci-gold/30">
+          {loading ? (
+            <>
+              <CloudOff className="w-3.5 h-3.5 animate-pulse text-amber-400" />
+              <span>Sincronizando...</span>
+            </>
+          ) : (
+            <>
+              <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Cloud Sync</span>
+            </>
+          )}
+        </div>
       </div>
 
       {deferredPrompt && (

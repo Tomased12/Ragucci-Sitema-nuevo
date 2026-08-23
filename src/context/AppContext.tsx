@@ -11,6 +11,8 @@ interface AppContextType {
   activeTab: TabType;
   editingOrderId: string | null;
   loading: boolean;
+  darkMode: boolean;
+  toggleDarkMode: () => void;
   setActiveTab: (tab: TabType) => void;
   setEditingOrderId: (id: string | null) => void;
   saveOrderData: (order: Order, firestoreId?: string) => Promise<void>;
@@ -28,6 +30,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<TabType>('carga');
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('ragucci_theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark');
+      localStorage.setItem('ragucci_theme', 'dark');
+    } else {
+      document.body.classList.remove('dark');
+      localStorage.setItem('ragucci_theme', 'light');
+    }
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode(prev => !prev);
 
   useEffect(() => {
     // 1. Fetch Blue Dollar Rate
@@ -72,12 +89,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeTab,
         editingOrderId,
         loading,
+        darkMode,
+        toggleDarkMode,
         setActiveTab,
         setEditingOrderId,
         saveOrderData,
         removeOrderData,
         saveConfigData,
-        reloadConfig,
+        reloadConfig
       }}
     >
       {children}
