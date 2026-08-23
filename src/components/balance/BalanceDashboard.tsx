@@ -16,7 +16,10 @@ import {
   HelpCircle,
   Calculator,
   CheckCircle2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  BarChart3,
+  PieChart,
+  Trophy
 } from 'lucide-react';
 import { exportBalanceToCSV } from '../../utils/exportCsv';
 
@@ -106,6 +109,37 @@ export const BalanceDashboard: React.FC = () => {
 
   const costoTotalConFijos = totals.costo + totalGastosFijosPeriodo;
   const gananciaNetaReal = totals.venta - costoTotalConFijos;
+
+  // Monthly Evolution Data for filterYear
+  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const monthsData = monthNames.map((name, i) => {
+    const monthNum = i + 1;
+    const monthOrders = orders.filter(o => {
+      const d = new Date(o.date + 'T12:00:00');
+      return d.getFullYear().toString() === filterYear && (d.getMonth() + 1) === monthNum;
+    });
+
+    const venta = monthOrders.reduce((acc, o) => acc + (o.sale || 0), 0);
+    const costoDirecto = monthOrders.reduce((acc, o) => acc + (o.totalCost || 0), 0);
+    const gananciaMes = Math.max(0, venta - costoDirecto);
+
+    return {
+      monthNum,
+      name,
+      count: monthOrders.length,
+      venta,
+      costoDirecto,
+      gananciaMes
+    };
+  });
+
+  const maxVentaAnual = Math.max(...monthsData.map(m => m.venta), 1);
+  const totalVentaAnual = monthsData.reduce((acc, m) => acc + m.venta, 0);
+  const totalGananciaAnual = monthsData.reduce((acc, m) => acc + m.gananciaMes, 0);
+  const promedioVentaMensual = totalVentaAnual / 12;
+
+  // Find peak sales month
+  const recordMonth = [...monthsData].sort((a, b) => b.venta - a.venta)[0];
 
   const handleSaveGastosFijos = async () => {
     const updatedConfig = {
@@ -516,6 +550,159 @@ export const BalanceDashboard: React.FC = () => {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      {/* 📊 EVOLUCIÓN MENSUAL Y GRÁFICOS VISUALES */}
+      <div className="mt-10 pt-6 border-t-2 border-dashed border-ragucci-gold-light space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-ragucci-gold pb-2">
+          <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary tracking-wide flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-ragucci-gold" />
+            <span>Gráficos Visuales de Evolución Mensual ({filterYear})</span>
+          </h3>
+          <span className="text-xs bg-ragucci-primary text-ragucci-gold px-3 py-1 rounded-full font-bold shadow-sm">
+            Evolución de 12 Meses
+          </span>
+        </div>
+
+        {/* Annual KPI Highlight Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-br from-amber-500 to-amber-700 text-white p-4 rounded-lg shadow-md flex items-center gap-3">
+            <div className="p-3 bg-white/20 rounded-full shrink-0">
+              <Trophy className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-amber-100 tracking-wider block">Mes Récord de Ventas</span>
+              <strong className="text-lg font-extrabold">{recordMonth ? `${recordMonth.name} (${recordMonth.count} ord)` : '-'}</strong>
+              <span className="block text-xs font-bold text-amber-100">${formatMoney(recordMonth ? recordMonth.venta : 0)}</span>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-emerald-600 to-teal-800 text-white p-4 rounded-lg shadow-md flex items-center gap-3">
+            <div className="p-3 bg-white/20 rounded-full shrink-0">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-emerald-100 tracking-wider block">Promedio Venta Mensual</span>
+              <strong className="text-lg font-extrabold">${formatMoney(Math.round(promedioVentaMensual))}</strong>
+              <span className="block text-xs text-emerald-100 font-medium">Meta anual proyectada</span>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-ragucci-primary to-ragucci-primary-light text-ragucci-gold p-4 rounded-lg shadow-md border-l-4 border-ragucci-gold flex items-center gap-3">
+            <div className="p-3 bg-ragucci-gold/20 rounded-full shrink-0">
+              <Award className="w-6 h-6 text-ragucci-gold" />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-ragucci-gold-light tracking-wider block">Venta Anual Total ({filterYear})</span>
+              <strong className="text-xl font-extrabold text-white">${formatMoney(totalVentaAnual)}</strong>
+              <span className="block text-xs text-ragucci-gold-light">Ganancia Directa: ${formatMoney(totalGananciaAnual)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Dual Bar Chart: Ventas vs Ganancia Neta por Mes */}
+        <div className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm">
+          <div className="flex flex-wrap items-center justify-between mb-4 pb-2 border-b border-gray-100">
+            <div>
+              <h4 className="text-xs font-extrabold uppercase text-ragucci-primary">
+                📊 Ventas y Ganancias por Mes (Bruto vs Neta)
+              </h4>
+              <p className="text-[11px] text-gray-500 font-medium">
+                Compara las ventas totales contratadas contra la ganancia directa generada mes a mes. Toca cualquier mes para filtrar.
+              </p>
+            </div>
+            <div className="flex items-center gap-4 text-xs font-bold mt-2 sm:mt-0">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm bg-ragucci-gold inline-block"></span>
+                <span className="text-gray-700">Venta Bruta</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm bg-emerald-600 inline-block"></span>
+                <span className="text-gray-700">Ganancia Directa</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Chart Graphic Canvas */}
+          <div className="h-64 flex items-end justify-between gap-1.5 pt-6 pb-2 border-b border-gray-200 px-1">
+            {monthsData.map((m) => {
+              const heightVentaPct = maxVentaAnual > 0 ? (m.venta / maxVentaAnual) * 100 : 0;
+              const heightGananciaPct = maxVentaAnual > 0 ? (m.gananciaMes / maxVentaAnual) * 100 : 0;
+              const isSelected = filterMonth !== 'all' && parseInt(filterMonth) === m.monthNum;
+
+              return (
+                <div key={m.monthNum} className="flex-1 flex flex-col items-center h-full justify-end group relative cursor-pointer" onClick={() => setFilterMonth(m.monthNum.toString())}>
+                  {/* Tooltip on Hover */}
+                  <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-ragucci-primary text-white text-[10px] p-2 rounded shadow-xl pointer-events-none z-20 whitespace-nowrap text-center font-sans border border-ragucci-gold">
+                    <strong className="text-ragucci-gold block font-extrabold">{m.name} {filterYear} ({m.count} órdenes)</strong>
+                    <span>Venta: ${formatMoney(m.venta)}</span><br/>
+                    <span className="text-emerald-400 font-bold">Ganancia: ${formatMoney(m.gananciaMes)}</span>
+                  </div>
+
+                  {/* Dual Bars Container */}
+                  <div className={`w-full flex items-end justify-center gap-1 h-full p-1 rounded-t transition-all ${isSelected ? 'bg-ragucci-gold-light/20 border-b-2 border-ragucci-gold' : 'hover:bg-gray-50'}`}>
+                    {/* Venta Bar */}
+                    <div 
+                      style={{ height: `${Math.max(4, heightVentaPct)}%` }}
+                      className={`w-1/2 rounded-t transition-all ${m.venta > 0 ? 'bg-ragucci-gold group-hover:bg-ragucci-primary' : 'bg-gray-200'}`}
+                      title={`Venta ${m.name}: $${formatMoney(m.venta)}`}
+                    ></div>
+                    {/* Ganancia Bar */}
+                    <div 
+                      style={{ height: `${Math.max(4, heightGananciaPct)}%` }}
+                      className={`w-1/2 rounded-t transition-all ${m.gananciaMes > 0 ? 'bg-emerald-600 group-hover:bg-emerald-700' : 'bg-gray-200'}`}
+                      title={`Ganancia ${m.name}: $${formatMoney(m.gananciaMes)}`}
+                    ></div>
+                  </div>
+
+                  {/* Month Label */}
+                  <span className={`text-[10px] font-extrabold mt-1 uppercase ${isSelected ? 'text-ragucci-primary underline decoration-ragucci-gold' : 'text-gray-600'}`}>
+                    {m.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Cost Distribution Progress Bars */}
+        <div className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm">
+          <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
+            <PieChart className="w-4 h-4 text-ragucci-gold" />
+            <h4 className="text-xs font-extrabold uppercase text-ragucci-primary">
+              Distribución Porcentual de Costos ({filterMonth === 'all' ? `Todo ${filterYear}` : `Mes ${filterMonth}/${filterYear}`})
+            </h4>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            {[
+              { label: '🧵 Telas & Insumos (A Medida)', val: costsBreakdown.telas + costsBreakdown.forreria, color: 'bg-amber-600' },
+              { label: '✂️ Mano de Obra Sastre (Santiago)', val: costsBreakdown.sastre, color: 'bg-emerald-700' },
+              { label: '👔 Mano de Obra Camiseros (Diego & Guillermo)', val: costsBreakdown.camisero, color: 'bg-sky-700' },
+              { label: '🪡 Modistas & Arreglos (María, Jesús, Arturo)', val: costsBreakdown.arreglos, color: 'bg-purple-700' },
+              { label: '🏠 Gastos Fijos (Alquiler, Servicios, Redes)', val: Math.round(totalGastosFijosPeriodo), color: 'bg-rose-700' },
+              { label: '🏷️ Productos Terminados / RTW (Inversión Stock)', val: costsBreakdown.pterminado, color: 'bg-slate-700' }
+            ].map((cItem, i) => {
+              const totalCostBase = Math.max(1, costoTotalConFijos);
+              const pct = Math.min(100, Math.round((cItem.val / totalCostBase) * 100));
+
+              return (
+                <div key={i}>
+                  <div className="flex justify-between font-bold text-gray-700 mb-1">
+                    <span>{cItem.label}</span>
+                    <span className="font-extrabold font-sans">${formatMoney(cItem.val)} ({pct}%)</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                    <div 
+                      style={{ width: `${pct}%` }} 
+                      className={`h-full ${cItem.color} transition-all duration-500 rounded-full`}
+                    ></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Explanation Modal */}
