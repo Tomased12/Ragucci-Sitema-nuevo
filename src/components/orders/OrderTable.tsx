@@ -265,12 +265,12 @@ export const OrderTable: React.FC = () => {
         <table className="w-full text-xs text-left border-collapse">
           <thead>
             <tr className="bg-ragucci-primary text-ragucci-gold uppercase text-[11px] tracking-wider border-b border-ragucci-gold">
-              <th className="p-3">Fecha</th>
-              <th className="p-3">Cliente</th>
-              <th className="p-3">Productos (Resumen)</th>
-              <th className="p-3">Finanzas ($)</th>
-              <th className="p-3">Estado Confección</th>
-              <th className="p-3 text-center">Acciones</th>
+              <th className="py-2.5 px-2">Fecha</th>
+              <th className="py-2.5 px-2">Cliente</th>
+              <th className="py-2.5 px-2">Productos</th>
+              <th className="py-2.5 px-2">Finanzas ($)</th>
+              <th className="py-2.5 px-2">Estado</th>
+              <th className="py-2.5 px-2 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -288,26 +288,26 @@ export const OrderTable: React.FC = () => {
 
               return (
                 <tr key={order.firestoreId || order.id} className="hover:bg-[#fdfaf5] transition-colors">
-                  <td className="p-3 font-medium whitespace-nowrap">
+                  <td className="py-2.5 px-2 font-medium whitespace-nowrap">
                     <div className="text-xs">Venta: {formatDate(order.date)}</div>
                     {order.deliveryDate && (
-                      <div className="text-[11px] font-extrabold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300 mt-0.5 inline-block">
+                      <div className="text-[10px] font-extrabold text-amber-900 bg-amber-50 px-1 py-0.5 rounded border border-amber-300 mt-0.5 inline-block">
                         ⏰ Entrega: {formatDate(order.deliveryDate)}
                       </div>
                     )}
-                    <div className="text-[10px] text-gray-500 mt-0.5">{order.origin || 'A Medida (Local)'}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{order.origin || 'A Medida'}</div>
                     {(() => {
                       const info = getDeliveryInfo(order);
                       if (!info || order.status === '🟢 Entregado') return null;
                       if (info.diffDays <= 0) {
                         return (
-                          <span className="block mt-1 text-[10px] font-black text-red-700 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 text-center animate-pulse">
+                          <span className="block mt-1 text-[10px] font-black text-red-700 bg-red-100 px-1 py-0.5 rounded border border-red-300 text-center animate-pulse">
                             ⚠️ Entrega HOY / Vencida
                           </span>
                         );
                       } else if (info.diffDays <= 7) {
                         return (
-                          <span className="block mt-1 text-[10px] font-extrabold text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 text-center">
+                          <span className="block mt-1 text-[10px] font-extrabold text-amber-900 bg-amber-100 px-1 py-0.5 rounded border border-amber-300 text-center">
                             ⏰ Entrega en {info.diffDays}d
                           </span>
                         );
@@ -316,7 +316,7 @@ export const OrderTable: React.FC = () => {
                     })()}
                   </td>
 
-                  <td className="p-3 font-bold">
+                  <td className="py-2.5 px-2 font-bold whitespace-nowrap">
                     <button
                       onClick={() => setSelectedClientName(order.client)}
                       className="text-ragucci-primary hover:text-ragucci-gold underline decoration-dashed transition-colors text-left"
@@ -328,7 +328,7 @@ export const OrderTable: React.FC = () => {
                         href={`https://wa.me/${cleanPhone}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="ml-1.5 text-emerald-600 hover:text-emerald-800 inline-block align-middle"
+                        className="ml-1 text-emerald-600 hover:text-emerald-800 inline-block align-middle"
                         title="Enviar WhatsApp"
                       >
                         <MessageCircle className="w-3.5 h-3.5 inline" />
@@ -336,12 +336,12 @@ export const OrderTable: React.FC = () => {
                     )}
                   </td>
 
-                  <td className="p-3 text-gray-700 max-w-xs truncate">{productListText}</td>
+                  <td className="py-2.5 px-2 text-gray-700 max-w-[150px] md:max-w-[200px] truncate" title={productListText}>{productListText}</td>
 
-                  <td className="p-3 whitespace-nowrap">
+                  <td className="py-2.5 px-2 whitespace-nowrap">
                     <div>Venta: ${formatMoney(order.sale)}</div>
                     {order.saldo > 0 ? (
-                      <div className="text-ragucci-red font-bold flex items-center gap-1.5 mt-0.5">
+                      <div className="text-ragucci-red font-bold flex items-center gap-1 mt-0.5">
                         <span>Saldo: ${formatMoney(order.saldo)}</span>
                         <button
                           onClick={() => setSelectedPaymentOrder(order)}
@@ -352,7 +352,7 @@ export const OrderTable: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="text-emerald-600 font-bold flex items-center gap-1.5 mt-0.5">
+                      <div className="text-emerald-600 font-bold flex items-center gap-1 mt-0.5">
                         <span>Pagado Completo</span>
                         <button
                           onClick={() => setSelectedPaymentOrder(order)}
@@ -365,7 +365,7 @@ export const OrderTable: React.FC = () => {
                     )}
                   </td>
 
-                  <td className="p-3">
+                  <td className="py-2.5 px-2">
                     <select
                       value={order.status || '🔴 Pendiente'}
                       onChange={(e) => handleStatusChange(order, e.target.value)}
@@ -377,17 +377,17 @@ export const OrderTable: React.FC = () => {
                       <option value="🟢 Entregado">🟢 Entregado / Pagado</option>
                     </select>
                     {hasBirthday && (
-                      <div className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 text-center animate-bounce">
+                      <div className="bg-red-600 text-white text-[10px] font-bold px-1 py-0.5 rounded mt-1 text-center animate-bounce">
                         🎂 ¡CUMPLEAÑOS HOY!
                       </div>
                     )}
                   </td>
 
-                  <td className="p-3 text-center whitespace-nowrap">
+                  <td className="py-2.5 px-2 text-center whitespace-nowrap">
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => setSelectedDetailOrder(order)}
-                        className="bg-ragucci-gold text-ragucci-primary hover:bg-ragucci-primary hover:text-ragucci-gold font-bold px-2 py-1 rounded transition-colors text-[11px]"
+                        className="bg-ragucci-gold text-ragucci-primary hover:bg-ragucci-primary hover:text-ragucci-gold font-bold px-1.5 py-1 rounded transition-colors text-[10px] cursor-pointer"
                         title="Ver Detalle"
                       >
                         Detalle
@@ -397,21 +397,21 @@ export const OrderTable: React.FC = () => {
                           setEditingOrderId(order.firestoreId || null);
                           setActiveTab('carga');
                         }}
-                        className="bg-sky-600 text-white hover:bg-sky-700 font-bold px-2 py-1 rounded transition-colors text-[11px]"
+                        className="bg-sky-600 text-white hover:bg-sky-700 font-bold px-1.5 py-1 rounded transition-colors text-[10px] cursor-pointer"
                         title="Editar Orden"
                       >
                         Editar
                       </button>
                       <button
                         onClick={() => setAddCostOrder(order)}
-                        className="bg-ragucci-primary-light text-ragucci-gold-light hover:bg-ragucci-primary font-bold px-2 py-1 rounded transition-colors text-[11px]"
+                        className="bg-ragucci-primary-light text-ragucci-gold-light hover:bg-ragucci-primary font-bold px-1.5 py-1 rounded transition-colors text-[10px] cursor-pointer"
                         title="Sumar Gasto Extra"
                       >
                         + Gasto
                       </button>
                       <button
                         onClick={() => handleDelete(order)}
-                        className="bg-ragucci-red text-white hover:bg-red-900 font-bold p-1 rounded transition-colors"
+                        className="bg-ragucci-red text-white hover:bg-red-900 font-bold p-1 rounded transition-colors cursor-pointer"
                         title="Eliminar Orden"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
