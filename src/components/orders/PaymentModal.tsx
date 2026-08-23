@@ -100,9 +100,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ order, isOpen, onClo
                 <button
                   type="button"
                   onClick={() => handleDeletePayment(i)}
-                  className="bg-ragucci-red hover:bg-red-900 text-white p-1 rounded transition-colors"
+                  className="bg-red-700 hover:bg-red-800 text-white font-extrabold text-[10px] py-1 px-2 rounded transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
+                  title="Anular y borrar este cobro (recalcula el saldo automáticamente)"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3 h-3" />
+                  <span>Anular Pago</span>
                 </button>
               </div>
             ))

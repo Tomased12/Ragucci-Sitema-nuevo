@@ -345,13 +345,23 @@ export const OrderTable: React.FC = () => {
                         <span>Saldo: ${formatMoney(order.saldo)}</span>
                         <button
                           onClick={() => setSelectedPaymentOrder(order)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] py-0.5 px-1.5 rounded transition-colors"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] py-0.5 px-1.5 rounded transition-colors cursor-pointer"
+                          title="Agregar pago o anular cobros anteriores"
                         >
-                          + Pago
+                          💳 Pagos
                         </button>
                       </div>
                     ) : (
-                      <div className="text-emerald-600 font-bold mt-0.5">Pagado Completo</div>
+                      <div className="text-emerald-600 font-bold flex items-center gap-1.5 mt-0.5">
+                        <span>Pagado Completo</span>
+                        <button
+                          onClick={() => setSelectedPaymentOrder(order)}
+                          className="bg-gray-600 hover:bg-gray-700 text-white font-extrabold text-[10px] py-0.5 px-1.5 rounded transition-colors cursor-pointer"
+                          title="Ver o anular/borrar cobros registrados por error"
+                        >
+                          💳 Ver Pagos
+                        </button>
+                      </div>
                     )}
                   </td>
 
