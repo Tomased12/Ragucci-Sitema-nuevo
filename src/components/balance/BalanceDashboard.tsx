@@ -15,8 +15,10 @@ import {
   Info,
   HelpCircle,
   Calculator,
-  CheckCircle2
+  CheckCircle2,
+  FileSpreadsheet
 } from 'lucide-react';
+import { exportBalanceToCSV } from '../../utils/exportCsv';
 
 interface ExplanationModalData {
   title: string;
@@ -238,9 +240,18 @@ export const BalanceDashboard: React.FC = () => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-ragucci-border">
-      <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
-        Balance de Rentabilidad Financiera
-      </h2>
+      <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-1 mb-4 gap-2">
+        <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary inline-block tracking-wide">
+          Balance de Rentabilidad Financiera
+        </h2>
+        <button
+          onClick={() => exportBalanceToCSV(filterMonth, filterYear, totals, costsBreakdown, totalGastosFijosPeriodo, gananciaNetaReal)}
+          className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold py-1.5 px-3.5 rounded transition-all cursor-pointer shadow-sm"
+        >
+          <FileSpreadsheet className="w-4 h-4" />
+          <span>📊 Exportar Balance a Excel</span>
+        </button>
+      </div>
 
       {/* Filter Period */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-lg border border-ragucci-gold-light mb-6 shadow-sm">

@@ -7,7 +7,8 @@ import { PaymentModal } from './PaymentModal';
 import { ClientHistoryModal } from '../clients/ClientHistoryModal';
 import { Modal } from '../common/Modal';
 import { MoneyInput } from '../common/MoneyInput';
-import { Search, Eye, Edit, Plus, Trash2, MessageCircle } from 'lucide-react';
+import { Search, Eye, Edit, Plus, Trash2, MessageCircle, FileSpreadsheet } from 'lucide-react';
+import { exportOrdersToCSV } from '../../utils/exportCsv';
 
 export const OrderTable: React.FC = () => {
   const { orders, saveOrderData, removeOrderData, setEditingOrderId, setActiveTab } = useApp();
@@ -102,9 +103,18 @@ export const OrderTable: React.FC = () => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-ragucci-border">
-      <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
-        Libro de Órdenes y Flujo de Trabajo
-      </h2>
+      <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-1 mb-4 gap-2">
+        <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary inline-block tracking-wide">
+          Libro de Órdenes y Flujo de Trabajo
+        </h2>
+        <button
+          onClick={() => exportOrdersToCSV(filteredOrders, `ragucci_ordenes_${filterYear}_${filterMonth}.csv`)}
+          className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold py-1.5 px-3.5 rounded transition-all cursor-pointer shadow-sm"
+        >
+          <FileSpreadsheet className="w-4 h-4" />
+          <span>📊 Exportar a Excel (.csv)</span>
+        </button>
+      </div>
 
       {/* Filter Section */}
       <div className="bg-ragucci-bg p-4 rounded-lg border border-ragucci-gold-light mb-6">
