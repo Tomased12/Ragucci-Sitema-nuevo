@@ -18,8 +18,10 @@ export default {
         }
       },
       fontFamily: {
-        bodoni: ['"Bodoni Moda"', 'serif'],
-        fustat: ['Fustat', 'sans-serif']
+        display: ['"Playfair Display"', 'serif'],
+        bodoni: ['"Playfair Display"', 'serif'],
+        sans: ['Inter', 'Geist', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        inter: ['Inter', 'sans-serif']
       }
     },
   },
