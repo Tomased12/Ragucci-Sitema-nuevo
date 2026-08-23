@@ -28,7 +28,13 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Ficha: ${order.client}`}>
       <div className="bg-ragucci-bg p-4 rounded-lg border border-ragucci-border mb-4 text-sm">
-        <p className="my-1"><strong>Fecha Inicial:</strong> {formatDate(order.date)}</p>
+        <p className="my-1"><strong>Fecha de Venta:</strong> {formatDate(order.date)}</p>
+        {order.deliveryDate && (
+          <p className="my-1 text-amber-900 bg-amber-50 p-2 rounded border border-amber-300 font-extrabold flex items-center gap-1.5 text-xs">
+            <span>⏰ Fecha Prometida de Entrega:</span>
+            <span>{formatDate(order.deliveryDate)}</span>
+          </p>
+        )}
         <p className="my-1"><strong>Canal:</strong> {order.origin || 'A Medida (Local)'}</p>
         <p className="my-1"><strong>Estado Actual:</strong> {order.status || '🔴 Pendiente'}</p>
 

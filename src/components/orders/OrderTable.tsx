@@ -262,8 +262,13 @@ export const OrderTable: React.FC = () => {
               return (
                 <tr key={order.firestoreId || order.id} className="hover:bg-[#fdfaf5] transition-colors">
                   <td className="p-3 font-medium whitespace-nowrap">
-                    {formatDate(order.date)}
-                    <div className="text-[10px] text-gray-500">{order.origin || 'A Medida (Local)'}</div>
+                    <div className="text-xs">Venta: {formatDate(order.date)}</div>
+                    {order.deliveryDate && (
+                      <div className="text-[11px] font-extrabold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300 mt-0.5 inline-block">
+                        ⏰ Entrega: {formatDate(order.deliveryDate)}
+                      </div>
+                    )}
+                    <div className="text-[10px] text-gray-500 mt-0.5">{order.origin || 'A Medida (Local)'}</div>
                     {(() => {
                       const info = getDeliveryInfo(order);
                       if (!info || order.status === '🟢 Entregado') return null;
