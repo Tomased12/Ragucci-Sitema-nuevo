@@ -163,4 +163,4 @@ export interface AppConfig {
   gasto_alquiler_usd?: number;
 }
 
-export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'configuracion' | 'backup';
+export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'crm' | 'configuracion' | 'backup';

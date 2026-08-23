@@ -6,6 +6,7 @@ import { OrderForm } from './components/orders/OrderForm';
 import { OrderTable } from './components/orders/OrderTable';
 import { WorkshopPayments } from './components/workshops/WorkshopPayments';
 import { BalanceDashboard } from './components/balance/BalanceDashboard';
+import { CrmDashboard } from './components/crm/CrmDashboard';
 import { ConfigForm } from './components/config/ConfigForm';
 import { BackupView } from './components/backup/BackupView';
 
@@ -22,6 +23,7 @@ export const AppContent: React.FC = () => {
         {activeTab === 'registro' && <OrderTable />}
         {activeTab === 'talleres' && <WorkshopPayments />}
         {activeTab === 'balance' && <BalanceDashboard />}
+        {activeTab === 'crm' && <CrmDashboard />}
         {activeTab === 'configuracion' && <ConfigForm />}
         {activeTab === 'backup' && <BackupView />}
       </main>
