@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatMoney } from '../../utils/formatters';
 import { MoneyInput } from '../common/MoneyInput';
-import { RefreshCw, Save, TrendingUp, Wallet, ArrowDownRight, Award } from 'lucide-react';
+import { RefreshCw, Save, TrendingUp, Wallet, ArrowDownRight, Award, Scissors, ShoppingBag } from 'lucide-react';
 
 export const BalanceDashboard: React.FC = () => {
   const { orders, config, dolarBlueVenta, saveConfigData } = useApp();
@@ -58,6 +58,14 @@ export const BalanceDashboard: React.FC = () => {
       costsBreakdown[key] += o.costs?.[key as keyof typeof o.costs] || 0;
     }
   });
+
+  // Talleres & Confección (M.O + Telas/Forrería) - Excluye Productos Terminados / RTW
+  const costoManoDeObraTalleres = costsBreakdown.sastre + costsBreakdown.camisero + costsBreakdown.arreglos;
+  const costoTelasYForreria = costsBreakdown.telas + costsBreakdown.forreria;
+  const costoTalleresYConfeccion = costoManoDeObraTalleres + costoTelasYForreria;
+  
+  // Total a Pagar Mensual (Talleres/Confección + Gastos Fijos + Avíos/Envíos) - SIN RTW
+  const totalAPagarMesSinRTW = costoTalleresYConfeccion + totalGastosFijosPeriodo + costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros;
 
   const costoTotalConFijos = totals.costo + totalGastosFijosPeriodo;
   const gananciaNetaReal = totals.venta - costoTotalConFijos;
@@ -193,7 +201,7 @@ export const BalanceDashboard: React.FC = () => {
             <TrendingUp className="w-6 h-6" />
           </div>
           <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Venta Bruta Total</h4>
-          <div className="text-2xl font-extrabold text-emerald-600 font-fustat mt-2">${formatMoney(totals.venta)}</div>
+          <div className="text-2xl font-extrabold text-emerald-600 font-sans mt-2">${formatMoney(totals.venta)}</div>
         </div>
 
         <div className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center">
@@ -201,7 +209,7 @@ export const BalanceDashboard: React.FC = () => {
             <ArrowDownRight className="w-6 h-6" />
           </div>
           <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Pendiente a Cobrar</h4>
-          <div className="text-2xl font-extrabold text-red-500 font-fustat mt-2">${formatMoney(totals.saldoPendiente)}</div>
+          <div className="text-2xl font-extrabold text-red-500 font-sans mt-2">${formatMoney(totals.saldoPendiente)}</div>
         </div>
 
         <div className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center">
@@ -209,7 +217,7 @@ export const BalanceDashboard: React.FC = () => {
             <Wallet className="w-6 h-6" />
           </div>
           <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Dinero Real Ingresado</h4>
-          <div className="text-2xl font-extrabold text-sky-600 font-fustat mt-2">${formatMoney(totals.venta - totals.saldoPendiente)}</div>
+          <div className="text-2xl font-extrabold text-sky-600 font-sans mt-2">${formatMoney(totals.venta - totals.saldoPendiente)}</div>
         </div>
 
         <div className="bg-ragucci-primary text-ragucci-gold p-5 border-b-4 border-ragucci-gold rounded-lg shadow-md text-center">
@@ -218,6 +226,67 @@ export const BalanceDashboard: React.FC = () => {
           </div>
           <h4 className="text-xs uppercase font-extrabold text-ragucci-gold-light tracking-wider">Ganancia Neta Real</h4>
           <div className="text-2xl font-extrabold text-ragucci-gold font-sans mt-2">${formatMoney(Math.round(gananciaNetaReal))}</div>
+        </div>
+      </div>
+
+      {/* Nueva Subdivisión: Egresos Operativos Mensuales (M.O, Talleres y Telas - Sin RTW) */}
+      <div className="border border-ragucci-gold-light bg-[#fffdfa] p-5 rounded-lg mb-8 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-2 mb-3">
+          <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary tracking-wide flex items-center gap-2">
+            <Scissors className="w-4 h-4 text-ragucci-gold" />
+            <span>Compromisos de Confección, Talleres y Gastos Mensuales</span>
+          </h3>
+          <span className="text-[11px] bg-ragucci-primary text-ragucci-gold px-2.5 py-0.5 rounded font-bold">
+            Excluye Recompra RTW / Stock
+          </span>
+        </div>
+
+        <p className="text-xs text-gray-600 mb-4">
+          Calcula exactamente el dinero necesario para cubrir la <strong>mano de obra de talleres</strong> (Santiago sastre, Diego y Guillermo camiseros, modistas), <strong>telas a medida</strong> y <strong>gastos fijos</strong> del período, sin incluir la recompra futura de productos terminados (RTW).
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="bg-white p-4 border border-ragucci-gold-light rounded shadow-sm text-center">
+            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">1. Talleres & Mano de Obra</h4>
+            <p className="text-[10px] text-gray-500">Santiago + Camiseros + Modistas</p>
+            <div className="text-xl font-extrabold text-ragucci-primary font-sans mt-1">
+              ${formatMoney(costoManoDeObraTalleres)}
+            </div>
+          </div>
+
+          <div className="bg-white p-4 border border-ragucci-gold-light rounded shadow-sm text-center">
+            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">2. Telas & Forrería (A Medida)</h4>
+            <p className="text-[10px] text-gray-500">Insumos directos de confección</p>
+            <div className="text-xl font-extrabold text-ragucci-primary font-sans mt-1">
+              ${formatMoney(costoTelasYForreria)}
+            </div>
+          </div>
+
+          <div className="bg-white p-4 border border-amber-300 bg-amber-50/50 rounded shadow-sm text-center">
+            <h4 className="text-[11px] uppercase font-bold text-amber-900">3. Subtotal Confección & Insumos</h4>
+            <p className="text-[10px] text-amber-700">M.O. + Telas + Forrería</p>
+            <div className="text-xl font-extrabold text-amber-900 font-sans mt-1">
+              ${formatMoney(costoTalleresYConfeccion)}
+            </div>
+          </div>
+
+          <div className="bg-ragucci-primary text-white p-4 rounded shadow-sm text-center border-l-4 border-l-ragucci-gold">
+            <h4 className="text-[11px] uppercase font-bold text-ragucci-gold tracking-wider">Total a Pagar en el Mes</h4>
+            <p className="text-[10px] text-ragucci-gold-light">Talleres + Telas + Gastos Fijos</p>
+            <div className="text-xl font-extrabold text-ragucci-gold font-sans mt-1">
+              ${formatMoney(Math.round(totalAPagarMesSinRTW))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between bg-white p-3 border border-gray-200 rounded text-xs">
+          <div className="flex items-center gap-2 text-gray-700 font-medium">
+            <ShoppingBag className="w-4 h-4 text-ragucci-gold" />
+            <span><strong>Costo de Productos Terminados / RTW excluido del compromiso mensual:</strong> (Considerado inversión de stock a futuro)</span>
+          </div>
+          <span className="font-extrabold text-ragucci-primary font-sans text-sm mt-1 sm:mt-0">
+            ${formatMoney(costsBreakdown.pterminado)}
+          </span>
         </div>
       </div>
 
@@ -230,8 +299,15 @@ export const BalanceDashboard: React.FC = () => {
         <table className="w-full text-xs text-left border-collapse border border-ragucci-border">
           <tbody>
             {Object.keys(labels).map((key) => (
-              <tr key={key} className="border-b border-gray-200">
-                <td className="p-2.5 font-medium">{labels[key]}</td>
+              <tr key={key} className={`border-b border-gray-200 ${key === 'pterminado' ? 'bg-amber-50/40' : ''}`}>
+                <td className="p-2.5 font-medium flex items-center justify-between">
+                  <span>{labels[key]}</span>
+                  {key === 'pterminado' && (
+                    <span className="text-[10px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold">
+                      Recompra de Stock
+                    </span>
+                  )}
+                </td>
                 <td className="p-2.5 text-right font-bold">${formatMoney(costsBreakdown[key])}</td>
               </tr>
             ))}
