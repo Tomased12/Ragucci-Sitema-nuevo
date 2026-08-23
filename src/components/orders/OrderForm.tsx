@@ -41,6 +41,27 @@ export const OrderForm: React.FC = () => {
   const [clientAutocomplete, setClientAutocomplete] = useState<string[]>([]);
   const [showClientList, setShowClientList] = useState(false);
   const [focusedClientIdx, setFocusedClientIdx] = useState<number>(-1);
+  const dropdownListRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Auto scroll predictive client list when navigating with arrow keys
+  useEffect(() => {
+    if (focusedClientIdx >= 0 && dropdownListRef.current) {
+      const listEl = dropdownListRef.current;
+      const selectedEl = listEl.children[focusedClientIdx] as HTMLElement;
+      if (selectedEl) {
+        const elTop = selectedEl.offsetTop;
+        const elBottom = elTop + selectedEl.offsetHeight;
+        const containerTop = listEl.scrollTop;
+        const containerBottom = containerTop + listEl.offsetHeight;
+
+        if (elBottom > containerBottom) {
+          listEl.scrollTop = elBottom - listEl.offsetHeight;
+        } else if (elTop < containerTop) {
+          listEl.scrollTop = elTop;
+        }
+      }
+    }
+  }, [focusedClientIdx]);
 
   // Load order data if editing
   useEffect(() => {
@@ -271,7 +292,10 @@ export const OrderForm: React.FC = () => {
               className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-ragucci-gold font-medium"
             />
             {showClientList && clientAutocomplete.length > 0 && (
-              <div className="absolute top-full left-0 right-0 bg-white border border-ragucci-gold-light z-30 max-h-52 overflow-y-auto rounded-b shadow-xl">
+              <div 
+                ref={dropdownListRef}
+                className="absolute top-full left-0 right-0 bg-white border border-ragucci-gold-light z-30 max-h-60 overflow-y-auto rounded-b shadow-xl"
+              >
                 {clientAutocomplete.map((cName, idx) => (
                   <div
                     key={cName}
