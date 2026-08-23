@@ -7,16 +7,40 @@ import { PaymentModal } from './PaymentModal';
 import { ClientHistoryModal } from '../clients/ClientHistoryModal';
 import { Modal } from '../common/Modal';
 import { MoneyInput } from '../common/MoneyInput';
-import { Search, Eye, Edit, Plus, Trash2, MessageCircle, FileSpreadsheet } from 'lucide-react';
+import { Search, Eye, Edit, Plus, Trash2, MessageCircle, FileSpreadsheet, Clock, AlertTriangle } from 'lucide-react';
 import { exportOrdersToCSV } from '../../utils/exportCsv';
 
 export const OrderTable: React.FC = () => {
   const { orders, saveOrderData, removeOrderData, setEditingOrderId, setActiveTab } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterMonth, setFilterMonth] = useState('all');
+  const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterUpcomingOnly, setFilterUpcomingOnly] = useState(false);
   const [filterPago, setFilterPago] = useState('all');
+
+  // Helper to calculate days until delivery
+  const getDeliveryInfo = (order: Order) => {
+    const targetDateStr = order.deliveryDate || order.date;
+    if (!targetDateStr) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const targetDate = new Date(targetDateStr + 'T00:00:00');
+    const diffTime = targetDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return { diffDays, targetDateStr };
+  };
+
+  const upcomingOrders = orders.filter((o) => {
+    const info = getDeliveryInfo(o);
+    if (!info) return false;
+    const isNotDelivered = o.status !== '🟢 Entregado';
+    return isNotDelivered && info.diffDays >= -2 && info.diffDays <= 7;
+  });
 
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
   const [selectedPaymentOrder, setSelectedPaymentOrder] = useState<Order | null>(null);
@@ -33,8 +57,8 @@ export const OrderTable: React.FC = () => {
 
   const filteredOrders = sortedOrders.filter((order) => {
     const d = new Date(order.date + 'T12:00:00');
-    const matchYear = filterYear === 'all' || d.getFullYear().toString() === filterYear;
-    const matchMonth = filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth;
+    const matchYear = filterUpcomingOnly ? true : (filterYear === 'all' || d.getFullYear().toString() === filterYear);
+    const matchMonth = filterUpcomingOnly ? true : (filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth);
 
     const saldoVal = order.saldo || 0;
     let matchPago = true;
@@ -49,10 +73,14 @@ export const OrderTable: React.FC = () => {
     }
 
     const matchSearch =
+      !searchTerm.trim() ||
       order.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
       productListText.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchYear && matchMonth && matchPago && matchSearch;
+    const info = getDeliveryInfo(order);
+    const matchUpcoming = !filterUpcomingOnly || (info !== null && order.status !== '🟢 Entregado' && info.diffDays >= -2 && info.diffDays <= 7);
+
+    return matchYear && matchMonth && matchPago && matchSearch && matchUpcoming;
   });
 
   const handleStatusChange = async (order: Order, newStatus: string) => {
@@ -115,6 +143,26 @@ export const OrderTable: React.FC = () => {
           <span>📊 Exportar a Excel (.csv)</span>
         </button>
       </div>
+
+      {/* Alert Banner: Próximas Entregas de la Semana */}
+      {upcomingOrders.length > 0 && (
+        <div 
+          onClick={() => setFilterUpcomingOnly(!filterUpcomingOnly)}
+          className={`mb-4 p-3.5 rounded-lg border flex flex-wrap items-center justify-between cursor-pointer transition-all ${
+            filterUpcomingOnly 
+              ? 'bg-amber-100 border-amber-400 text-amber-900 shadow-md ring-2 ring-amber-400'
+              : 'bg-amber-50/90 border-amber-300 text-amber-900 hover:bg-amber-100 shadow-sm'
+          }`}
+        >
+          <div className="flex items-center gap-2 text-xs md:text-sm font-extrabold">
+            <Clock className="w-5 h-5 text-amber-700 animate-pulse shrink-0" />
+            <span>⏰ Próximas Entregas de la Semana: {upcomingOrders.length} orden(es) pendiente(s) de entrega</span>
+          </div>
+          <span className="text-xs font-extrabold bg-amber-800 text-white px-3 py-1 rounded shadow-sm hover:bg-amber-900 transition-colors mt-2 sm:mt-0">
+            {filterUpcomingOnly ? '✕ Ver Todas las Órdenes' : '🔍 Filtrar Solo Entregas de la Semana'}
+          </span>
+        </div>
+      )}
 
       {/* Filter Section */}
       <div className="bg-ragucci-bg p-4 rounded-lg border border-ragucci-gold-light mb-6">
@@ -216,6 +264,24 @@ export const OrderTable: React.FC = () => {
                   <td className="p-3 font-medium whitespace-nowrap">
                     {formatDate(order.date)}
                     <div className="text-[10px] text-gray-500">{order.origin || 'A Medida (Local)'}</div>
+                    {(() => {
+                      const info = getDeliveryInfo(order);
+                      if (!info || order.status === '🟢 Entregado') return null;
+                      if (info.diffDays <= 0) {
+                        return (
+                          <span className="block mt-1 text-[10px] font-black text-red-700 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 text-center animate-pulse">
+                            ⚠️ Entrega HOY / Vencida
+                          </span>
+                        );
+                      } else if (info.diffDays <= 7) {
+                        return (
+                          <span className="block mt-1 text-[10px] font-extrabold text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 text-center">
+                            ⏰ Entrega en {info.diffDays}d
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </td>
 
                   <td className="p-3 font-bold">

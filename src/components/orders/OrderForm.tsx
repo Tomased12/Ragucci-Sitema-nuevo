@@ -11,6 +11,7 @@ export const OrderForm: React.FC = () => {
   const { orders, config, editingOrderId, setEditingOrderId, saveOrderData, setActiveTab } = useApp();
 
   const [date, setDate] = useState(getTodayString());
+  const [deliveryDate, setDeliveryDate] = useState('');
   const [client, setClient] = useState('');
   const [phone, setPhone] = useState('');
   const [dni, setDni] = useState('');
@@ -47,6 +48,7 @@ export const OrderForm: React.FC = () => {
       const order = orders.find(o => o.firestoreId === editingOrderId);
       if (order) {
         setDate(order.date || getTodayString());
+        setDeliveryDate(order.deliveryDate || '');
         setClient(order.client || '');
         setPhone(order.phone || '');
         setDni(order.dni || '');
@@ -83,6 +85,7 @@ export const OrderForm: React.FC = () => {
 
   const resetForm = () => {
     setDate(getTodayString());
+    setDeliveryDate('');
     setClient('');
     setPhone('');
     setDni('');
@@ -214,6 +217,7 @@ export const OrderForm: React.FC = () => {
     const orderPayload: Order = {
       id: existing?.id || Date.now(),
       date,
+      deliveryDate: deliveryDate || undefined,
       client,
       phone,
       dni,
@@ -253,8 +257,8 @@ export const OrderForm: React.FC = () => {
           Detalle General de la Orden y Cliente
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className="relative">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="relative md:col-span-1">
             <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
               Cliente (Nombre y Apellido)
             </label>
@@ -294,6 +298,18 @@ export const OrderForm: React.FC = () => {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-ragucci-gold font-medium"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+              Fecha Prometida de Entrega <span className="text-[10px] text-ragucci-gold font-normal">(Taller)</span>
+            </label>
+            <input
+              type="date"
+              value={deliveryDate}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+              className="w-full p-2.5 border border-amber-300 bg-amber-50/40 rounded text-sm focus:outline-none focus:border-ragucci-gold font-medium"
             />
           </div>
         </div>

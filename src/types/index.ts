@@ -55,6 +55,7 @@ export interface Order {
   firestoreId?: string;
   id?: number;
   date: string;
+  deliveryDate?: string;
   client: string;
   phone?: string;
   dni?: string;
