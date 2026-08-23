@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatMoney } from '../../utils/formatters';
 import { MoneyInput } from '../common/MoneyInput';
@@ -40,6 +40,18 @@ export const BalanceDashboard: React.FC = () => {
   const [servicios, setServicios] = useState(config.gasto_servicios || 0);
   const [redes, setRedes] = useState(config.gasto_redes || 0);
   const [publicidad, setPublicidad] = useState(config.gasto_publicidad || 0);
+
+  // Sync local inputs when cloud config finishes loading
+  useEffect(() => {
+    if (config) {
+      if (config.gasto_alquiler_usd !== undefined) setAlquilerUsd(config.gasto_alquiler_usd);
+      if (config.gasto_expensas !== undefined) setExpensas(config.gasto_expensas);
+      if (config.gasto_internet !== undefined) setInternet(config.gasto_internet);
+      if (config.gasto_servicios !== undefined) setServicios(config.gasto_servicios);
+      if (config.gasto_redes !== undefined) setRedes(config.gasto_redes);
+      if (config.gasto_publicidad !== undefined) setPublicidad(config.gasto_publicidad);
+    }
+  }, [config]);
 
   const filteredOrders = orders.filter((o) => {
     const d = new Date(o.date + 'T12:00:00');
@@ -310,7 +322,7 @@ export const BalanceDashboard: React.FC = () => {
 
         <button
           onClick={handleSaveGastosFijos}
-          className="bg-ragucci-gold hover:bg-ragucci-primary text-ragucci-primary hover:text-ragucci-gold text-xs font-bold py-2 px-4 rounded transition-colors flex items-center gap-1.5"
+          className="bg-ragucci-gold hover:bg-ragucci-primary text-ragucci-primary hover:text-ragucci-gold text-xs font-bold py-2 px-4 rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
         >
           <Save className="w-4 h-4" />
           <span>💾 Guardar Gastos Fijos</span>
