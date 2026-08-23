@@ -1,0 +1,19 @@
+{
+  "short_name": "Ragucci",
+  "name": "Sastrería Ragucci - Gestión & Rentabilidad",
+  "description": "Sistema de gestión integral, CRM de clientes y calculadora de rentabilidad para Sastrería Ragucci",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512 192x192 64x64 32x32",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#190303",
+  "theme_color": "#190303",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "es-AR"
+}
