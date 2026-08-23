@@ -5,7 +5,7 @@ import { getTodayString, formatMoney, parseMoney } from '../../utils/formatters'
 import { ProductBlock } from './ProductBlock';
 import { RTWBlock } from './RTWBlock';
 import { MoneyInput } from '../common/MoneyInput';
-import { Plus, Check, X, Ruler } from 'lucide-react';
+import { Plus, Check, X, Ruler, DollarSign } from 'lucide-react';
 
 export const OrderForm: React.FC = () => {
   const { orders, config, editingOrderId, setEditingOrderId, saveOrderData, setActiveTab } = useApp();
@@ -46,6 +46,68 @@ export const OrderForm: React.FC = () => {
   // Measurements State
   const [measurements, setMeasurements] = useState<ClientMeasurements>({});
   const [showMeasurements, setShowMeasurements] = useState(false);
+
+  // Fast Cobranza Mode State
+  const [formMode, setFormMode] = useState<'nueva_orden' | 'cobranza'>('nueva_orden');
+  const [cobranzaOrderId, setCobranzaOrderId] = useState('');
+  const [cobranzaAmount, setCobranzaAmount] = useState(0);
+  const [cobranzaMethod, setCobranzaMethod] = useState('Transferencia');
+  const [cobranzaDate, setCobranzaDate] = useState(getTodayString());
+
+  const pendingOrders = orders.filter(o => (o.saldo || 0) > 0);
+
+  const handleSelectCobranzaOrder = (orderId: string) => {
+    setCobranzaOrderId(orderId);
+    const targetOrder = orders.find(o => o.firestoreId === orderId || o.id?.toString() === orderId);
+    if (targetOrder) {
+      setCobranzaAmount(targetOrder.saldo || 0);
+    }
+  };
+
+  const handleSaveCobranza = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cobranzaOrderId) {
+      alert("Por favor selecciona un cliente u orden con saldo pendiente.");
+      return;
+    }
+    if (cobranzaAmount <= 0) {
+      alert("Por favor ingresa un monto válido a cobrar.");
+      return;
+    }
+
+    const targetOrder = orders.find(o => o.firestoreId === cobranzaOrderId || o.id?.toString() === cobranzaOrderId);
+    if (!targetOrder) {
+      alert("No se encontró la orden del cliente.");
+      return;
+    }
+
+    const newSena = (targetOrder.sena || 0) + cobranzaAmount;
+    const newSaldo = Math.max(0, (targetOrder.sale || 0) - newSena);
+    const newPaymentHistory = [
+      ...(targetOrder.paymentHistory || []),
+      { date: cobranzaDate, amount: cobranzaAmount, method: cobranzaMethod }
+    ];
+
+    const newStatus = newSaldo <= 0 ? '🟢 Entregado' : targetOrder.status;
+
+    const updatedOrderPayload: Order = {
+      ...targetOrder,
+      sena: newSena,
+      saldo: newSaldo,
+      paymentHistory: newPaymentHistory,
+      status: newStatus
+    };
+
+    try {
+      await saveOrderData(updatedOrderPayload, targetOrder.firestoreId);
+      alert(`✅ Cobranza de $${formatMoney(cobranzaAmount)} a ${targetOrder.client} registrada con éxito.`);
+      setCobranzaOrderId('');
+      setCobranzaAmount(0);
+      setFormMode('nueva_orden');
+    } catch (e) {
+      alert("Error al registrar la cobranza.");
+    }
+  };
 
   // Auto scroll predictive client list when navigating with arrow keys
   useEffect(() => {
@@ -293,8 +355,153 @@ export const OrderForm: React.FC = () => {
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md border border-ragucci-border">
-      {/* General Detail & Client Section */}
-      <div className="border border-ragucci-gold-light p-4 md:p-5 rounded-md mb-6 bg-white">
+      {/* Mode Switcher: Nueva Orden vs Registrar Cobranza */}
+      <div className="flex rounded-md shadow-sm mb-6 bg-ragucci-bg p-1.5 border border-ragucci-gold-light">
+        <button
+          type="button"
+          onClick={() => setFormMode('nueva_orden')}
+          className={`flex-1 py-2.5 px-4 rounded text-xs font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            formMode === 'nueva_orden'
+              ? 'bg-ragucci-primary text-ragucci-gold shadow-md'
+              : 'text-ragucci-primary hover:bg-ragucci-gold-light/20 font-bold'
+          }`}
+        >
+          <Plus className="w-4 h-4" />
+          <span>📝 Nueva Orden / Venta</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFormMode('cobranza')}
+          className={`flex-1 py-2.5 px-4 rounded text-xs font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            formMode === 'cobranza'
+              ? 'bg-emerald-800 text-white shadow-md'
+              : 'text-emerald-800 hover:bg-emerald-50 font-bold'
+          }`}
+        >
+          <DollarSign className="w-4 h-4" />
+          <span>💰 Cargar Cobranza Rápida de Cliente ({pendingOrders.length} pendientes)</span>
+        </button>
+      </div>
+
+      {formMode === 'cobranza' ? (
+        <form onSubmit={handleSaveCobranza} className="border-2 border-emerald-600/30 p-5 md:p-6 rounded-lg bg-white shadow-sm space-y-5">
+          <div className="border-b border-emerald-600/20 pb-2">
+            <h3 className="text-base font-extrabold uppercase text-emerald-900 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-emerald-700" />
+              <span>Cargar Cobranza Rápida a Cliente</span>
+            </h3>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              Registra el pago o seña de un cliente existente. El dinero ingresado se descontará automáticamente de su saldo pendiente.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-extrabold text-gray-700 mb-1">
+                1. Seleccionar Cliente / Orden Pendiente *
+              </label>
+              {pendingOrders.length === 0 ? (
+                <div className="p-3 bg-gray-50 text-gray-500 rounded text-xs font-bold border border-gray-200">
+                  🎉 No hay clientes con saldo pendiente de pago.
+                </div>
+              ) : (
+                <select
+                  value={cobranzaOrderId}
+                  onChange={(e) => handleSelectCobranzaOrder(e.target.value)}
+                  className="w-full p-2.5 border-2 border-emerald-600/40 rounded text-xs font-extrabold focus:outline-none focus:border-emerald-700 bg-emerald-50/30 cursor-pointer"
+                >
+                  <option value="">-- Seleccionar cliente con saldo --</option>
+                  {pendingOrders.map((pOrder) => (
+                    <option key={pOrder.firestoreId || pOrder.id} value={pOrder.firestoreId || pOrder.id}>
+                      {pOrder.client} — Saldo Pendiente: ${formatMoney(pOrder.saldo)} (Venta: ${formatMoney(pOrder.sale)})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-gray-700 mb-1">
+                2. Fecha del Cobro *
+              </label>
+              <input
+                type="date"
+                value={cobranzaDate}
+                onChange={(e) => setCobranzaDate(e.target.value)}
+                className="w-full p-2.5 border border-gray-300 rounded text-xs font-bold focus:outline-none focus:border-emerald-700"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-gray-700 mb-1">
+                3. Monto Ingresado / Pagado por el Cliente ($ ARS) *
+              </label>
+              <MoneyInput
+                value={cobranzaAmount}
+                onValueChange={(val) => setCobranzaAmount(val)}
+                placeholder="Ej: 50.000"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-gray-700 mb-1">
+                4. Medio de Pago *
+              </label>
+              <select
+                value={cobranzaMethod}
+                onChange={(e) => setCobranzaMethod(e.target.value)}
+                className="w-full p-2.5 border border-gray-300 rounded text-xs font-bold focus:outline-none focus:border-emerald-700 cursor-pointer"
+              >
+                <option value="Transferencia">Transferencia Bancaria</option>
+                <option value="Efectivo">Efectivo (Caja)</option>
+                <option value="MercadoPago">MercadoPago</option>
+                <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                <option value="Dólares">Dólares (USD)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3">
+            {cobranzaOrderId && (() => {
+              const selectedOrd = pendingOrders.find(o => o.firestoreId === cobranzaOrderId || o.id?.toString() === cobranzaOrderId);
+              if (!selectedOrd) return null;
+              const remainingAfterCobro = Math.max(0, (selectedOrd.saldo || 0) - cobranzaAmount);
+              return (
+                <div className="text-xs font-bold text-gray-700">
+                  <span>Saldo actual: </span>
+                  <span className="text-red-700 font-extrabold">${formatMoney(selectedOrd.saldo)}</span>
+                  <span className="mx-2">➔</span>
+                  <span>Nuevo saldo tras cobrar: </span>
+                  <span className={remainingAfterCobro === 0 ? "text-emerald-700 font-black" : "text-amber-800 font-extrabold"}>
+                    {remainingAfterCobro === 0 ? "🟢 PAGADO COMPLETO ($0)" : `$${formatMoney(remainingAfterCobro)}`}
+                  </span>
+                </div>
+              );
+            })()}
+
+            <div className="flex gap-2 ml-auto">
+              <button
+                type="button"
+                onClick={() => setFormMode('nueva_orden')}
+                className="px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-extrabold rounded transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold uppercase rounded shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>💾 Registrar y Descontar Cobranza</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      ) : (
+        <>
+          {/* General Detail & Client Section */}
+          <div className="border border-ragucci-gold-light p-4 md:p-5 rounded-md mb-6 bg-white">
         <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
           Detalle General de la Orden y Cliente
         </h3>
@@ -846,6 +1053,8 @@ export const OrderForm: React.FC = () => {
           </button>
         )}
       </div>
-    </div>
+    </>
+  )}
+</div>
   );
 };
