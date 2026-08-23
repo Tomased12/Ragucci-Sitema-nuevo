@@ -21,10 +21,10 @@ export const Header: React.FC = () => {
         )}
       </div>
 
-      <h1 className="font-bodoni text-2xl md:text-4xl tracking-widest font-semibold uppercase text-ragucci-gold mb-1">
+      <h1 className="font-bodoni text-2xl md:text-4xl tracking-widest font-black uppercase text-ragucci-gold mb-1 drop-shadow-sm">
         SASTRERÍA RAGUCCI
       </h1>
-      <p className="text-ragucci-gold-light text-xs md:text-sm tracking-wider font-light">
+      <p className="text-ragucci-gold-light text-xs md:text-sm tracking-wider font-medium">
         Sistema de Gestión Integral & Calculadora de Rentabilidad
       </p>
     </header>
