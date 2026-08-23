@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Order, ProductItem, RTWItem, AviosQuantities } from '../../types';
+import { Order, ProductItem, RTWItem, AviosQuantities, ClientMeasurements } from '../../types';
 import { getTodayString, formatMoney, parseMoney } from '../../utils/formatters';
 import { ProductBlock } from './ProductBlock';
 import { RTWBlock } from './RTWBlock';
 import { MoneyInput } from '../common/MoneyInput';
-import { Plus, Check, X } from 'lucide-react';
+import { Plus, Check, X, Ruler } from 'lucide-react';
 
 export const OrderForm: React.FC = () => {
   const { orders, config, editingOrderId, setEditingOrderId, saveOrderData, setActiveTab } = useApp();
@@ -42,6 +42,10 @@ export const OrderForm: React.FC = () => {
   const [showClientList, setShowClientList] = useState(false);
   const [focusedClientIdx, setFocusedClientIdx] = useState<number>(-1);
   const dropdownListRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Measurements State
+  const [measurements, setMeasurements] = useState<ClientMeasurements>({});
+  const [showMeasurements, setShowMeasurements] = useState(false);
 
   // Auto scroll predictive client list when navigating with arrow keys
   useEffect(() => {
@@ -84,6 +88,13 @@ export const OrderForm: React.FC = () => {
         setRtwItems(order.rtwItems || []);
         setEnvios(order.costs?.envios || 0);
 
+        if (order.measurements) {
+          setMeasurements(order.measurements);
+          setShowMeasurements(true);
+        } else {
+          setMeasurements({});
+        }
+
         const comVal = order.costs?.comision || 0;
         setComisionValue(comVal);
         setComisionActive(comVal > 0 && Math.abs(comVal - (order.sale * 0.10)) <= 1);
@@ -117,11 +128,13 @@ export const OrderForm: React.FC = () => {
     setSena(0);
     setOrigin('Local (A Medida)');
     setStatus('🔴 Pendiente');
-    setProducts([{ description: '', costs: { telas: 0, forreria: 0, sastre: 0, camisero: 0, arreglos: 0 } }]);
+    setProducts([]);
     setRtwItems([]);
     setEnvios(0);
     setComisionActive(true);
     setComisionValue(0);
+    setMeasurements({});
+    setShowMeasurements(false);
     setAviosQtys({ percha: 0, funda: 0, bolsa: 0, bolsaplastica: 0 });
     setEditingOrderId(null);
   };
@@ -129,34 +142,32 @@ export const OrderForm: React.FC = () => {
   // Client Autocomplete Logic
   const handleClientInput = (val: string) => {
     setClient(val);
-    setFocusedClientIdx(-1);
     if (!val.trim()) {
+      setClientAutocomplete([]);
       setShowClientList(false);
       return;
     }
-
-    const uniqueClientsMap = new Map<string, Order>();
-    orders.forEach(o => {
-      if (o.client && o.client.toLowerCase().includes(val.toLowerCase())) {
-        uniqueClientsMap.set(o.client, o);
-      }
-    });
-
-    const matches = Array.from(uniqueClientsMap.keys());
+    const uniqueClients = Array.from(new Set(orders.map(o => o.client).filter(Boolean)));
+    const matches = uniqueClients.filter(cName => cName.toLowerCase().includes(val.toLowerCase()));
     setClientAutocomplete(matches);
     setShowClientList(matches.length > 0);
+    setFocusedClientIdx(-1);
   };
 
   const selectClient = (clientName: string) => {
     setClient(clientName);
     setShowClientList(false);
     setFocusedClientIdx(-1);
-    const lastOrder = orders.find(o => o.client === clientName && (o.phone || o.dni || o.email || o.birthday));
+    const lastOrder = orders.find(o => o.client === clientName && (o.phone || o.dni || o.email || o.birthday || o.measurements));
     if (lastOrder) {
       if (lastOrder.phone) setPhone(lastOrder.phone);
       if (lastOrder.dni) setDni(lastOrder.dni);
       if (lastOrder.email) setEmail(lastOrder.email);
       if (lastOrder.birthday) setBirthday(lastOrder.birthday);
+      if (lastOrder.measurements) {
+        setMeasurements(lastOrder.measurements);
+        setShowMeasurements(true);
+      }
     }
   };
 
@@ -256,6 +267,7 @@ export const OrderForm: React.FC = () => {
       costs: aggregatedCosts,
       aviosQtys,
       paidTalleresMap,
+      measurements: Object.keys(measurements).length > 0 ? measurements : undefined,
       totalCost: totalCostos,
       profit: ganancia
     };
@@ -379,6 +391,134 @@ export const OrderForm: React.FC = () => {
               className="w-full p-2 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold"
             />
           </div>
+        </div>
+
+        {/* Expandable Section: Ficha de Medidas Sartoriales */}
+        <div className="mb-4 pt-2 border-t border-dashed border-ragucci-gold-light">
+          <button
+            type="button"
+            onClick={() => setShowMeasurements(!showMeasurements)}
+            className="flex items-center justify-between w-full text-xs font-extrabold uppercase text-ragucci-primary bg-ragucci-bg hover:bg-ragucci-gold-light/20 p-2.5 rounded border border-ragucci-gold/40 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Ruler className="w-4 h-4 text-ragucci-gold shrink-0" />
+              <span>🧵 Ficha de Medidas Sartoriales del Cliente (Saco, Pantalón, Camisa y Postura)</span>
+            </div>
+            <span className="text-ragucci-gold font-bold text-xs bg-ragucci-primary px-2.5 py-1 rounded text-ragucci-gold-light">
+              {showMeasurements ? '▲ Ocultar Medidas' : '▼ Cargar / Ver Medidas'}
+            </span>
+          </button>
+
+          {showMeasurements && (
+            <div className="mt-3 p-4 bg-[#fffdfa] border border-ragucci-gold-light rounded-md text-xs space-y-4 shadow-inner">
+              {/* Saco & Chaleco */}
+              <div>
+                <h4 className="font-extrabold text-ragucci-primary uppercase border-b border-ragucci-gold/30 pb-1 mb-2">
+                  🧥 Saco & Chaleco
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Hombro (cm)</label>
+                    <input type="text" placeholder="Ej: 46" value={measurements.hombro || ''} onChange={e => setMeasurements({...measurements, hombro: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Tórax / Pecho</label>
+                    <input type="text" placeholder="Ej: 104" value={measurements.torax || ''} onChange={e => setMeasurements({...measurements, torax: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cintura Saco</label>
+                    <input type="text" placeholder="Ej: 92" value={measurements.cinturaSaco || ''} onChange={e => setMeasurements({...measurements, cinturaSaco: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cadera Saco</label>
+                    <input type="text" placeholder="Ej: 102" value={measurements.caderaSaco || ''} onChange={e => setMeasurements({...measurements, caderaSaco: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Largo Saco</label>
+                    <input type="text" placeholder="Ej: 75" value={measurements.largoSaco || ''} onChange={e => setMeasurements({...measurements, largoSaco: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Largo Manga</label>
+                    <input type="text" placeholder="Ej: 64" value={measurements.largoManga || ''} onChange={e => setMeasurements({...measurements, largoManga: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Espalda</label>
+                    <input type="text" placeholder="Ej: 44" value={measurements.espalda || ''} onChange={e => setMeasurements({...measurements, espalda: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Pantalón */}
+              <div>
+                <h4 className="font-extrabold text-ragucci-primary uppercase border-b border-ragucci-gold/30 pb-1 mb-2">
+                  👖 Pantalón
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cintura Pantalón</label>
+                    <input type="text" placeholder="Ej: 88" value={measurements.cinturaPant || ''} onChange={e => setMeasurements({...measurements, cinturaPant: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cadera Pantalón</label>
+                    <input type="text" placeholder="Ej: 100" value={measurements.caderaPant || ''} onChange={e => setMeasurements({...measurements, caderaPant: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Largo Pantalón</label>
+                    <input type="text" placeholder="Ej: 102" value={measurements.largoPant || ''} onChange={e => setMeasurements({...measurements, largoPant: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Tiro</label>
+                    <input type="text" placeholder="Ej: 26" value={measurements.tiro || ''} onChange={e => setMeasurements({...measurements, tiro: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Muslo</label>
+                    <input type="text" placeholder="Ej: 62" value={measurements.muslo || ''} onChange={e => setMeasurements({...measurements, muslo: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Botamanga / Ruedo</label>
+                    <input type="text" placeholder="Ej: 19" value={measurements.botamanga || ''} onChange={e => setMeasurements({...measurements, botamanga: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Camisa */}
+              <div>
+                <h4 className="font-extrabold text-ragucci-primary uppercase border-b border-ragucci-gold/30 pb-1 mb-2">
+                  👔 Camisa
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cuello (cm)</label>
+                    <input type="text" placeholder="Ej: 41" value={measurements.cuello || ''} onChange={e => setMeasurements({...measurements, cuello: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cintura Camisa</label>
+                    <input type="text" placeholder="Ej: 90" value={measurements.cinturaCamisa || ''} onChange={e => setMeasurements({...measurements, cinturaCamisa: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Manga Camisa</label>
+                    <input type="text" placeholder="Ej: 65" value={measurements.largoMangaCamisa || ''} onChange={e => setMeasurements({...measurements, largoMangaCamisa: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Puño</label>
+                    <input type="text" placeholder="Ej: 24" value={measurements.puno || ''} onChange={e => setMeasurements({...measurements, puno: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Postura y Observaciones */}
+              <div>
+                <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Observaciones de Postura & Calce</label>
+                <textarea
+                  rows={2}
+                  placeholder="Ej: Hombro izquierdo caído -2cm, postura erguida, caída de cintura ligera..."
+                  value={measurements.posturaNotes || ''}
+                  onChange={e => setMeasurements({...measurements, posturaNotes: e.target.value})}
+                  className="w-full p-2 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-medium"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-dashed border-ragucci-gold-light">

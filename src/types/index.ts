@@ -51,6 +51,30 @@ export interface CostsBreakdown {
   otros: number;
 }
 
+export interface ClientMeasurements {
+  hombro?: string;
+  torax?: string;
+  cinturaSaco?: string;
+  caderaSaco?: string;
+  largoSaco?: string;
+  largoManga?: string;
+  espalda?: string;
+
+  cinturaPant?: string;
+  caderaPant?: string;
+  largoPant?: string;
+  tiro?: string;
+  muslo?: string;
+  botamanga?: string;
+
+  cuello?: string;
+  cinturaCamisa?: string;
+  largoMangaCamisa?: string;
+  puno?: string;
+
+  posturaNotes?: string;
+}
+
 export interface Order {
   firestoreId?: string;
   id?: number;
@@ -74,6 +98,7 @@ export interface Order {
   aviosQtys?: AviosQuantities;
   costs: CostsBreakdown;
   paidTalleresMap?: Record<string, boolean>;
+  measurements?: ClientMeasurements;
   totalCost: number;
   profit: number;
 }

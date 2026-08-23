@@ -58,6 +58,67 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
         )}
       </div>
 
+      {order.measurements && (
+        <div className="mb-4">
+          <h4 className="font-extrabold text-sm text-ragucci-primary uppercase border-b border-ragucci-border pb-1 mb-2">
+            🧵 Ficha de Medidas Sartoriales
+          </h4>
+          <div className="bg-[#fffdfa] p-3 border border-ragucci-gold-light rounded text-xs space-y-2">
+            {(order.measurements.hombro || order.measurements.torax || order.measurements.cinturaSaco || order.measurements.largoManga) && (
+              <div>
+                <strong className="text-ragucci-primary font-extrabold">• Saco / Chaleco: </strong>
+                <span className="text-gray-700">
+                  {[
+                    order.measurements.hombro && `Hombro: ${order.measurements.hombro}cm`,
+                    order.measurements.torax && `Tórax: ${order.measurements.torax}cm`,
+                    order.measurements.cinturaSaco && `Cintura: ${order.measurements.cinturaSaco}cm`,
+                    order.measurements.largoSaco && `Largo: ${order.measurements.largoSaco}cm`,
+                    order.measurements.largoManga && `Manga: ${order.measurements.largoManga}cm`,
+                    order.measurements.espalda && `Espalda: ${order.measurements.espalda}cm`
+                  ].filter(Boolean).join(' | ')}
+                </span>
+              </div>
+            )}
+
+            {(order.measurements.cinturaPant || order.measurements.largoPant || order.measurements.tiro) && (
+              <div>
+                <strong className="text-ragucci-primary font-extrabold">• Pantalón: </strong>
+                <span className="text-gray-700">
+                  {[
+                    order.measurements.cinturaPant && `Cintura: ${order.measurements.cinturaPant}cm`,
+                    order.measurements.caderaPant && `Cadera: ${order.measurements.caderaPant}cm`,
+                    order.measurements.largoPant && `Largo: ${order.measurements.largoPant}cm`,
+                    order.measurements.tiro && `Tiro: ${order.measurements.tiro}cm`,
+                    order.measurements.muslo && `Muslo: ${order.measurements.muslo}cm`,
+                    order.measurements.botamanga && `Ruedo: ${order.measurements.botamanga}cm`
+                  ].filter(Boolean).join(' | ')}
+                </span>
+              </div>
+            )}
+
+            {(order.measurements.cuello || order.measurements.cinturaCamisa || order.measurements.largoMangaCamisa) && (
+              <div>
+                <strong className="text-ragucci-primary font-extrabold">• Camisa: </strong>
+                <span className="text-gray-700">
+                  {[
+                    order.measurements.cuello && `Cuello: ${order.measurements.cuello}cm`,
+                    order.measurements.cinturaCamisa && `Cintura: ${order.measurements.cinturaCamisa}cm`,
+                    order.measurements.largoMangaCamisa && `Manga: ${order.measurements.largoMangaCamisa}cm`,
+                    order.measurements.puno && `Puño: ${order.measurements.puno}cm`
+                  ].filter(Boolean).join(' | ')}
+                </span>
+              </div>
+            )}
+
+            {order.measurements.posturaNotes && (
+              <div className="bg-amber-50 p-2 rounded border border-amber-200 text-amber-900 font-medium mt-1">
+                <strong>Postura & Calce:</strong> {order.measurements.posturaNotes}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <h4 className="font-extrabold text-sm text-ragucci-primary-light border-b border-ragucci-border pb-1 mb-2">
         Detalle Técnico de Productos
       </h4>
