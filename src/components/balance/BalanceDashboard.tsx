@@ -65,9 +65,24 @@ export const BalanceDashboard: React.FC = () => {
     return matchYear && matchMonth;
   });
 
+  // Buscar los meses que realmente tienen ventas/órdenes cargadas en el año seleccionado
+  const yearOrders = orders.filter((o) => {
+    const d = new Date(o.date + 'T12:00:00');
+    return d.getFullYear().toString() === filterYear;
+  });
+
+  const activeMonthsInYearCount = new Set(
+    yearOrders.map((o) => new Date(o.date + 'T12:00:00').getMonth())
+  ).size;
+
+  const monthsToMultiply = filterMonth === 'all'
+    ? Math.max(1, activeMonthsInYearCount)
+    : 1;
+
   const alquilerPesos = alquilerUsd * dolarBlueVenta;
   const gastosFijosPesos = expensas + internet + servicios + redes + publicidad;
-  const totalGastosFijosPeriodo = (alquilerPesos + gastosFijosPesos) * (filterMonth === 'all' ? 12 : 1);
+  const gastosFijosMensualesBase = alquilerPesos + gastosFijosPesos;
+  const totalGastosFijosPeriodo = gastosFijosMensualesBase * monthsToMultiply;
 
   const totals = {
     venta: 0,
@@ -121,7 +136,9 @@ export const BalanceDashboard: React.FC = () => {
 
     const venta = monthOrders.reduce((acc, o) => acc + (o.sale || 0), 0);
     const costoDirecto = monthOrders.reduce((acc, o) => acc + (o.totalCost || 0), 0);
-    const gananciaMes = Math.max(0, venta - costoDirecto);
+    // Solo restar gastos fijos si el mes tiene órdenes/ventas cargadas
+    const gastosFijosEsteMes = monthOrders.length > 0 ? gastosFijosMensualesBase : 0;
+    const gananciaMes = Math.max(0, venta - costoDirecto - gastosFijosEsteMes);
 
     return {
       monthNum,
@@ -136,7 +153,7 @@ export const BalanceDashboard: React.FC = () => {
   const maxVentaAnual = Math.max(...monthsData.map(m => m.venta), 1);
   const totalVentaAnual = monthsData.reduce((acc, m) => acc + m.venta, 0);
   const totalGananciaAnual = monthsData.reduce((acc, m) => acc + m.gananciaMes, 0);
-  const promedioVentaMensual = totalVentaAnual / 12;
+  const promedioVentaMensual = monthsToMultiply > 0 ? totalVentaAnual / monthsToMultiply : totalVentaAnual;
 
   // Find peak sales month
   const recordMonth = [...monthsData].sort((a, b) => b.venta - a.venta)[0];
@@ -541,7 +558,7 @@ export const BalanceDashboard: React.FC = () => {
               </tr>
             ))}
             <tr className="bg-amber-50 font-bold text-amber-900 border-b border-amber-200">
-              <td className="p-2.5">🏠 GASTOS FIJOS (Alquiler + Expensas + Serv. + Redes)</td>
+              <td className="p-2.5">🏠 GASTOS FIJOS ({monthsToMultiply} {monthsToMultiply === 1 ? 'mes' : 'meses activos con ventas cargadas'})</td>
               <td className="p-2.5 text-right">${formatMoney(Math.round(totalGastosFijosPeriodo))}</td>
             </tr>
             <tr className="bg-ragucci-primary text-ragucci-gold font-extrabold text-sm">
