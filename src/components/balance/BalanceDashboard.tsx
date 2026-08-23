@@ -95,7 +95,7 @@ export const BalanceDashboard: React.FC = () => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-ragucci-border">
-      <h2 className="text-xl font-bold font-bodoni uppercase text-ragucci-primary mb-4 border-b-2 border-ragucci-gold pb-2">
+      <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
         Balance de Rentabilidad Financiera
       </h2>
 
@@ -222,7 +222,7 @@ export const BalanceDashboard: React.FC = () => {
       </div>
 
       {/* Cost Breakdown Table */}
-      <h3 className="text-base font-bold font-bodoni uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block">
+      <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
         Desglose de Costos del Período
       </h3>
 

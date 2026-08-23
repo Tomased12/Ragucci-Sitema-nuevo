@@ -74,7 +74,7 @@ export const ConfigForm: React.FC = () => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-ragucci-border">
-      <h2 className="text-xl font-bold font-bodoni uppercase text-ragucci-primary mb-2 border-b-2 border-ragucci-gold pb-2">
+      <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
         Configuración de Costos Base
       </h2>
       <p className="text-xs text-ragucci-primary-light mb-6">
