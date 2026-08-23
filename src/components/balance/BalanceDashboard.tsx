@@ -153,7 +153,8 @@ export const BalanceDashboard: React.FC = () => {
   const maxVentaAnual = Math.max(...monthsData.map(m => m.venta), 1);
   const totalVentaAnual = monthsData.reduce((acc, m) => acc + m.venta, 0);
   const totalGananciaAnual = monthsData.reduce((acc, m) => acc + m.gananciaMes, 0);
-  const promedioVentaMensual = monthsToMultiply > 0 ? totalVentaAnual / monthsToMultiply : totalVentaAnual;
+  const promedioVentaMensual12 = totalVentaAnual / 12;
+  const promedioVentaMensualActivos = activeMonthsInYearCount > 0 ? totalVentaAnual / activeMonthsInYearCount : totalVentaAnual;
 
   // Find peak sales month
   const recordMonth = [...monthsData].sort((a, b) => b.venta - a.venta)[0];
@@ -599,9 +600,11 @@ export const BalanceDashboard: React.FC = () => {
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-emerald-100 tracking-wider block">Promedio Venta Mensual</span>
-              <strong className="text-lg font-extrabold">${formatMoney(Math.round(promedioVentaMensual))}</strong>
-              <span className="block text-xs text-emerald-100 font-medium">Meta anual proyectada</span>
+              <span className="text-[10px] uppercase font-bold text-emerald-100 tracking-wider block">Promedio Mensual (Base 12 Meses)</span>
+              <strong className="text-lg font-extrabold">${formatMoney(Math.round(promedioVentaMensual12))} / mes</strong>
+              <span className="block text-[10px] text-emerald-100/90 font-medium mt-0.5">
+                Total anual ÷ 12 meses del año
+              </span>
             </div>
           </div>
 
