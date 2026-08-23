@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Fustat:wght@300..800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: #190303;
+    --primary-light: #470202;
+    --gold: #c59f5e;
+    --gold-light: #ddccb1;
+    --alert-red: #7c1111;
+    --bg: #f9f9f9;
+    --card-bg: #ffffff;
+    --text: #190303;
+    --border: #ddccb1;
+  }
+
+  body, input, select, button, textarea, label, h1, h2, h3, h4, h5, h6 {
+    font-family: 'Fustat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  }
+
+  .font-bodoni {
+    font-family: 'Bodoni Moda', serif !important;
+  }
+}
+
+/* Custom scrollbar for tables, modals & autocomplete */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #c59f5e;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #190303;
+}
+
+/* Touch scrolling on mobile devices */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

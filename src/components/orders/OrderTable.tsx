@@ -1,0 +1,377 @@
+import React, { useState } from 'react';
+import { useApp } from '../../context/AppContext';
+import { Order } from '../../types';
+import { formatDate, formatMoney, checkBirthdayToday, parseMoney } from '../../utils/formatters';
+import { OrderDetailModal } from './OrderDetailModal';
+import { PaymentModal } from './PaymentModal';
+import { ClientHistoryModal } from '../clients/ClientHistoryModal';
+import { Modal } from '../common/Modal';
+import { MoneyInput } from '../common/MoneyInput';
+import { Search, Eye, Edit, Plus, Trash2, MessageCircle } from 'lucide-react';
+
+export const OrderTable: React.FC = () => {
+  const { orders, saveOrderData, removeOrderData, setEditingOrderId, setActiveTab } = useApp();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterMonth, setFilterMonth] = useState('all');
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
+  const [filterPago, setFilterPago] = useState('all');
+
+  const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
+  const [selectedPaymentOrder, setSelectedPaymentOrder] = useState<Order | null>(null);
+  const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
+
+  // Add Cost Modal state
+  const [addCostOrder, setAddCostOrder] = useState<Order | null>(null);
+  const [addCostType, setAddCostType] = useState('arreglos');
+  const [addCostAmount, setAddCostAmount] = useState(0);
+
+  const sortedOrders = [...orders].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  const filteredOrders = sortedOrders.filter((order) => {
+    const d = new Date(order.date + 'T12:00:00');
+    const matchYear = filterYear === 'all' || d.getFullYear().toString() === filterYear;
+    const matchMonth = filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth;
+
+    const saldoVal = order.saldo || 0;
+    let matchPago = true;
+    if (filterPago === 'pendientes') matchPago = saldoVal > 0;
+    if (filterPago === 'pagadas') matchPago = saldoVal === 0;
+
+    let productListText = order.products
+      ? order.products.map((p) => `${p.description}${p.modista ? ` (${p.modista})` : ''}`).join(' + ')
+      : '';
+    if (order.rtwItems && order.rtwItems.length > 0) {
+      productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc} (x${rtw.qty})`).join(' + ');
+    }
+
+    const matchSearch =
+      order.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      productListText.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchYear && matchMonth && matchPago && matchSearch;
+  });
+
+  const handleStatusChange = async (order: Order, newStatus: string) => {
+    try {
+      await saveOrderData({ ...order, status: newStatus }, order.firestoreId);
+    } catch (e) {
+      alert("Error al actualizar el estado de la orden.");
+    }
+  };
+
+  const handleDelete = async (order: Order) => {
+    if (confirm(`¿Seguro que deseas eliminar la orden de ${order.client} de la nube?`)) {
+      if (order.firestoreId) {
+        await removeOrderData(order.firestoreId);
+      }
+    }
+  };
+
+  const handleSaveExtraCost = async () => {
+    if (!addCostOrder || addCostAmount <= 0) {
+      alert("Ingrese un monto válido mayor a 0.");
+      return;
+    }
+
+    const currentCosts = { ...addCostOrder.costs };
+    currentCosts[addCostType as keyof typeof currentCosts] =
+      (currentCosts[addCostType as keyof typeof currentCosts] || 0) + addCostAmount;
+
+    const newTotalCost = addCostOrder.totalCost + addCostAmount;
+    const newProfit = addCostOrder.profit - addCostAmount;
+
+    const updatedOrder: Order = {
+      ...addCostOrder,
+      costs: currentCosts,
+      totalCost: newTotalCost,
+      profit: newProfit
+    };
+
+    try {
+      await saveOrderData(updatedOrder, addCostOrder.firestoreId);
+      alert("Gasto extra guardado en la nube.");
+      setAddCostOrder(null);
+      setAddCostAmount(0);
+    } catch (e) {
+      alert("Error al guardar el gasto extra.");
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-md border border-ragucci-border">
+      <h2 className="text-xl font-bold font-bodoni uppercase text-ragucci-primary mb-4 border-b-2 border-ragucci-gold pb-2">
+        Libro de Órdenes y Flujo de Trabajo
+      </h2>
+
+      {/* Filter Section */}
+      <div className="bg-ragucci-bg p-4 rounded-lg border border-ragucci-gold-light mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+              Buscar (Cliente / Producto)
+            </label>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Nombre..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+              Filtrar por Mes
+            </label>
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="w-full p-1.5 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
+            >
+              <option value="all">Todos los meses</option>
+              <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+              <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+              <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+              <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+              Filtrar por Año
+            </label>
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value)}
+              className="w-full p-1.5 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
+            >
+              <option value="all">Todos los años</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+              Filtrar por Estado de Pago
+            </label>
+            <select
+              value={filterPago}
+              onChange={(e) => setFilterPago(e.target.value)}
+              className="w-full p-1.5 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
+            >
+              <option value="all">Todas las órdenes</option>
+              <option value="pendientes">Con Saldo Pendiente</option>
+              <option value="pagadas">Pagadas Completas</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Orders Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs text-left border-collapse">
+          <thead>
+            <tr className="bg-ragucci-primary text-ragucci-gold uppercase text-[11px] tracking-wider border-b border-ragucci-gold">
+              <th className="p-3">Fecha</th>
+              <th className="p-3">Cliente</th>
+              <th className="p-3">Productos (Resumen)</th>
+              <th className="p-3">Finanzas ($)</th>
+              <th className="p-3">Estado Confección</th>
+              <th className="p-3 text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredOrders.map((order) => {
+              const hasBirthday = checkBirthdayToday(order.birthday);
+              let cleanPhone = order.phone?.replace(/\D/g, '') || '';
+              if (cleanPhone && !cleanPhone.startsWith('549')) cleanPhone = '549' + cleanPhone;
+
+              let productListText = order.products
+                ? order.products.map((p) => `${p.description}${p.modista ? ` (${p.modista})` : ''}`).join(' + ')
+                : '';
+              if (order.rtwItems && order.rtwItems.length > 0) {
+                productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc} (x${rtw.qty})`).join(' + ');
+              }
+
+              return (
+                <tr key={order.firestoreId || order.id} className="hover:bg-[#fdfaf5] transition-colors">
+                  <td className="p-3 font-medium whitespace-nowrap">
+                    {formatDate(order.date)}
+                    <div className="text-[10px] text-gray-500">{order.origin || 'A Medida (Local)'}</div>
+                  </td>
+
+                  <td className="p-3 font-bold">
+                    <button
+                      onClick={() => setSelectedClientName(order.client)}
+                      className="text-ragucci-primary hover:text-ragucci-gold underline decoration-dashed transition-colors text-left"
+                    >
+                      {order.client}
+                    </button>
+                    {cleanPhone && (
+                      <a
+                        href={`https://wa.me/${cleanPhone}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-1.5 text-emerald-600 hover:text-emerald-800 inline-block align-middle"
+                        title="Enviar WhatsApp"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 inline" />
+                      </a>
+                    )}
+                  </td>
+
+                  <td className="p-3 text-gray-700 max-w-xs truncate">{productListText}</td>
+
+                  <td className="p-3 whitespace-nowrap">
+                    <div>Venta: ${formatMoney(order.sale)}</div>
+                    {order.saldo > 0 ? (
+                      <div className="text-ragucci-red font-bold flex items-center gap-1.5 mt-0.5">
+                        <span>Saldo: ${formatMoney(order.saldo)}</span>
+                        <button
+                          onClick={() => setSelectedPaymentOrder(order)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] py-0.5 px-1.5 rounded transition-colors"
+                        >
+                          + Pago
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-emerald-600 font-bold mt-0.5">Pagado Completo</div>
+                    )}
+                  </td>
+
+                  <td className="p-3">
+                    <select
+                      value={order.status || '🔴 Pendiente'}
+                      onChange={(e) => handleStatusChange(order, e.target.value)}
+                      className="p-1 border border-gray-300 rounded bg-gray-50 font-bold text-xs focus:outline-none focus:border-ragucci-gold cursor-pointer"
+                    >
+                      <option value="🔴 Pendiente">🔴 Pendiente</option>
+                      <option value="🟡 En Taller">🟡 En Taller</option>
+                      <option value="🔵 Prueba">🔵 Prueba</option>
+                      <option value="🟢 Entregado">🟢 Entregado / Pagado</option>
+                    </select>
+                    {hasBirthday && (
+                      <div className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 text-center animate-bounce">
+                        🎂 ¡CUMPLEAÑOS HOY!
+                      </div>
+                    )}
+                  </td>
+
+                  <td className="p-3 text-center whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => setSelectedDetailOrder(order)}
+                        className="bg-ragucci-gold text-ragucci-primary hover:bg-ragucci-primary hover:text-ragucci-gold font-bold px-2 py-1 rounded transition-colors text-[11px]"
+                        title="Ver Detalle"
+                      >
+                        Detalle
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingOrderId(order.firestoreId || null);
+                          setActiveTab('carga');
+                        }}
+                        className="bg-sky-600 text-white hover:bg-sky-700 font-bold px-2 py-1 rounded transition-colors text-[11px]"
+                        title="Editar Orden"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => setAddCostOrder(order)}
+                        className="bg-ragucci-primary-light text-ragucci-gold-light hover:bg-ragucci-primary font-bold px-2 py-1 rounded transition-colors text-[11px]"
+                        title="Sumar Gasto Extra"
+                      >
+                        + Gasto
+                      </button>
+                      <button
+                        onClick={() => handleDelete(order)}
+                        className="bg-ragucci-red text-white hover:bg-red-900 font-bold p-1 rounded transition-colors"
+                        title="Eliminar Orden"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modals */}
+      <OrderDetailModal
+        order={selectedDetailOrder}
+        isOpen={!!selectedDetailOrder}
+        onClose={() => setSelectedDetailOrder(null)}
+      />
+
+      <PaymentModal
+        order={selectedPaymentOrder}
+        isOpen={!!selectedPaymentOrder}
+        onClose={() => setSelectedPaymentOrder(null)}
+      />
+
+      <ClientHistoryModal
+        clientName={selectedClientName}
+        isOpen={!!selectedClientName}
+        onClose={() => setSelectedClientName(null)}
+      />
+
+      {/* Add Extra Cost Modal */}
+      <Modal
+        isOpen={!!addCostOrder}
+        onClose={() => setAddCostOrder(null)}
+        title={`Sumar Gasto Extra: ${addCostOrder?.client}`}
+      >
+        <div className="mb-4">
+          <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+            Categoría del Gasto
+          </label>
+          <select
+            value={addCostType}
+            onChange={(e) => setAddCostType(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded text-xs font-medium"
+          >
+            <option value="arreglos">Arreglos</option>
+            <option value="telas">Telas</option>
+            <option value="forreria">Forrería</option>
+            <option value="sastre">Mano de Obra (Modista)</option>
+            <option value="camisero">Mano de Obra (Camisero)</option>
+            <option value="pterminado">Producto Terminado</option>
+            <option value="envios">Envíos</option>
+            <option value="avios">Avios / Embalaje</option>
+            <option value="comision">Comisión Tomy</option>
+            <option value="otros">Otros Gastos</option>
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+            Monto a sumar ($)
+          </label>
+          <MoneyInput
+            value={addCostAmount}
+            onValueChange={(val) => setAddCostAmount(val)}
+            placeholder="Ej: 15.000"
+          />
+        </div>
+
+        <button
+          onClick={handleSaveExtraCost}
+          className="w-full py-2.5 bg-ragucci-gold hover:bg-ragucci-primary text-ragucci-primary hover:text-ragucci-gold font-extrabold text-xs uppercase tracking-wider rounded transition-colors"
+        >
+          Cargar Gasto al Cliente
+        </button>
+      </Modal>
+    </div>
+  );
+};

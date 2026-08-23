@@ -1,0 +1,31 @@
+# Environment variables (Credentials)
+.env
+.env.local
+.env.*.local
+.venv
+*.env
+
+# Dependencies & Build
+node_modules
+dist
+dist-isolation
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS & Editor files
+.DS_Store
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea
+.aria
+*.suo
+*.ntvsopt
+*.njsproj
+*.sln
+*.sw?
