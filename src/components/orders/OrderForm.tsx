@@ -246,10 +246,19 @@ export const OrderForm: React.FC = () => {
     const paidTalleresMap = existing ? (existing.paidTalleresMap || {}) : {};
     const paymentHistory = existing?.paymentHistory || (sena > 0 ? [{ date, amount: sena, method }] : []);
 
+    const cleanMeasurements: Record<string, string> = {};
+    if (measurements) {
+      Object.entries(measurements).forEach(([k, v]) => {
+        if (v && v.trim()) {
+          cleanMeasurements[k] = v.trim();
+        }
+      });
+    }
+
     const orderPayload: Order = {
       id: existing?.id || Date.now(),
       date,
-      deliveryDate: deliveryDate || undefined,
+      deliveryDate: deliveryDate ? deliveryDate.trim() : undefined,
       client,
       phone,
       dni,
@@ -267,7 +276,7 @@ export const OrderForm: React.FC = () => {
       costs: aggregatedCosts,
       aviosQtys,
       paidTalleresMap,
-      measurements: Object.keys(measurements).length > 0 ? measurements : undefined,
+      measurements: Object.keys(cleanMeasurements).length > 0 ? cleanMeasurements : undefined,
       totalCost: totalCostos,
       profit: ganancia
     };

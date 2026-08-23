@@ -86,11 +86,14 @@ export const fetchConfig = async (): Promise<AppConfig> => {
 export const saveOrder = async (orderData: Order, firestoreId?: string): Promise<string> => {
   try {
     const { firestoreId: _, ...dataToSave } = orderData;
+    // Sanitizar objeto eliminando valores undefined para evitar errores de Firestore
+    const cleanData = JSON.parse(JSON.stringify(dataToSave));
+
     if (firestoreId) {
-      await setDoc(doc(db, "ragucci_orders", firestoreId), dataToSave);
+      await setDoc(doc(db, "ragucci_orders", firestoreId), cleanData);
       return firestoreId;
     } else {
-      const docRef = await addDoc(ordersColRef, dataToSave);
+      const docRef = await addDoc(ordersColRef, cleanData);
       return docRef.id;
     }
   } catch (error) {
