@@ -562,7 +562,7 @@ export const OrderForm: React.FC = () => {
         <div className="text-ragucci-gold-light text-xs md:text-sm">
           Costos de Confección: -${formatMoney(totalCostos)}
         </div>
-        <div className="text-ragucci-gold font-extrabold text-xl md:text-3xl mt-2 font-bodoni">
+        <div className="text-ragucci-gold font-extrabold text-xl md:text-3xl mt-2 font-sans tracking-tight">
           Ganancia Teórica: ${formatMoney(ganancia)} ({margen}%)
         </div>
       </div>

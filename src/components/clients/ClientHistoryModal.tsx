@@ -33,15 +33,15 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
       <div className="grid grid-cols-3 gap-3 mb-4 text-center">
         <div className="bg-white p-3 border border-ragucci-gold-light rounded shadow-sm">
           <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">Total Comprado</h4>
-          <div className="text-xl font-extrabold text-emerald-600 mt-1">${formatMoney(totalBought)}</div>
+          <div className="text-xl font-extrabold text-emerald-600 font-sans mt-1">${formatMoney(totalBought)}</div>
         </div>
         <div className="bg-white p-3 border border-ragucci-gold-light rounded shadow-sm">
           <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">Saldo Pendiente</h4>
-          <div className="text-xl font-extrabold text-ragucci-red mt-1">${formatMoney(totalDebt)}</div>
+          <div className="text-xl font-extrabold text-ragucci-red font-sans mt-1">${formatMoney(totalDebt)}</div>
         </div>
         <div className="bg-white p-3 border border-ragucci-gold-light rounded shadow-sm">
           <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">Total Órdenes</h4>
-          <div className="text-xl font-extrabold text-ragucci-primary mt-1">{clientOrders.length}</div>
+          <div className="text-xl font-extrabold text-ragucci-primary font-sans mt-1">{clientOrders.length}</div>
         </div>
       </div>
 

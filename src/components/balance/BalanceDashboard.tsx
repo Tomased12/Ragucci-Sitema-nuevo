@@ -217,7 +217,7 @@ export const BalanceDashboard: React.FC = () => {
             <Award className="w-6 h-6" />
           </div>
           <h4 className="text-xs uppercase font-extrabold text-ragucci-gold-light tracking-wider">Ganancia Neta Real</h4>
-          <div className="text-2xl font-extrabold text-ragucci-gold font-bodoni mt-2">${formatMoney(Math.round(gananciaNetaReal))}</div>
+          <div className="text-2xl font-extrabold text-ragucci-gold font-sans mt-2">${formatMoney(Math.round(gananciaNetaReal))}</div>
         </div>
       </div>
 
