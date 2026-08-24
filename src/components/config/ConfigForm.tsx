@@ -2,15 +2,12 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AppConfig } from '../../types';
 import { MoneyInput } from '../common/MoneyInput';
-import { Save, Plus, Trash2 } from 'lucide-react';
+import { Save, Plus, Trash2, Package } from 'lucide-react';
 import { formatMoney, parseMoney } from '../../utils/formatters';
 
 export const ConfigForm: React.FC = () => {
-  const { config, saveConfigData } = useApp();
+  const { config, saveConfigData, setActiveTab } = useApp();
   const [localConfig, setLocalConfig] = useState<AppConfig>({ ...config });
-
-  const [newRtwName, setNewRtwName] = useState('');
-  const [newRtwPrice, setNewRtwPrice] = useState(0);
 
   const handleBaseChange = (key: keyof AppConfig, val: number) => {
     setLocalConfig({ ...localConfig, [key]: val });
@@ -21,33 +18,6 @@ export const ConfigForm: React.FC = () => {
       ...localConfig,
       aviosPrecios: { ...localConfig.aviosPrecios, [key]: val }
     });
-  };
-
-  const handleRtwPriceChange = (name: string, price: number) => {
-    setLocalConfig({
-      ...localConfig,
-      rtwPrecios: { ...localConfig.rtwPrecios, [name]: price }
-    });
-  };
-
-  const handleRemoveRtw = (name: string) => {
-    const updatedRtw = { ...localConfig.rtwPrecios };
-    delete updatedRtw[name];
-    setLocalConfig({ ...localConfig, rtwPrecios: updatedRtw });
-  };
-
-  const handleAddRtw = () => {
-    if (!newRtwName.trim()) {
-      alert("Ingrese el nombre del producto RTW.");
-      return;
-    }
-    const upperName = newRtwName.trim().toUpperCase();
-    setLocalConfig({
-      ...localConfig,
-      rtwPrecios: { ...localConfig.rtwPrecios, [upperName]: newRtwPrice }
-    });
-    setNewRtwName('');
-    setNewRtwPrice(0);
   };
 
   const handleArregloPriceChange = (modista: string, clave: string, price: number) => {
@@ -140,65 +110,24 @@ export const ConfigForm: React.FC = () => {
         </div>
       </div>
 
-      {/* RTW Base Catalog */}
-      <div className="border border-ragucci-gold-light p-5 rounded-lg mb-6 bg-white">
-        <h3 className="text-sm font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-1 inline-block">
-          Productos Terminados / RTW (Precios Base)
-        </h3>
-        <p className="text-xs text-gray-500 mb-4">
-          Agrega o modifica productos terminados frecuentes para el autocompletado en el sistema.
-        </p>
-
-        <div className="space-y-2 mb-4">
-          {Object.keys(localConfig.rtwPrecios || {}).map((name) => (
-            <div key={name} className="flex gap-2 items-center text-xs">
-              <input
-                type="text"
-                disabled
-                value={name}
-                className="flex-2 p-2 bg-gray-100 border border-gray-300 rounded font-bold"
-              />
-              <div className="flex-1">
-                <MoneyInput
-                  value={localConfig.rtwPrecios[name]}
-                  onValueChange={(val) => handleRtwPriceChange(name, val)}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => handleRemoveRtw(name)}
-                className="bg-ragucci-red text-white p-2 rounded hover:bg-red-900 font-bold"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+      {/* RTW Single Source of Truth Banner */}
+      <div className="border border-ragucci-gold/40 p-5 rounded-lg mb-6 bg-amber-50/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-extrabold uppercase text-ragucci-primary flex items-center gap-2">
+            <Package className="w-5 h-5 text-ragucci-gold" />
+            <span>Productos Terminados / RTW (Gestionados Unificadamente en Stock)</span>
+          </h3>
+          <p className="text-xs text-gray-600 mt-1">
+            Todos los productos terminados, precios de costo, precios de venta y desgloses por talle se administran ahora directamente desde la pestaña <strong>📦 Stock</strong>. El autocompletado en ventas y el descuento de stock se realizan automáticamente desde allí.
+          </p>
         </div>
-
-        <div className="flex flex-wrap md:flex-nowrap gap-2 items-center pt-3 border-t border-dashed border-gray-200">
-          <input
-            type="text"
-            placeholder="Nombre (ej: Moño)"
-            value={newRtwName}
-            onChange={(e) => setNewRtwName(e.target.value)}
-            className="flex-2 p-2 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold"
-          />
-          <div className="flex-1">
-            <MoneyInput
-              value={newRtwPrice}
-              onValueChange={(val) => setNewRtwPrice(val)}
-              placeholder="Precio ($)"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleAddRtw}
-            className="bg-ragucci-primary text-ragucci-gold hover:bg-ragucci-primary-light text-xs font-bold py-2 px-3 rounded flex items-center gap-1"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Agregar RTW</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('stock')}
+          className="bg-ragucci-primary text-ragucci-gold font-extrabold px-4 py-2 rounded text-xs uppercase hover:bg-ragucci-primary-light transition-colors whitespace-nowrap shadow-xs cursor-pointer"
+        >
+          <span>📦 Ir al Inventario de Stock</span>
+        </button>
       </div>
 
       {/* Arreglos por Modista */}
