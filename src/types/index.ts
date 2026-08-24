@@ -163,4 +163,17 @@ export interface AppConfig {
   gasto_alquiler_usd?: number;
 }
 
-export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'crm' | 'configuracion' | 'backup';
+export interface CashMovement {
+  id: string;
+  firestoreId?: string;
+  date: string;
+  type: 'ingreso' | 'egreso' | 'transferencia';
+  amount: number;
+  account: 'efectivo' | 'banco' | 'dolar';
+  toAccount?: 'efectivo' | 'banco' | 'dolar';
+  category: string;
+  description: string;
+  clientOrRef?: string;
+}
+
+export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'crm' | 'capitales' | 'configuracion' | 'backup';

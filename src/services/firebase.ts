@@ -10,7 +10,7 @@ import {
   getDoc,
   onSnapshot
 } from "firebase/firestore";
-import { Order, AppConfig } from "../types";
+import { Order, AppConfig, CashMovement } from "../types";
 import { DEFAULT_CONFIG } from "../utils/constants";
 
 const firebaseConfig = {
@@ -27,6 +27,7 @@ export const db = getFirestore(app);
 
 const ordersColRef = collection(db, "ragucci_orders");
 const configDocRef = doc(db, "ragucci_settings", "config");
+const cashMovementsColRef = collection(db, "ragucci_cash_movements");
 
 export const subscribeOrders = (callback: (orders: Order[]) => void) => {
   return onSnapshot(ordersColRef, (snapshot) => {
@@ -41,6 +42,48 @@ export const subscribeOrders = (callback: (orders: Order[]) => void) => {
   }, (error) => {
     console.error("Error al escuchar órdenes:", error);
   });
+};
+
+export const subscribeCashMovements = (callback: (movements: CashMovement[]) => void) => {
+  return onSnapshot(cashMovementsColRef, (snapshot) => {
+    const movements: CashMovement[] = [];
+    snapshot.forEach((docSnap) => {
+      movements.push({
+        firestoreId: docSnap.id,
+        ...docSnap.data()
+      } as CashMovement);
+    });
+    callback(movements);
+  }, (error) => {
+    console.error("Error al escuchar movimientos de caja:", error);
+  });
+};
+
+export const saveCashMovement = async (movementData: CashMovement, firestoreId?: string): Promise<string> => {
+  try {
+    const { firestoreId: _, ...dataToSave } = movementData;
+    const cleanData = JSON.parse(JSON.stringify(dataToSave));
+
+    if (firestoreId) {
+      await setDoc(doc(db, "ragucci_cash_movements", firestoreId), cleanData);
+      return firestoreId;
+    } else {
+      const docRef = await addDoc(cashMovementsColRef, cleanData);
+      return docRef.id;
+    }
+  } catch (error) {
+    console.error("Error al guardar movimiento de caja:", error);
+    throw error;
+  }
+};
+
+export const deleteCashMovement = async (firestoreId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, "ragucci_cash_movements", firestoreId));
+  } catch (error) {
+    console.error("Error al eliminar movimiento de caja:", error);
+    throw error;
+  }
 };
 
 export const fetchOrders = async (): Promise<Order[]> => {

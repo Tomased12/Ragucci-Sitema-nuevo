@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Order, AppConfig, TabType } from '../types';
+import { Order, AppConfig, TabType, CashMovement } from '../types';
 import { DEFAULT_CONFIG } from '../utils/constants';
-import { subscribeOrders, fetchConfig, saveOrder, deleteOrder, saveConfig } from '../services/firebase';
+import { subscribeOrders, subscribeCashMovements, fetchConfig, saveOrder, deleteOrder, saveConfig, saveCashMovement, deleteCashMovement } from '../services/firebase';
 import { fetchDolarBlue } from '../services/dolar';
 
 interface AppContextType {
   orders: Order[];
   config: AppConfig;
+  cashMovements: CashMovement[];
   dolarBlueVenta: number;
   activeTab: TabType;
   editingOrderId: string | null;
@@ -19,12 +20,15 @@ interface AppContextType {
   removeOrderData: (firestoreId: string) => Promise<void>;
   saveConfigData: (newConfig: AppConfig) => Promise<void>;
   reloadConfig: () => Promise<void>;
+  saveCashMovementData: (movement: CashMovement, firestoreId?: string) => Promise<void>;
+  removeCashMovementData: (firestoreId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [cashMovements, setCashMovements] = useState<CashMovement[]>([]);
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [dolarBlueVenta, setDolarBlueVenta] = useState<number>(1500);
   const [activeTab, setActiveTab] = useState<TabType>('carga');
@@ -54,12 +58,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchConfig().then(cfg => setConfig(cfg));
 
     // 3. Subscribe to Real-time Orders from Firebase
-    const unsubscribe = subscribeOrders((fetchedOrders) => {
+    const unsubscribeOrders = subscribeOrders((fetchedOrders) => {
       setOrders(fetchedOrders);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // 4. Subscribe to Real-time Cash Movements from Firebase
+    const unsubscribeCash = subscribeCashMovements((fetchedMovements) => {
+      setCashMovements(fetchedMovements);
+    });
+
+    return () => {
+      unsubscribeOrders();
+      unsubscribeCash();
+    };
   }, []);
 
   const saveOrderData = async (order: Order, firestoreId?: string) => {
@@ -80,11 +92,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setConfig(cfg);
   };
 
+  const saveCashMovementData = async (movement: CashMovement, firestoreId?: string) => {
+    await saveCashMovement(movement, firestoreId);
+  };
+
+  const removeCashMovementData = async (firestoreId: string) => {
+    await deleteCashMovement(firestoreId);
+  };
+
   return (
     <AppContext.Provider
       value={{
         orders,
         config,
+        cashMovements,
         dolarBlueVenta,
         activeTab,
         editingOrderId,
@@ -96,7 +117,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveOrderData,
         removeOrderData,
         saveConfigData,
-        reloadConfig
+        reloadConfig,
+        saveCashMovementData,
+        removeCashMovementData
       }}
     >
       {children}

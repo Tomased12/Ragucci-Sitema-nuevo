@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { TabType } from '../../types';
-import { PlusCircle, BookOpen, Users, DollarSign, Settings, HardDriveDownload, Crown } from 'lucide-react';
+import { PlusCircle, BookOpen, Users, DollarSign, Settings, HardDriveDownload, Crown, Wallet } from 'lucide-react';
 
 export const Tabs: React.FC = () => {
   const { activeTab, setActiveTab } = useApp();
@@ -11,6 +11,7 @@ export const Tabs: React.FC = () => {
     { id: 'registro', label: 'Registro General', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'talleres', label: 'Pagos a Talleres', icon: <Users className="w-4 h-4" /> },
     { id: 'balance', label: 'Balance Financiero', icon: <DollarSign className="w-4 h-4" /> },
+    { id: 'capitales', label: 'Control de Capitales', icon: <Wallet className="w-4 h-4" /> },
     { id: 'crm', label: 'Clientes VIP (CRM)', icon: <Crown className="w-4 h-4" /> },
     { id: 'configuracion', label: 'Configuración (M.O)', icon: <Settings className="w-4 h-4" /> },
     { id: 'backup', label: 'Backup', icon: <HardDriveDownload className="w-4 h-4" />, isBackup: true },
