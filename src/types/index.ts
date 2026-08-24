@@ -176,4 +176,4 @@ export interface CashMovement {
   clientOrRef?: string;
 }
 
-export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'crm' | 'capitales' | 'configuracion' | 'backup';
+export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'agenda' | 'crm' | 'capitales' | 'configuracion' | 'backup';
