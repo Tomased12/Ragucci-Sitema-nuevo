@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { Order, ProspectAppointment } from '../../types';
 import { formatDate, formatMoney, getTodayString } from '../../utils/formatters';
 import { OrderDetailModal } from '../orders/OrderDetailModal';
+import { downloadFullCalendarICS } from '../../utils/calendarFeed';
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -17,7 +18,8 @@ import {
   UserPlus,
   Trash2,
   Tag,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -129,7 +131,7 @@ export const CalendarView: React.FC = () => {
     setCurrentMonth(now.getMonth());
   };
 
-  // Save new prospect appointment
+  // Save new prospect appointment & automatically prompt Google Calendar
   const handleSaveProspect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prospectName.trim() || !prospectInterest.trim()) {
@@ -151,6 +153,16 @@ export const CalendarView: React.FC = () => {
 
     try {
       await saveProspectAppointmentData(newAppt);
+      
+      // Auto-abrir Google Calendar directamente sin apretar ningún botón manual extra
+      const gUrl = getGoogleCalendarUrl(
+        `Cita: ${newAppt.clientName} (${newAppt.interest})`,
+        newAppt.date,
+        newAppt.time,
+        `Teléfono: ${newAppt.phone || ''}. Notas: ${newAppt.notes || ''}`
+      );
+      window.open(gUrl, '_blank');
+
       setProspectName('');
       setProspectPhone('');
       setProspectInterest('');
@@ -351,6 +363,15 @@ export const CalendarView: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => downloadFullCalendarICS(orders, prospectAppointments)}
+            className="bg-blue-700 hover:bg-blue-800 text-white font-extrabold px-3 py-2 rounded text-xs uppercase flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm border border-blue-500"
+            title="Sincronizar todas las citas y entregas con Google Calendar e iPhone"
+          >
+            <RefreshCw className="w-4 h-4 text-blue-200" />
+            <span>⚡ Sincronizar todo a mi Celular</span>
+          </button>
+
           <button
             onClick={() => setShowNewProspectModal(true)}
             className="bg-purple-800 hover:bg-purple-900 text-white font-extrabold px-3.5 py-2 rounded text-xs uppercase flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm border border-purple-600"
