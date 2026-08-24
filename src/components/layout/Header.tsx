@@ -74,12 +74,19 @@ export const Header: React.FC = () => {
         </div>
       )}
 
-      <h1 className="font-display text-3xl md:text-5xl tracking-widest font-black uppercase text-ragucci-gold mb-1 drop-shadow-sm">
-        SASTRERÍA RAGUCCI
-      </h1>
-      <p className="text-ragucci-gold-light text-xs md:text-sm tracking-wider font-medium font-sans">
-        Sistema de Gestión Integral & Calculadora de Rentabilidad
-      </p>
+      <div className="flex flex-col items-center justify-center gap-2">
+        <img 
+          src="/logo.png" 
+          alt="Sastrería Ragucci Logo Monograma" 
+          className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-md rounded-lg border border-ragucci-gold/30 p-1 bg-black/40" 
+        />
+        <h1 className="font-display text-3xl md:text-5xl tracking-widest font-black uppercase text-ragucci-gold mb-0.5 drop-shadow-sm">
+          SASTRERÍA RAGUCCI
+        </h1>
+        <p className="text-ragucci-gold-light text-xs md:text-sm tracking-wider font-medium font-sans">
+          Sistema de Gestión Integral & Calculadora de Rentabilidad
+        </p>
+      </div>
     </header>
   );
 };
