@@ -260,6 +260,55 @@ export const CapitalesDashboard: React.FC = () => {
     return '💵 Dólares (USD)';
   };
 
+  // Edit Account Balance Modal State
+  const [editingAccount, setEditingAccount] = useState<'efectivo' | 'banco' | 'dolar' | null>(null);
+  const [targetBalance, setTargetBalance] = useState<string>('');
+  const [adjustReason, setAdjustReason] = useState<string>('Ajuste de Saldo Inicial / Dinero Real en Mano');
+
+  const handleOpenEditAccount = (acc: 'efectivo' | 'banco' | 'dolar') => {
+    setEditingAccount(acc);
+    setTargetBalance(balances[acc].toString());
+    setAdjustReason('Ajuste de Saldo Inicial / Dinero Real en Mano');
+  };
+
+  const handleSaveAccountAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAccount) return;
+
+    const newTarget = parseFloat(targetBalance);
+    if (isNaN(newTarget) || newTarget < 0) {
+      alert("Por favor ingresa un monto válido igual o mayor a 0.");
+      return;
+    }
+
+    const currentCalculated = balances[editingAccount];
+    const diff = newTarget - currentCalculated;
+
+    if (diff === 0) {
+      alert("El saldo ingresado es idéntico al saldo actual de la cuenta.");
+      setEditingAccount(null);
+      return;
+    }
+
+    const newMov: CashMovement = {
+      id: Date.now().toString(),
+      date: getTodayString(),
+      type: diff > 0 ? 'ingreso' : 'egreso',
+      amount: Math.abs(diff),
+      account: editingAccount,
+      category: '⚙️ Ajuste de Saldo Inicial',
+      description: adjustReason.trim() || 'Ajuste de Saldo Real en Mano'
+    };
+
+    try {
+      await saveCashMovementData(newMov);
+      setEditingAccount(null);
+      setTargetBalance('');
+    } catch (err) {
+      alert("Error al guardar el ajuste de saldo.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -274,13 +323,13 @@ export const CapitalesDashboard: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowArqueoModal(true)}
             className="bg-ragucci-primary-light hover:bg-ragucci-primary text-ragucci-gold font-extrabold px-3.5 py-2 rounded text-xs uppercase flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm border border-ragucci-gold/30"
           >
             <Scale className="w-4 h-4 text-ragucci-gold" />
-            <span>📊 Arqueo y Cierre de Caja</span>
+            <span>📊 Arqueo de Caja</span>
           </button>
 
           <button
@@ -296,51 +345,87 @@ export const CapitalesDashboard: React.FC = () => {
       {/* Live Account Balances Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {/* Caja Efectivo ARS */}
-        <div className="bg-gradient-to-br from-amber-600 to-amber-800 text-white p-4 rounded-lg shadow-md border-l-4 border-ragucci-gold flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-amber-600 to-amber-800 text-white p-4 rounded-lg shadow-md border-l-4 border-ragucci-gold flex flex-col justify-between relative group">
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] uppercase font-bold text-amber-100 tracking-wider">Caja Efectivo (ARS)</span>
-              <Wallet className="w-5 h-5 text-amber-200" />
+              <button
+                onClick={() => handleOpenEditAccount('efectivo')}
+                className="text-amber-200 hover:text-white bg-white/20 px-2 py-0.5 rounded text-[10px] font-extrabold transition-colors cursor-pointer flex items-center gap-1"
+                title="Editar / Ajustar Saldo Real en Mano"
+              >
+                ✏️ Editar
+              </button>
             </div>
             <strong className="text-xl md:text-2xl font-extrabold block text-white font-sans mt-1">
               ${formatMoney(balances.efectivo)}
             </strong>
           </div>
-          <span className="text-[10px] text-amber-200 block mt-2 font-medium">
-            Dinero físico en caja del local
-          </span>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[10px] text-amber-200 font-medium">Dinero físico en caja</span>
+            <button
+              onClick={() => handleOpenEditAccount('efectivo')}
+              className="text-[10px] text-amber-100 underline decoration-dashed hover:text-white"
+            >
+              Ajustar Saldo Real ➔
+            </button>
+          </div>
         </div>
 
         {/* Banco / MercadoPago ARS */}
-        <div className="bg-gradient-to-br from-sky-700 to-blue-900 text-white p-4 rounded-lg shadow-md border-l-4 border-sky-400 flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-sky-700 to-blue-900 text-white p-4 rounded-lg shadow-md border-l-4 border-sky-400 flex flex-col justify-between relative group">
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] uppercase font-bold text-sky-100 tracking-wider">Banco / MercadoPago (ARS)</span>
-              <Landmark className="w-5 h-5 text-sky-200" />
+              <button
+                onClick={() => handleOpenEditAccount('banco')}
+                className="text-sky-200 hover:text-white bg-white/20 px-2 py-0.5 rounded text-[10px] font-extrabold transition-colors cursor-pointer flex items-center gap-1"
+                title="Editar / Ajustar Saldo Bancario Real"
+              >
+                ✏️ Editar
+              </button>
             </div>
             <strong className="text-xl md:text-2xl font-extrabold block text-white font-sans mt-1">
               ${formatMoney(balances.banco)}
             </strong>
           </div>
-          <span className="text-[10px] text-sky-200 block mt-2 font-medium">
-            Transferencias y dinero en cuenta bancaria
-          </span>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[10px] text-sky-200 font-medium">Cuenta bancaria</span>
+            <button
+              onClick={() => handleOpenEditAccount('banco')}
+              className="text-[10px] text-sky-100 underline decoration-dashed hover:text-white"
+            >
+              Ajustar Saldo Real ➔
+            </button>
+          </div>
         </div>
 
         {/* Caja Dólares USD */}
-        <div className="bg-gradient-to-br from-emerald-700 to-teal-900 text-white p-4 rounded-lg shadow-md border-l-4 border-emerald-400 flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-emerald-700 to-teal-900 text-white p-4 rounded-lg shadow-md border-l-4 border-emerald-400 flex flex-col justify-between relative group">
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] uppercase font-bold text-emerald-100 tracking-wider">Caja Dólares (USD)</span>
-              <DollarSign className="w-5 h-5 text-emerald-200" />
+              <button
+                onClick={() => handleOpenEditAccount('dolar')}
+                className="text-emerald-200 hover:text-white bg-white/20 px-2 py-0.5 rounded text-[10px] font-extrabold transition-colors cursor-pointer flex items-center gap-1"
+                title="Editar / Ajustar Saldo Dólares Real"
+              >
+                ✏️ Editar
+              </button>
             </div>
             <strong className="text-xl md:text-2xl font-extrabold block text-white font-sans mt-1">
               USD ${formatMoney(balances.dolar)}
             </strong>
           </div>
-          <span className="text-[10px] text-emerald-200 block mt-2 font-medium">
-            ≈ ${formatMoney(Math.round(balances.dolar * dolarBlueVenta))} ARS (Dólar Blue ${formatMoney(dolarBlueVenta)})
-          </span>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[10px] text-emerald-200 font-medium">≈ ${formatMoney(Math.round(balances.dolar * dolarBlueVenta))} ARS</span>
+            <button
+              onClick={() => handleOpenEditAccount('dolar')}
+              className="text-[10px] text-emerald-100 underline decoration-dashed hover:text-white"
+            >
+              Ajustar Saldo Real ➔
+            </button>
+          </div>
         </div>
 
         {/* Total Capital Acumulado */}
@@ -704,6 +789,82 @@ export const CapitalesDashboard: React.FC = () => {
               Cerrar Arqueo
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Editar / Ajustar Saldo Real Modal */}
+      {editingAccount && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleSaveAccountAdjustment} className="bg-white rounded-lg shadow-xl border border-ragucci-gold max-w-md w-full p-5 space-y-4 animate-fadeIn">
+            <div className="flex justify-between items-center border-b border-ragucci-gold pb-2">
+              <h3 className="font-extrabold text-sm uppercase text-ragucci-primary flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-ragucci-gold" />
+                <span>Editar Saldo Real: {getAccountLabel(editingAccount)}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingAccount(null)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-[#fffdfa] p-4 border border-ragucci-gold-light rounded text-xs space-y-3">
+              <div className="flex justify-between items-center text-gray-600">
+                <span>Saldo Calculado Actual:</span>
+                <strong className="text-sm font-extrabold text-gray-800">
+                  {editingAccount === 'dolar' ? `USD $${formatMoney(balances[editingAccount])}` : `$${formatMoney(balances[editingAccount])}`}
+                </strong>
+              </div>
+
+              <div>
+                <label className="text-xs font-extrabold text-ragucci-primary block mb-1">
+                  Ingrese el Saldo Real Actual ({editingAccount === 'dolar' ? 'USD' : '$'}):
+                </label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={targetBalance}
+                  onChange={(e) => setTargetBalance(e.target.value)}
+                  className="w-full p-2.5 border-2 border-ragucci-gold rounded text-sm font-extrabold focus:outline-none text-ragucci-primary"
+                  min="0"
+                  step="any"
+                  required
+                />
+                <span className="text-[10px] text-gray-500 block mt-1">
+                  * Si ingresas 0 (o cualquier valor real), la app ajustará la caja para que coincida exactamente.
+                </span>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Motivo del Ajuste:</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Ajuste inicial / Dinero retirado previamente"
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingAccount(null)}
+                className="w-1/2 py-2.5 bg-gray-200 text-gray-700 font-bold text-xs uppercase rounded hover:bg-gray-300 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="w-1/2 py-2.5 bg-ragucci-primary text-ragucci-gold font-extrabold text-xs uppercase rounded hover:bg-ragucci-primary-light transition-colors shadow-sm cursor-pointer"
+              >
+                Guardar Saldo Real
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
