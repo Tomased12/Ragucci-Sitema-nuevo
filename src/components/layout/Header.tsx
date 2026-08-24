@@ -26,9 +26,18 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-ragucci-primary text-ragucci-gold-light p-6 md:p-8 text-center rounded-lg mb-6 border-b-4 border-ragucci-gold shadow-md relative overflow-hidden">
+    <header className="bg-ragucci-primary text-ragucci-gold-light py-5 px-6 md:py-6 md:px-8 text-center rounded-lg mb-6 border-b-4 border-ragucci-gold shadow-md relative overflow-hidden">
+      {/* Background Semi-Transparent Watermark Logo */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none">
+        <img 
+          src="/logo.png" 
+          alt="" 
+          className="w-48 h-48 md:w-64 md:h-64 object-contain opacity-15 filter brightness-125 scale-110" 
+        />
+      </div>
+
       {/* Top Controls: Cloud Status + Dark Mode Toggle */}
-      <div className="absolute top-3 right-4 flex items-center gap-2">
+      <div className="absolute top-3 right-4 flex items-center gap-2 z-20">
         <button
           onClick={toggleDarkMode}
           className="flex items-center gap-1.5 text-xs font-bold text-ragucci-gold bg-ragucci-primary-light/80 hover:bg-ragucci-primary px-3 py-1 rounded-full border border-ragucci-gold/40 transition-colors cursor-pointer shadow-sm"
@@ -63,7 +72,7 @@ export const Header: React.FC = () => {
       </div>
 
       {deferredPrompt && (
-        <div className="absolute top-3 left-4">
+        <div className="absolute top-3 left-4 z-20">
           <button
             onClick={handleInstallClick}
             className="flex items-center gap-1.5 bg-ragucci-gold hover:bg-ragucci-gold-light text-ragucci-primary text-xs font-extrabold px-3 py-1 rounded-full shadow-md transition-all cursor-pointer animate-bounce"
@@ -74,16 +83,12 @@ export const Header: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col items-center justify-center gap-2">
-        <img 
-          src="/logo.png" 
-          alt="Sastrería Ragucci Logo Monograma" 
-          className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-md rounded-lg border border-ragucci-gold/30 p-1 bg-black/40" 
-        />
-        <h1 className="font-display text-3xl md:text-5xl tracking-widest font-black uppercase text-ragucci-gold mb-0.5 drop-shadow-sm">
+      {/* Main Foreground Title */}
+      <div className="relative z-10 py-1">
+        <h1 className="font-display text-2xl md:text-4xl tracking-widest font-black uppercase text-ragucci-gold mb-1 drop-shadow-md">
           SASTRERÍA RAGUCCI
         </h1>
-        <p className="text-ragucci-gold-light text-xs md:text-sm tracking-wider font-medium font-sans">
+        <p className="text-ragucci-gold-light text-xs md:text-sm tracking-wider font-medium font-sans drop-shadow-sm">
           Sistema de Gestión Integral & Calculadora de Rentabilidad
         </p>
       </div>
