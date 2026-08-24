@@ -529,7 +529,7 @@ export const StockDashboard: React.FC = () => {
                     : 0;
 
                   return (
-                    <tr key={item.id} className={`hover:bg-amber-50/40 transition-colors ${isLow ? 'bg-red-50/30' : ''}`}>
+                    <tr key={item.id} className={`hover:bg-amber-50/40 dark:hover:bg-red-950/40 transition-colors ${isLow ? 'bg-red-50/40 dark:bg-red-950/40' : ''}`}>
                       <td className="py-3 px-3 font-mono font-extrabold text-ragucci-primary whitespace-nowrap">
                         {item.code}
                       </td>
