@@ -366,9 +366,22 @@ export const OrderForm: React.FC = () => {
           );
 
           if (matchedStock && matchedStock.quantity > 0) {
+            let updatedSizes = matchedStock.sizes && matchedStock.sizes.length > 0 ? [...matchedStock.sizes] : [];
+            if (updatedSizes.length > 0) {
+              const sizeWithStockIdx = updatedSizes.findIndex(s => s.quantity > 0);
+              if (sizeWithStockIdx >= 0) {
+                updatedSizes[sizeWithStockIdx].quantity = Math.max(0, updatedSizes[sizeWithStockIdx].quantity - 1);
+              }
+            }
+
+            const totalQty = updatedSizes.length > 0
+              ? updatedSizes.reduce((acc, s) => acc + s.quantity, 0)
+              : Math.max(0, matchedStock.quantity - 1);
+
             const updatedStock = {
               ...matchedStock,
-              quantity: Math.max(0, matchedStock.quantity - 1),
+              sizes: updatedSizes,
+              quantity: totalQty,
               lastUpdated: getTodayString()
             };
             try {

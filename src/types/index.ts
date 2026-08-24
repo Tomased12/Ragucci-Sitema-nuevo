@@ -189,13 +189,20 @@ export interface ProspectAppointment {
   createdAt?: string;
 }
 
+export interface StockSizeVariant {
+  size: string;
+  color?: string;
+  quantity: number;
+}
+
 export interface StockItem {
   id: string;
   firestoreId?: string;
   code: string;
   name: string;
   category: 'Sacos RTW' | 'Ambos RTW' | 'Pantalones RTW' | 'Sobretodos & Camperas' | 'Camisas' | 'Corbatas & Pañuelos' | 'Accesorios & Zapatos' | 'Otros';
-  size: string;
+  sizes: StockSizeVariant[];
+  size?: string;
   color?: string;
   quantity: number;
   minStockWarning: number;
