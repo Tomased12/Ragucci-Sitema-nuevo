@@ -1,9 +1,12 @@
-const CACHE_NAME = 'ragucci-app-v1';
+const CACHE_NAME = 'ragucci-app-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/favicon.svg'
+  '/favicon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/logo.png'
 ];
 
 self.addEventListener('install', (event) => {
