@@ -553,15 +553,15 @@ export const StockDashboard: React.FC = () => {
                               key={idx}
                               className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-extrabold border shadow-2xs ${
                                 s.quantity > 0 
-                                  ? 'bg-emerald-50 text-emerald-950 border-emerald-300' 
-                                  : 'bg-gray-100 text-gray-400 border-gray-300'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' 
+                                  : 'bg-gray-100 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-700'
                               }`}
                             >
                               <span>Talle {s.size}:</span>
                               <div className="flex items-center gap-0.5 ml-0.5">
                                 <button
                                   onClick={() => handleQuickAdjustSizeQty(item, s.size, -1)}
-                                  className="w-4 h-4 rounded bg-gray-200 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors text-[10px] font-bold cursor-pointer"
+                                  className="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors text-[10px] font-bold cursor-pointer text-gray-800 dark:text-gray-200"
                                   title={`Restar 1 al talle ${s.size}`}
                                 >
                                   -
@@ -569,7 +569,7 @@ export const StockDashboard: React.FC = () => {
                                 <strong className="px-1 text-xs">{s.quantity}</strong>
                                 <button
                                   onClick={() => handleQuickAdjustSizeQty(item, s.size, 1)}
-                                  className="w-4 h-4 rounded bg-gray-200 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors text-[10px] font-bold cursor-pointer"
+                                  className="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors text-[10px] font-bold cursor-pointer text-gray-800 dark:text-gray-200"
                                   title={`Sumar 1 al talle ${s.size}`}
                                 >
                                   +
