@@ -8,7 +8,7 @@ import { MoneyInput } from '../common/MoneyInput';
 import { Plus, Check, X, Ruler, DollarSign } from 'lucide-react';
 
 export const OrderForm: React.FC = () => {
-  const { orders, config, editingOrderId, setEditingOrderId, saveOrderData, setActiveTab } = useApp();
+  const { orders, config, stockItems, saveStockItemData, editingOrderId, setEditingOrderId, saveOrderData, setActiveTab } = useApp();
 
   const [date, setDate] = useState(getTodayString());
   const [deliveryDate, setDeliveryDate] = useState('');
@@ -345,7 +345,42 @@ export const OrderForm: React.FC = () => {
 
     try {
       await saveOrderData(orderPayload, editingOrderId || undefined);
-      alert(editingOrderId ? "Orden actualizada en la nube con éxito." : "Orden guardada en la nube con éxito.");
+
+      // Auto-descontar stock de productos RTW al emitir una venta nueva
+      if (!editingOrderId) {
+        const itemNamesSold: string[] = [];
+        if (products && products.length > 0) {
+          products.forEach(p => p.description && itemNamesSold.push(p.description));
+        }
+        if (rtwItems && rtwItems.length > 0) {
+          rtwItems.forEach(r => r.desc && itemNamesSold.push(r.desc));
+        }
+
+        for (const soldName of itemNamesSold) {
+          if (!soldName) continue;
+          const cleanSold = soldName.trim().toLowerCase();
+          const matchedStock = stockItems.find(s => 
+            s.name.toLowerCase().trim() === cleanSold ||
+            cleanSold.includes(s.name.toLowerCase().trim()) ||
+            s.code.toLowerCase().trim() === cleanSold
+          );
+
+          if (matchedStock && matchedStock.quantity > 0) {
+            const updatedStock = {
+              ...matchedStock,
+              quantity: Math.max(0, matchedStock.quantity - 1),
+              lastUpdated: getTodayString()
+            };
+            try {
+              await saveStockItemData(updatedStock, matchedStock.firestoreId);
+            } catch (err) {
+              console.error("Error descontando stock automático:", err);
+            }
+          }
+        }
+      }
+
+      alert(editingOrderId ? "Orden actualizada en la nube con éxito." : "Orden guardada en la nube con éxito y stock descontado.");
       resetForm();
       setActiveTab('registro');
     } catch (e) {

@@ -16,7 +16,8 @@ import {
   Minus, 
   Plus, 
   FileSpreadsheet,
-  Filter
+  Filter,
+  RefreshCw
 } from 'lucide-react';
 
 const CATEGORIES: StockItem['category'][] = [
@@ -29,7 +30,7 @@ const CATEGORIES: StockItem['category'][] = [
 ];
 
 export const StockDashboard: React.FC = () => {
-  const { stockItems, saveStockItemData, removeStockItemData } = useApp();
+  const { stockItems, config, saveStockItemData, removeStockItemData } = useApp();
 
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -38,6 +39,63 @@ export const StockDashboard: React.FC = () => {
   // Modal State
   const [showFormModal, setShowFormModal] = useState<boolean>(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+
+  const handleMigrateFromConfig = async () => {
+    const rtwMap = config.rtwPrecios || {};
+    const rtwKeys = Object.keys(rtwMap);
+
+    if (rtwKeys.length === 0) {
+      alert("No hay productos RTW guardados en la configuración de Ajustes.");
+      return;
+    }
+
+    if (!confirm(`¿Deseas importar los ${rtwKeys.length} productos RTW desde Ajustes al inventario de Stock?`)) {
+      return;
+    }
+
+    let countMigrated = 0;
+
+    for (const key of rtwKeys) {
+      const itemName = key;
+      const price = rtwMap[key] || 0;
+
+      // Check if already exists in stock
+      const exists = stockItems.some(i => i.name.toLowerCase().trim() === itemName.toLowerCase().trim());
+      if (exists) continue;
+
+      let cat: StockItem['category'] = 'Otros';
+      const nameUpper = itemName.toUpperCase();
+      if (nameUpper.includes('SACO')) cat = 'Sacos RTW';
+      else if (nameUpper.includes('AMBO')) cat = 'Ambos RTW';
+      else if (nameUpper.includes('CAMISA')) cat = 'Camisas';
+      else if (nameUpper.includes('CORBATA') || nameUpper.includes('MOÑO') || nameUpper.includes('PAÑUELO')) cat = 'Corbatas & Pañuelos';
+      else if (nameUpper.includes('PANTALÓN') || nameUpper.includes('ZAPATO') || nameUpper.includes('SWEATER') || nameUpper.includes('CAMPERA') || nameUpper.includes('SOBRETODO')) cat = 'Accesorios';
+
+      const newItem: StockItem = {
+        id: Date.now().toString() + Math.floor(Math.random() * 1000).toString(),
+        code: `RTW-${Math.floor(1000 + Math.random() * 9000)}`,
+        name: itemName,
+        category: cat,
+        size: '50',
+        color: 'Estándar',
+        quantity: 1,
+        minStockWarning: 1,
+        costPrice: Math.round(price * 0.5),
+        retailPrice: price,
+        supplier: 'Sastrería Ragucci RTW',
+        lastUpdated: getTodayString()
+      };
+
+      try {
+        await saveStockItemData(newItem);
+        countMigrated++;
+      } catch (err) {
+        console.error("Error migrando item:", itemName, err);
+      }
+    }
+
+    alert(`✅ ${countMigrated} productos RTW importados con éxito a la pestaña de Stock! Ahora puedes editar los talles, colores y cantidades de cada uno.`);
+  };
 
   // Form Fields
   const [code, setCode] = useState<string>('');
@@ -201,11 +259,20 @@ export const StockDashboard: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={handleMigrateFromConfig}
+            className="bg-ragucci-primary-light hover:bg-ragucci-primary text-ragucci-gold font-extrabold px-3.5 py-2 rounded text-xs uppercase flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm border border-ragucci-gold/30"
+            title="Importar la lista de productos RTW que tienes guardada en la pestaña de Ajustes"
+          >
+            <RefreshCw className="w-4 h-4 text-ragucci-gold" />
+            <span>⚡ Migrar Productos RTW desde Ajustes</span>
+          </button>
+
+          <button
             onClick={handleOpenNewModal}
             className="bg-ragucci-gold hover:bg-ragucci-gold-light text-ragucci-primary font-extrabold px-4 py-2 rounded text-xs uppercase flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>➕ Nuevo Producto en Stock</span>
+            <span>➕ Nuevo Producto</span>
           </button>
         </div>
       </div>
