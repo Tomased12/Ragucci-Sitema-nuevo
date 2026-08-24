@@ -166,6 +166,18 @@ body.dark .border-ragucci-gold-light {
 }
 
 /* Badges & Modals in Dark Mode */
+body.dark .bg-amber-50,
+body.dark .bg-amber-100 {
+  background-color: #240b05 !important;
+  color: #fde68a !important;
+  border-color: #78350f !important;
+}
+
+body.dark .text-amber-900,
+body.dark .text-amber-950 {
+  color: #fde68a !important;
+}
+
 body.dark .bg-emerald-50 {
   background-color: #064e3b !important;
   color: #a7f3d0 !important;

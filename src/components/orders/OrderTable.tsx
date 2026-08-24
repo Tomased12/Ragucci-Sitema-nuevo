@@ -162,15 +162,15 @@ export const OrderTable: React.FC = () => {
           onClick={() => setFilterUpcomingOnly(!filterUpcomingOnly)}
           className={`mb-4 p-3.5 rounded-lg border flex flex-wrap items-center justify-between cursor-pointer transition-all ${
             filterUpcomingOnly 
-              ? 'bg-amber-100 border-amber-400 text-amber-900 shadow-md ring-2 ring-amber-400'
-              : 'bg-amber-50/90 border-amber-300 text-amber-900 hover:bg-amber-100 shadow-sm'
+              ? 'bg-amber-100 dark:bg-amber-900/80 border-amber-500 text-amber-950 dark:text-amber-100 shadow-md ring-2 ring-amber-400'
+              : 'bg-amber-50 dark:bg-[#200b05] border-amber-300 dark:border-amber-700/60 text-amber-950 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-[#2b0f07] shadow-sm'
           }`}
         >
           <div className="flex items-center gap-2 text-xs md:text-sm font-extrabold">
-            <Clock className="w-5 h-5 text-amber-700 animate-pulse shrink-0" />
+            <Clock className="w-5 h-5 text-amber-700 dark:text-amber-400 animate-pulse shrink-0" />
             <span>⏰ Próximas Entregas de la Semana: {upcomingOrders.length} orden(es) pendiente(s) de entrega</span>
           </div>
-          <span className="text-xs font-extrabold bg-amber-800 text-white px-3 py-1 rounded shadow-sm hover:bg-amber-900 transition-colors mt-2 sm:mt-0">
+          <span className="text-xs font-extrabold bg-amber-800 dark:bg-amber-600 text-white px-3 py-1 rounded shadow-sm hover:bg-amber-900 dark:hover:bg-amber-500 transition-colors mt-2 sm:mt-0">
             {filterUpcomingOnly ? '✕ Ver Todas las Órdenes' : '🔍 Filtrar Solo Entregas de la Semana'}
           </span>
         </div>
