@@ -27,6 +27,53 @@ const MONTH_NAMES = [
 
 const WEEKDAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+// Helper to generate Google Calendar Deep Link
+const getGoogleCalendarUrl = (title: string, dateStr: string, timeStr?: string, details?: string) => {
+  const cleanDate = dateStr.replace(/-/g, '');
+  const startTime = timeStr ? timeStr.replace(':', '') + '00' : '100000';
+  const endHour = timeStr ? (parseInt(timeStr.split(':')[0]) + 1).toString().padStart(2, '0') : '11';
+  const endTime = timeStr ? `${endHour}${timeStr.split(':')[1]}00` : '110000';
+  
+  const startIso = `${cleanDate}T${startTime}`;
+  const endIso = `${cleanDate}T${endTime}`;
+
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startIso}/${endIso}&details=${encodeURIComponent(details || '')}&location=${encodeURIComponent('Sastrería Ragucci')}`;
+};
+
+// Helper to download .ics iCal file for iPhone / Mac / Windows
+const downloadIcalFile = (title: string, dateStr: string, timeStr?: string, details?: string) => {
+  const cleanDate = dateStr.replace(/-/g, '');
+  const startTime = timeStr ? timeStr.replace(':', '') + '00' : '100000';
+  const endHour = timeStr ? (parseInt(timeStr.split(':')[0]) + 1).toString().padStart(2, '0') : '11';
+  const endTime = timeStr ? `${endHour}${timeStr.split(':')[1]}00` : '110000';
+  
+  const startIso = `${cleanDate}T${startTime}`;
+  const endIso = `${cleanDate}T${endTime}`;
+
+  const icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Sastreria Ragucci//Calendar//ES',
+    'BEGIN:VEVENT',
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${details || ''}`,
+    'LOCATION:Sastrería Ragucci',
+    `DTSTART:${startIso}`,
+    `DTEND:${endIso}`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+
+  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `${title.replace(/\s+/g, '_')}.ics`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 export const CalendarView: React.FC = () => {
   const { 
     orders, 
@@ -629,18 +676,38 @@ export const CalendarView: React.FC = () => {
                       </div>
 
                       <div className="flex items-center justify-between text-xs pt-1 border-t border-purple-200">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {cleanPhone && (
                             <a
                               href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Hola ${p.clientName}, te escribimos de Sastrería Ragucci para confirmar tu cita pactada para la consulta de ${p.interest}.`)}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[11px] font-bold flex items-center gap-1 transition-colors"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1 transition-colors"
                             >
-                              <MessageCircle className="w-3.5 h-3.5" />
+                              <MessageCircle className="w-3 h-3" />
                               <span>WhatsApp</span>
                             </a>
                           )}
+
+                          <a
+                            href={getGoogleCalendarUrl(`Cita: ${p.clientName} (${p.interest})`, p.date, p.time, `Teléfono: ${p.phone || ''}. Notas: ${p.notes || ''}`)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1 transition-colors"
+                            title="Añadir a Google Calendar"
+                          >
+                            <CalendarIcon className="w-3 h-3" />
+                            <span>Google Cal</span>
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => downloadIcalFile(`Cita: ${p.clientName} (${p.interest})`, p.date, p.time, `Teléfono: ${p.phone || ''}. Notas: ${p.notes || ''}`)}
+                            className="bg-gray-800 hover:bg-black text-white px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Descargar para iPhone / Apple Calendar (.ics)"
+                          >
+                            <span>📱 Apple .ics</span>
+                          </button>
 
                           <button
                             onClick={() => handleDeleteProspect(p)}
@@ -658,7 +725,7 @@ export const CalendarView: React.FC = () => {
                           }}
                           className="bg-ragucci-primary text-ragucci-gold hover:bg-ragucci-primary-light font-extrabold text-[11px] px-2.5 py-1 rounded transition-colors flex items-center gap-1"
                         >
-                          <span>➕ Crear Orden de Venta</span>
+                          <span>➕ Crear Orden</span>
                         </button>
                       </div>
                     </div>
@@ -699,7 +766,7 @@ export const CalendarView: React.FC = () => {
                           </strong>
                         </div>
 
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <select
                             value={order.status || '🔴 Pendiente'}
                             onChange={(e) => handleOrderStatusChange(order, e.target.value)}
@@ -723,12 +790,41 @@ export const CalendarView: React.FC = () => {
                             </a>
                           )}
 
+                          <a
+                            href={getGoogleCalendarUrl(
+                              evt.type === 'prueba' ? `Prueba de Calce: ${order.client}` : `Entrega de Prenda: ${order.client}`,
+                              evt.type === 'prueba' ? order.date : (order.deliveryDate || order.date),
+                              '11:00',
+                              `Cliente: ${order.client}. Prendas: ${order.products?.map(p => p.description).join(', ')}. Saldo a cobrar: $${formatMoney(order.saldo)}`
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded transition-colors flex items-center gap-1 text-[10px] font-bold"
+                            title="Añadir a Google Calendar en el celular"
+                          >
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => downloadIcalFile(
+                              evt.type === 'prueba' ? `Prueba de Calce: ${order.client}` : `Entrega de Prenda: ${order.client}`,
+                              evt.type === 'prueba' ? order.date : (order.deliveryDate || order.date),
+                              '11:00',
+                              `Cliente: ${order.client}. Prendas: ${order.products?.map(p => p.description).join(', ')}. Saldo a cobrar: $${formatMoney(order.saldo)}`
+                            )}
+                            className="bg-gray-800 hover:bg-black text-white p-1.5 rounded transition-colors cursor-pointer text-[10px] font-bold"
+                            title="Guardar en iPhone / Apple Calendar (.ics)"
+                          >
+                            📱
+                          </button>
+
                           <button
                             onClick={() => {
                               setSelectedDetailOrder(order);
                               setSelectedDayDateStr(null);
                             }}
-                            className="bg-ragucci-gold text-ragucci-primary hover:bg-ragucci-primary hover:text-ragucci-gold p-1 rounded transition-colors text-xs font-bold"
+                            className="bg-ragucci-gold text-ragucci-primary hover:bg-ragucci-primary hover:text-ragucci-gold p-1.5 rounded transition-colors text-xs font-bold"
                             title="Ver Detalle de Orden"
                           >
                             <Eye className="w-3.5 h-3.5" />
