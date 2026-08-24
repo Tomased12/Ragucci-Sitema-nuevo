@@ -17,15 +17,18 @@ import {
   Plus, 
   FileSpreadsheet,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Copy
 } from 'lucide-react';
 
 const CATEGORIES: StockItem['category'][] = [
   'Sacos RTW',
   'Ambos RTW',
+  'Pantalones RTW',
+  'Sobretodos & Camperas',
   'Camisas',
   'Corbatas & Pañuelos',
-  'Accesorios',
+  'Accesorios & Zapatos',
   'Otros'
 ];
 
@@ -81,9 +84,11 @@ export const StockDashboard: React.FC = () => {
         const nameUpper = itemName.toUpperCase();
         if (nameUpper.includes('SACO')) cat = 'Sacos RTW';
         else if (nameUpper.includes('AMBO')) cat = 'Ambos RTW';
+        else if (nameUpper.includes('PANTALÓN') || nameUpper.includes('PANTALON')) cat = 'Pantalones RTW';
+        else if (nameUpper.includes('SOBRETODO') || nameUpper.includes('CAMPERA') || nameUpper.includes('CAMISACO')) cat = 'Sobretodos & Camperas';
         else if (nameUpper.includes('CAMISA')) cat = 'Camisas';
         else if (nameUpper.includes('CORBATA') || nameUpper.includes('MOÑO') || nameUpper.includes('PAÑUELO')) cat = 'Corbatas & Pañuelos';
-        else if (nameUpper.includes('PANTALÓN') || nameUpper.includes('ZAPATO') || nameUpper.includes('SWEATER') || nameUpper.includes('CAMPERA') || nameUpper.includes('SOBRETODO')) cat = 'Accesorios';
+        else if (nameUpper.includes('ZAPATO') || nameUpper.includes('SWEATER') || nameUpper.includes('CINTURÓN')) cat = 'Accesorios & Zapatos';
 
         const newItem: StockItem = {
           id: Date.now().toString() + Math.floor(Math.random() * 1000).toString(),
@@ -157,6 +162,22 @@ export const StockDashboard: React.FC = () => {
     setShowFormModal(true);
   };
 
+  const handleDuplicateAsVariant = (item: StockItem) => {
+    setEditingItem(null); // Registrar como nueva variante
+    setCode(`RTW-${Math.floor(1000 + Math.random() * 9000)}`);
+    setName(item.name);
+    setCategory(item.category);
+    setSize(''); // Dejar talle vacío para rápida escritura
+    setColor(item.color || '');
+    setQuantity('1');
+    setMinStockWarning(item.minStockWarning ? item.minStockWarning.toString() : '1');
+    setCostPrice(item.costPrice ? item.costPrice.toString() : '0');
+    setRetailPrice(item.retailPrice ? item.retailPrice.toString() : '0');
+    setSupplier(item.supplier || '');
+    setNotes(item.notes || '');
+    setShowFormModal(true);
+  };
+
   const handleSaveStockItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !code.trim()) {
@@ -170,12 +191,12 @@ export const StockDashboard: React.FC = () => {
     const parsedRetail = parseFloat(retailPrice) || 0;
 
     const newItem: StockItem = {
-      id: editingItem ? editingItem.id : Date.now().toString(),
+      id: editingItem ? editingItem.id : Date.now().toString() + Math.floor(Math.random() * 1000).toString(),
       firestoreId: editingItem?.firestoreId,
       code: code.trim().toUpperCase(),
       name: name.trim(),
       category,
-      size: size.trim(),
+      size: size.trim() || 'Único',
       color: color.trim(),
       quantity: parsedQty,
       minStockWarning: parsedMin,
@@ -196,7 +217,7 @@ export const StockDashboard: React.FC = () => {
 
   const handleDeleteItem = async (item: StockItem) => {
     if (!item.firestoreId) return;
-    if (confirm(`¿Deseas eliminar "${item.name}" (Código: ${item.code}) del inventario?`)) {
+    if (confirm(`¿Deseas eliminar "${item.name}" (Talle ${item.size}) del inventario?`)) {
       try {
         await removeStockItemData(item.firestoreId);
       } catch (err) {
@@ -216,9 +237,9 @@ export const StockDashboard: React.FC = () => {
     }
   };
 
-  // Filtered Items
+  // Filtered & Grouped Items
   const filteredItems = useMemo(() => {
-    return stockItems.filter((i) => {
+    const list = stockItems.filter((i) => {
       if (selectedCategory !== 'all' && i.category !== selectedCategory) return false;
       if (onlyLowStock && i.quantity > i.minStockWarning) return false;
 
@@ -232,6 +253,13 @@ export const StockDashboard: React.FC = () => {
         return matchesCode || matchesName || matchesSize || matchesColor || matchesSupplier;
       }
       return true;
+    });
+
+    // Ordenar alfabéticamente por nombre y luego por talle
+    return list.sort((a, b) => {
+      const nameComp = (a.name || '').localeCompare(b.name || '');
+      if (nameComp !== 0) return nameComp;
+      return (a.size || '').localeCompare(b.size || '');
     });
   }, [stockItems, selectedCategory, onlyLowStock, searchTerm]);
 
@@ -468,8 +496,17 @@ export const StockDashboard: React.FC = () => {
                       <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1">
                           <button
+                            onClick={() => handleDuplicateAsVariant(item)}
+                            className="bg-purple-800 hover:bg-purple-900 text-white px-2 py-1 rounded transition-colors font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+                            title="Añadir variante de Talle o Color para esta prenda"
+                          >
+                            <Copy className="w-3 h-3 text-purple-200" />
+                            <span>+ Talle</span>
+                          </button>
+
+                          <button
                             onClick={() => handleOpenEditModal(item)}
-                            className="bg-ragucci-gold text-ragucci-primary hover:bg-ragucci-primary hover:text-ragucci-gold p-1 rounded transition-colors"
+                            className="bg-ragucci-gold text-ragucci-primary hover:bg-ragucci-primary hover:text-ragucci-gold p-1.5 rounded transition-colors"
                             title="Editar Producto"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
@@ -477,7 +514,7 @@ export const StockDashboard: React.FC = () => {
 
                           <button
                             onClick={() => handleDeleteItem(item)}
-                            className="bg-red-600 hover:bg-red-700 text-white p-1 rounded transition-colors"
+                            className="bg-red-600 hover:bg-red-700 text-white p-1.5 rounded transition-colors"
                             title="Eliminar Producto"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

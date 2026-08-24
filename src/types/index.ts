@@ -194,7 +194,7 @@ export interface StockItem {
   firestoreId?: string;
   code: string;
   name: string;
-  category: 'Sacos RTW' | 'Ambos RTW' | 'Camisas' | 'Corbatas & Pañuelos' | 'Accesorios' | 'Otros';
+  category: 'Sacos RTW' | 'Ambos RTW' | 'Pantalones RTW' | 'Sobretodos & Camperas' | 'Camisas' | 'Corbatas & Pañuelos' | 'Accesorios & Zapatos' | 'Otros';
   size: string;
   color?: string;
   quantity: number;
