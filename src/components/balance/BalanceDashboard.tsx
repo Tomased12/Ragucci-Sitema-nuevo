@@ -19,7 +19,8 @@ import {
   FileSpreadsheet,
   BarChart3,
   PieChart,
-  Trophy
+  Trophy,
+  Target
 } from 'lucide-react';
 import { exportBalanceToCSV } from '../../utils/exportCsv';
 
@@ -158,6 +159,41 @@ export const BalanceDashboard: React.FC = () => {
 
   // Find peak sales month
   const recordMonth = [...monthsData].sort((a, b) => b.venta - a.venta)[0];
+
+  // Breakeven / Target Sales Calculations for Selected Period
+  const breakevenMetrics = React.useMemo(() => {
+    const fixedCostsMonthly = gastosFijosMensualesBase;
+    const totalVenta = totals.venta || 0;
+    const totalCostoDirecto = totals.costo || 0;
+    const totalGananciaDirecta = totalVenta - totalCostoDirecto;
+
+    const marginPct = totalVenta > 0 ? (totalGananciaDirecta / totalVenta) : 0.40;
+    const breakevenVentaRequired = marginPct > 0 ? (fixedCostsMonthly / marginPct) : (fixedCostsMonthly * 2.5);
+
+    const averageOrderTicket = filteredOrders.length > 0 ? (totalVenta / filteredOrders.length) : 480000;
+    const ordersRequiredToBreakeven = Math.ceil(breakevenVentaRequired / averageOrderTicket);
+    const ordersCurrentCount = filteredOrders.length;
+    const ordersRemainingToBreakeven = Math.max(0, ordersRequiredToBreakeven - ordersCurrentCount);
+
+    const fixedCostsCoveredPct = fixedCostsMonthly > 0 ? Math.min(100, Math.round((totalGananciaDirecta / fixedCostsMonthly) * 100)) : 100;
+    const isBreakevenReached = totalGananciaDirecta >= fixedCostsMonthly;
+    const shortageAmount = Math.max(0, fixedCostsMonthly - totalGananciaDirecta);
+    const shortageVentaAmount = Math.max(0, breakevenVentaRequired - totalVenta);
+
+    return {
+      fixedCostsMonthly,
+      breakevenVentaRequired,
+      averageOrderTicket,
+      ordersRequiredToBreakeven,
+      ordersCurrentCount,
+      ordersRemainingToBreakeven,
+      fixedCostsCoveredPct,
+      isBreakevenReached,
+      shortageAmount,
+      shortageVentaAmount,
+      marginPct
+    };
+  }, [totals, gastosFijosMensualesBase, filteredOrders]);
 
   const handleSaveGastosFijos = async () => {
     const updatedConfig = {
@@ -432,6 +468,82 @@ export const BalanceDashboard: React.FC = () => {
           <Save className="w-4 h-4" />
           <span>💾 Guardar Gastos Fijos</span>
         </button>
+      </div>
+
+      {/* Breakeven & Target Sales Calculator Banner */}
+      <div className="bg-gradient-to-br from-ragucci-primary via-[#2a0808] to-ragucci-primary text-white p-5 md:p-6 rounded-lg shadow-md border-l-4 border-ragucci-gold mb-6 space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-ragucci-gold/30 pb-3">
+          <div>
+            <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-gold flex items-center gap-2 tracking-wider">
+              <Target className="w-5 h-5 text-ragucci-gold" />
+              <span>🎯 Cobertura de Estructura & Punto de Equilibrio</span>
+            </h3>
+            <p className="text-xs text-ragucci-gold-light mt-0.5 font-medium">
+              Calcula cuántas ventas/trajes faltan para cubrir el alquiler de USD {formatMoney(alquilerUsd)} (@ ${formatMoney(dolarBlueVenta)}) y la estructura del local.
+            </p>
+          </div>
+
+          <div className="shrink-0 bg-black/40 px-3.5 py-1.5 rounded-full border border-ragucci-gold/40 flex items-center gap-2">
+            <span className="text-xs font-bold text-ragucci-gold-light">Gastos Fijos Estructura:</span>
+            <strong className="text-sm font-extrabold text-white">${formatMoney(Math.round(breakevenMetrics.fixedCostsMonthly))}</strong>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div>
+          <div className="flex justify-between items-center text-xs font-bold mb-1.5">
+            <span className="text-ragucci-gold-light">Cobertura Actual de Gastos Fijos con Ganancia Directa:</span>
+            <span className={`text-sm font-extrabold ${breakevenMetrics.isBreakevenReached ? 'text-emerald-400' : 'text-amber-300'}`}>
+              {breakevenMetrics.fixedCostsCoveredPct}% Cubierto
+            </span>
+          </div>
+
+          <div className="w-full bg-black/50 rounded-full h-3.5 border border-ragucci-gold/30 overflow-hidden p-0.5">
+            <div 
+              className={`h-full rounded-full transition-all duration-500 ${
+                breakevenMetrics.isBreakevenReached 
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400' 
+                  : breakevenMetrics.fixedCostsCoveredPct >= 70 
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
+                  : 'bg-gradient-to-r from-red-600 via-amber-500 to-amber-400'
+              }`}
+              style={{ width: `${Math.min(100, breakevenMetrics.fixedCostsCoveredPct)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Key Metrics Breakdown */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+          <div className="bg-black/30 p-3 rounded border border-ragucci-gold/20">
+            <span className="text-[10px] uppercase font-bold text-ragucci-gold-light tracking-wider block">Facturación Necesaria (Breakeven)</span>
+            <strong className="text-base font-extrabold text-white block mt-0.5">${formatMoney(Math.round(breakevenMetrics.breakevenVentaRequired))}</strong>
+            <span className="text-[10px] text-gray-300 block mt-0.5">Basado en tu margen directo del {Math.round(breakevenMetrics.marginPct * 100)}%</span>
+          </div>
+
+          <div className="bg-black/30 p-3 rounded border border-ragucci-gold/20">
+            <span className="text-[10px] uppercase font-bold text-ragucci-gold-light tracking-wider block">Meta de Órdenes / Trajes por Mes</span>
+            <strong className="text-base font-extrabold text-white block mt-0.5">
+              {breakevenMetrics.ordersRequiredToBreakeven} {breakevenMetrics.ordersRequiredToBreakeven === 1 ? 'traje' : 'trajes'} / mes
+            </strong>
+            <span className="text-[10px] text-gray-300 block mt-0.5">Ticket promedio de ${formatMoney(Math.round(breakevenMetrics.averageOrderTicket))}</span>
+          </div>
+
+          <div className="bg-black/30 p-3 rounded border border-ragucci-gold/20">
+            <span className="text-[10px] uppercase font-bold text-ragucci-gold-light tracking-wider block">Estado de la Estructura</span>
+            {breakevenMetrics.isBreakevenReached ? (
+              <span className="text-xs font-black text-emerald-400 block mt-0.5">
+                ✅ ¡Punto de Equilibrio Alcanzado! El resto es ganancia neta.
+              </span>
+            ) : (
+              <span className="text-xs font-black text-amber-300 block mt-0.5">
+                ⚠️ Faltan {breakevenMetrics.ordersRemainingToBreakeven} {breakevenMetrics.ordersRemainingToBreakeven === 1 ? 'traje' : 'trajes'} (${formatMoney(Math.round(breakevenMetrics.shortageVentaAmount))} en ventas)
+              </span>
+            )}
+            <span className="text-[10px] text-gray-300 block mt-0.5">
+              {breakevenMetrics.isBreakevenReached ? 'Estructura totalmente saldada' : `Falta $${formatMoney(Math.round(breakevenMetrics.shortageAmount))} de ganancia directa`}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="text-xs text-gray-500 mb-3 flex items-center gap-1">
