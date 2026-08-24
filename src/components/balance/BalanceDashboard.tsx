@@ -170,23 +170,31 @@ export const BalanceDashboard: React.FC = () => {
     const marginPct = totalVenta > 0 ? (totalGananciaDirecta / totalVenta) : 0.40;
     const breakevenVentaRequired = marginPct > 0 ? (fixedCostsMonthly / marginPct) : (fixedCostsMonthly * 2.5);
 
-    const averageOrderTicket = filteredOrders.length > 0 ? (totalVenta / filteredOrders.length) : 480000;
-    const ordersRequiredToBreakeven = Math.ceil(breakevenVentaRequired / averageOrderTicket);
-    const ordersCurrentCount = filteredOrders.length;
-    const ordersRemainingToBreakeven = Math.max(0, ordersRequiredToBreakeven - ordersCurrentCount);
+    // Benchmarks reales especificados por Tomy
+    const TICKET_TRAJE = 2000000;
+    const TICKET_CAMISA = 320000;
+
+    const trajesRequiredTotal = (breakevenVentaRequired / TICKET_TRAJE).toFixed(1);
+    const camisasRequiredTotal = (breakevenVentaRequired / TICKET_CAMISA).toFixed(1);
+
+    const shortageVentaAmount = Math.max(0, breakevenVentaRequired - totalVenta);
+    const trajesRemainingToBreakeven = (shortageVentaAmount / TICKET_TRAJE).toFixed(1);
+    const camisasRemainingToBreakeven = (shortageVentaAmount / TICKET_CAMISA).toFixed(1);
+
+    const averageOrderTicket = filteredOrders.length > 0 ? (totalVenta / filteredOrders.length) : TICKET_TRAJE;
 
     const fixedCostsCoveredPct = fixedCostsMonthly > 0 ? Math.min(100, Math.round((totalGananciaDirecta / fixedCostsMonthly) * 100)) : 100;
     const isBreakevenReached = totalGananciaDirecta >= fixedCostsMonthly;
     const shortageAmount = Math.max(0, fixedCostsMonthly - totalGananciaDirecta);
-    const shortageVentaAmount = Math.max(0, breakevenVentaRequired - totalVenta);
 
     return {
       fixedCostsMonthly,
       breakevenVentaRequired,
       averageOrderTicket,
-      ordersRequiredToBreakeven,
-      ordersCurrentCount,
-      ordersRemainingToBreakeven,
+      trajesRequiredTotal,
+      camisasRequiredTotal,
+      trajesRemainingToBreakeven,
+      camisasRemainingToBreakeven,
       fixedCostsCoveredPct,
       isBreakevenReached,
       shortageAmount,
@@ -521,11 +529,11 @@ export const BalanceDashboard: React.FC = () => {
           </div>
 
           <div className="bg-black/30 p-3 rounded border border-ragucci-gold/20">
-            <span className="text-[10px] uppercase font-bold text-ragucci-gold-light tracking-wider block">Meta de Órdenes / Trajes por Mes</span>
-            <strong className="text-base font-extrabold text-white block mt-0.5">
-              {breakevenMetrics.ordersRequiredToBreakeven} {breakevenMetrics.ordersRequiredToBreakeven === 1 ? 'traje' : 'trajes'} / mes
-            </strong>
-            <span className="text-[10px] text-gray-300 block mt-0.5">Ticket promedio de ${formatMoney(Math.round(breakevenMetrics.averageOrderTicket))}</span>
+            <span className="text-[10px] uppercase font-bold text-ragucci-gold-light tracking-wider block">Metas Objetivo por Producto</span>
+            <div className="text-xs font-bold text-white mt-1 space-y-0.5">
+              <div>🥋 <strong>{breakevenMetrics.trajesRequiredTotal} Trajes</strong> <span className="text-[10px] text-ragucci-gold-light font-normal">(a $2.000.000/u)</span></div>
+              <div>👔 <em>o bien</em> <strong>{breakevenMetrics.camisasRequiredTotal} Camisas</strong> <span className="text-[10px] text-ragucci-gold-light font-normal">(a $320.000/u)</span></div>
+            </div>
           </div>
 
           <div className="bg-black/30 p-3 rounded border border-ragucci-gold/20">
@@ -535,11 +543,16 @@ export const BalanceDashboard: React.FC = () => {
                 ✅ ¡Punto de Equilibrio Alcanzado! El resto es ganancia neta.
               </span>
             ) : (
-              <span className="text-xs font-black text-amber-300 block mt-0.5">
-                ⚠️ Faltan {breakevenMetrics.ordersRemainingToBreakeven} {breakevenMetrics.ordersRemainingToBreakeven === 1 ? 'traje' : 'trajes'} (${formatMoney(Math.round(breakevenMetrics.shortageVentaAmount))} en ventas)
-              </span>
+              <div className="mt-0.5 space-y-0.5">
+                <span className="text-xs font-extrabold text-amber-300 block">
+                  ⚠️ Faltan ${formatMoney(Math.round(breakevenMetrics.shortageVentaAmount))} en ventas
+                </span>
+                <span className="text-[11px] text-amber-200 block font-medium">
+                  Equivale a <strong>{breakevenMetrics.trajesRemainingToBreakeven} trajes</strong> o <strong>{breakevenMetrics.camisasRemainingToBreakeven} camisas</strong>
+                </span>
+              </div>
             )}
-            <span className="text-[10px] text-gray-300 block mt-0.5">
+            <span className="text-[10px] text-gray-300 block mt-1">
               {breakevenMetrics.isBreakevenReached ? 'Estructura totalmente saldada' : `Falta $${formatMoney(Math.round(breakevenMetrics.shortageAmount))} de ganancia directa`}
             </span>
           </div>
