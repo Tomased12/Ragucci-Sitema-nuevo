@@ -469,7 +469,7 @@ export const CalendarView: React.FC = () => {
         </div>
 
         {/* Days Matrix */}
-        <div className="grid grid-cols-7 divide-x divide-y divide-gray-200 bg-gray-50 min-h-[480px]">
+        <div className="grid grid-cols-7 divide-x divide-y divide-gray-200 dark:divide-[#3b0a0a] bg-gray-50 dark:bg-[#140303] min-h-[480px]">
           {calendarDays.map((d) => {
             const events = eventsByDate.get(d.dateStr) || [];
             const maxVisible = 2;
@@ -480,9 +480,11 @@ export const CalendarView: React.FC = () => {
                 key={d.dateStr}
                 onClick={() => events.length > 0 && setSelectedDayDateStr(d.dateStr)}
                 className={`p-1.5 md:p-2 min-h-[90px] md:min-h-[110px] flex flex-col justify-between transition-colors ${
-                  !d.isCurrentMonth ? 'bg-gray-100/60 text-gray-400 opacity-60' : 'bg-white'
-                } ${d.isToday ? 'ring-2 ring-ragucci-gold bg-amber-50/40' : ''} ${
-                  events.length > 0 ? 'cursor-pointer hover:bg-[#fdfaf5]' : ''
+                  !d.isCurrentMonth 
+                    ? 'bg-gray-100/60 dark:bg-[#0a0101] text-gray-400 dark:text-gray-600 opacity-60' 
+                    : 'bg-white dark:bg-[#140303] text-gray-900 dark:text-gray-100'
+                } ${d.isToday ? 'ring-2 ring-ragucci-gold bg-amber-50/40 dark:bg-amber-950/30' : ''} ${
+                  events.length > 0 ? 'cursor-pointer hover:bg-[#fdfaf5] dark:hover:bg-[#220505]' : ''
                 }`}
               >
                 {/* Day Header */}
