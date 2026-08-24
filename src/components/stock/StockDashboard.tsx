@@ -49,52 +49,67 @@ export const StockDashboard: React.FC = () => {
       return;
     }
 
-    if (!confirm(`¿Deseas importar los ${rtwKeys.length} productos RTW desde Ajustes al inventario de Stock?`)) {
+    if (!confirm(`¿Deseas importar/actualizar los ${rtwKeys.length} productos RTW desde Ajustes? Se asignará el valor de Ajustes como PRECIO DE COSTO y el PRECIO DE VENTA quedará en $0 por ahora para que lo modifiques.`)) {
       return;
     }
 
     let countMigrated = 0;
+    let countUpdated = 0;
 
     for (const key of rtwKeys) {
       const itemName = key;
-      const price = rtwMap[key] || 0;
+      const baseCost = rtwMap[key] || 0;
 
       // Check if already exists in stock
-      const exists = stockItems.some(i => i.name.toLowerCase().trim() === itemName.toLowerCase().trim());
-      if (exists) continue;
+      const existing = stockItems.find(i => i.name.toLowerCase().trim() === itemName.toLowerCase().trim());
 
-      let cat: StockItem['category'] = 'Otros';
-      const nameUpper = itemName.toUpperCase();
-      if (nameUpper.includes('SACO')) cat = 'Sacos RTW';
-      else if (nameUpper.includes('AMBO')) cat = 'Ambos RTW';
-      else if (nameUpper.includes('CAMISA')) cat = 'Camisas';
-      else if (nameUpper.includes('CORBATA') || nameUpper.includes('MOÑO') || nameUpper.includes('PAÑUELO')) cat = 'Corbatas & Pañuelos';
-      else if (nameUpper.includes('PANTALÓN') || nameUpper.includes('ZAPATO') || nameUpper.includes('SWEATER') || nameUpper.includes('CAMPERA') || nameUpper.includes('SOBRETODO')) cat = 'Accesorios';
+      if (existing) {
+        const updatedItem: StockItem = {
+          ...existing,
+          costPrice: baseCost,
+          retailPrice: 0,
+          lastUpdated: getTodayString()
+        };
+        try {
+          await saveStockItemData(updatedItem, existing.firestoreId);
+          countUpdated++;
+        } catch (err) {
+          console.error("Error actualizando item:", itemName, err);
+        }
+      } else {
+        let cat: StockItem['category'] = 'Otros';
+        const nameUpper = itemName.toUpperCase();
+        if (nameUpper.includes('SACO')) cat = 'Sacos RTW';
+        else if (nameUpper.includes('AMBO')) cat = 'Ambos RTW';
+        else if (nameUpper.includes('CAMISA')) cat = 'Camisas';
+        else if (nameUpper.includes('CORBATA') || nameUpper.includes('MOÑO') || nameUpper.includes('PAÑUELO')) cat = 'Corbatas & Pañuelos';
+        else if (nameUpper.includes('PANTALÓN') || nameUpper.includes('ZAPATO') || nameUpper.includes('SWEATER') || nameUpper.includes('CAMPERA') || nameUpper.includes('SOBRETODO')) cat = 'Accesorios';
 
-      const newItem: StockItem = {
-        id: Date.now().toString() + Math.floor(Math.random() * 1000).toString(),
-        code: `RTW-${Math.floor(1000 + Math.random() * 9000)}`,
-        name: itemName,
-        category: cat,
-        size: '50',
-        color: 'Estándar',
-        quantity: 1,
-        minStockWarning: 1,
-        costPrice: Math.round(price * 0.5),
-        retailPrice: price,
-        supplier: 'Sastrería Ragucci RTW',
-        lastUpdated: getTodayString()
-      };
+        const newItem: StockItem = {
+          id: Date.now().toString() + Math.floor(Math.random() * 1000).toString(),
+          code: `RTW-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: itemName,
+          category: cat,
+          size: '50',
+          color: 'Estándar',
+          quantity: 1,
+          minStockWarning: 1,
+          costPrice: baseCost,
+          retailPrice: 0,
+          supplier: 'Sastrería Ragucci RTW',
+          lastUpdated: getTodayString()
+        };
 
-      try {
-        await saveStockItemData(newItem);
-        countMigrated++;
-      } catch (err) {
-        console.error("Error migrando item:", itemName, err);
+        try {
+          await saveStockItemData(newItem);
+          countMigrated++;
+        } catch (err) {
+          console.error("Error migrando item:", itemName, err);
+        }
       }
     }
 
-    alert(`✅ ${countMigrated} productos RTW importados con éxito a la pestaña de Stock! Ahora puedes editar los talles, colores y cantidades de cada uno.`);
+    alert(`✅ Productos procesados: ${countMigrated} nuevos importados, ${countUpdated} actualizados con Precio de Costo exacto de Ajustes y Venta en $0.`);
   };
 
   // Form Fields
