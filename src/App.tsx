@@ -7,6 +7,7 @@ import { OrderTable } from './components/orders/OrderTable';
 import { WorkshopPayments } from './components/workshops/WorkshopPayments';
 import { BalanceDashboard } from './components/balance/BalanceDashboard';
 import { CalendarView } from './components/calendar/CalendarView';
+import { StockDashboard } from './components/stock/StockDashboard';
 import { CapitalesDashboard } from './components/capitales/CapitalesDashboard';
 import { CrmDashboard } from './components/crm/CrmDashboard';
 import { ConfigForm } from './components/config/ConfigForm';
@@ -26,6 +27,7 @@ export const AppContent: React.FC = () => {
         {activeTab === 'talleres' && <WorkshopPayments />}
         {activeTab === 'balance' && <BalanceDashboard />}
         {activeTab === 'agenda' && <CalendarView />}
+        {activeTab === 'stock' && <StockDashboard />}
         {activeTab === 'capitales' && <CapitalesDashboard />}
         {activeTab === 'crm' && <CrmDashboard />}
         {activeTab === 'configuracion' && <ConfigForm />}

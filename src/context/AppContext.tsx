@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Order, AppConfig, TabType, CashMovement, ProspectAppointment } from '../types';
+import { Order, AppConfig, TabType, CashMovement, ProspectAppointment, StockItem } from '../types';
 import { DEFAULT_CONFIG } from '../utils/constants';
 import { 
   subscribeOrders, 
   subscribeCashMovements, 
   subscribeProspectAppointments,
+  subscribeStockItems,
   fetchConfig, 
   saveOrder, 
   deleteOrder, 
@@ -12,7 +13,9 @@ import {
   saveCashMovement, 
   deleteCashMovement,
   saveProspectAppointment,
-  deleteProspectAppointment
+  deleteProspectAppointment,
+  saveStockItem,
+  deleteStockItem
 } from '../services/firebase';
 import { fetchDolarBlue } from '../services/dolar';
 
@@ -21,6 +24,7 @@ interface AppContextType {
   config: AppConfig;
   cashMovements: CashMovement[];
   prospectAppointments: ProspectAppointment[];
+  stockItems: StockItem[];
   dolarBlueVenta: number;
   activeTab: TabType;
   editingOrderId: string | null;
@@ -37,6 +41,8 @@ interface AppContextType {
   removeCashMovementData: (firestoreId: string) => Promise<void>;
   saveProspectAppointmentData: (appointment: ProspectAppointment, firestoreId?: string) => Promise<void>;
   removeProspectAppointmentData: (firestoreId: string) => Promise<void>;
+  saveStockItemData: (item: StockItem, firestoreId?: string) => Promise<void>;
+  removeStockItemData: (firestoreId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -45,6 +51,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [orders, setOrders] = useState<Order[]>([]);
   const [cashMovements, setCashMovements] = useState<CashMovement[]>([]);
   const [prospectAppointments, setProspectAppointments] = useState<ProspectAppointment[]>([]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [dolarBlueVenta, setDolarBlueVenta] = useState<number>(1500);
   const [activeTab, setActiveTab] = useState<TabType>('carga');
@@ -89,10 +96,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setProspectAppointments(fetchedAppointments);
     });
 
+    // 6. Subscribe to Real-time Stock Items from Firebase
+    const unsubscribeStock = subscribeStockItems((fetchedStock) => {
+      setStockItems(fetchedStock);
+    });
+
     return () => {
       unsubscribeOrders();
       unsubscribeCash();
       unsubscribeProspects();
+      unsubscribeStock();
     };
   }, []);
 
@@ -130,6 +143,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await deleteProspectAppointment(firestoreId);
   };
 
+  const saveStockItemData = async (item: StockItem, firestoreId?: string) => {
+    await saveStockItem(item, firestoreId);
+  };
+
+  const removeStockItemData = async (firestoreId: string) => {
+    await deleteStockItem(firestoreId);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -137,6 +158,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         config,
         cashMovements,
         prospectAppointments,
+        stockItems,
         dolarBlueVenta,
         activeTab,
         editingOrderId,
@@ -152,7 +174,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveCashMovementData,
         removeCashMovementData,
         saveProspectAppointmentData,
-        removeProspectAppointmentData
+        removeProspectAppointmentData,
+        saveStockItemData,
+        removeStockItemData
       }}
     >
       {children}

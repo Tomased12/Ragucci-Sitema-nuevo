@@ -189,4 +189,21 @@ export interface ProspectAppointment {
   createdAt?: string;
 }
 
-export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'agenda' | 'crm' | 'capitales' | 'configuracion' | 'backup';
+export interface StockItem {
+  id: string;
+  firestoreId?: string;
+  code: string;
+  name: string;
+  category: 'Sacos RTW' | 'Ambos RTW' | 'Camisas' | 'Corbatas & Pañuelos' | 'Accesorios' | 'Otros';
+  size: string;
+  color?: string;
+  quantity: number;
+  minStockWarning: number;
+  costPrice: number;
+  retailPrice: number;
+  supplier?: string;
+  notes?: string;
+  lastUpdated?: string;
+}
+
+export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'agenda' | 'stock' | 'crm' | 'capitales' | 'configuracion' | 'backup';

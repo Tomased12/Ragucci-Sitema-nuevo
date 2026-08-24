@@ -10,7 +10,7 @@ import {
   getDoc,
   onSnapshot
 } from "firebase/firestore";
-import { Order, AppConfig, CashMovement, ProspectAppointment } from "../types";
+import { Order, AppConfig, CashMovement, ProspectAppointment, StockItem } from "../types";
 import { DEFAULT_CONFIG } from "../utils/constants";
 
 const firebaseConfig = {
@@ -202,6 +202,48 @@ export const deleteProspectAppointment = async (firestoreId: string): Promise<vo
     await deleteDoc(doc(db, "ragucci_prospect_appointments", firestoreId));
   } catch (error) {
     console.error("Error al eliminar cita de prospecto:", error);
+    throw error;
+  }
+};
+
+// Stock Items Firestore Services
+const stockColRef = collection(db, "ragucci_stock_items");
+
+export const subscribeStockItems = (callback: (items: StockItem[]) => void) => {
+  return onSnapshot(stockColRef, (snapshot) => {
+    const list: StockItem[] = snapshot.docs.map((docSnap) => ({
+      ...(docSnap.data() as StockItem),
+      firestoreId: docSnap.id,
+    }));
+    callback(list);
+  }, (error) => {
+    console.error("Error al escuchar inventario de stock en tiempo real:", error);
+  });
+};
+
+export const saveStockItem = async (itemData: StockItem, firestoreId?: string): Promise<string> => {
+  try {
+    const { firestoreId: _, ...dataToSave } = itemData;
+    const cleanData = JSON.parse(JSON.stringify(dataToSave));
+
+    if (firestoreId) {
+      await setDoc(doc(db, "ragucci_stock_items", firestoreId), cleanData);
+      return firestoreId;
+    } else {
+      const docRef = await addDoc(stockColRef, cleanData);
+      return docRef.id;
+    }
+  } catch (error) {
+    console.error("Error al guardar item de stock en Firestore:", error);
+    throw error;
+  }
+};
+
+export const deleteStockItem = async (firestoreId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, "ragucci_stock_items", firestoreId));
+  } catch (error) {
+    console.error("Error al eliminar item de stock:", error);
     throw error;
   }
 };
