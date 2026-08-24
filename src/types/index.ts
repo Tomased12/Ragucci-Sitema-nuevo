@@ -176,4 +176,17 @@ export interface CashMovement {
   clientOrRef?: string;
 }
 
+export interface ProspectAppointment {
+  id: string;
+  firestoreId?: string;
+  clientName: string;
+  phone?: string;
+  date: string;
+  time?: string;
+  interest: string;
+  notes?: string;
+  status: 'pendiente' | 'confirmada' | 'concretada' | 'cancelada';
+  createdAt?: string;
+}
+
 export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'agenda' | 'crm' | 'capitales' | 'configuracion' | 'backup';

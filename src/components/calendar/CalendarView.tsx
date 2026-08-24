@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Order } from '../../types';
+import { Order, ProspectAppointment } from '../../types';
 import { formatDate, formatMoney, getTodayString } from '../../utils/formatters';
 import { OrderDetailModal } from '../orders/OrderDetailModal';
 import { 
@@ -8,14 +8,16 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Clock, 
-  CheckCircle2, 
   AlertTriangle, 
   MessageCircle, 
   Eye, 
   Truck, 
   UserCheck, 
-  UserX,
-  Filter
+  PlusCircle,
+  UserPlus,
+  Trash2,
+  Tag,
+  CheckCircle2
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -26,7 +28,15 @@ const MONTH_NAMES = [
 const WEEKDAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 export const CalendarView: React.FC = () => {
-  const { orders, saveOrderData } = useApp();
+  const { 
+    orders, 
+    prospectAppointments, 
+    saveOrderData, 
+    saveProspectAppointmentData, 
+    removeProspectAppointmentData,
+    setActiveTab 
+  } = useApp();
+  
   const todayStr = getTodayString();
 
   // Current viewed year and month
@@ -34,9 +44,18 @@ export const CalendarView: React.FC = () => {
   const [currentYear, setCurrentYear] = useState<number>(todayDateObj.getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(todayDateObj.getMonth()); // 0-indexed
 
-  // Selected Day Modal State
+  // Modal States
   const [selectedDayDateStr, setSelectedDayDateStr] = useState<string | null>(null);
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
+  const [showNewProspectModal, setShowNewProspectModal] = useState<boolean>(false);
+
+  // New Prospect Form State
+  const [prospectName, setProspectName] = useState<string>('');
+  const [prospectPhone, setProspectPhone] = useState<string>('');
+  const [prospectDate, setProspectDate] = useState<string>(todayStr);
+  const [prospectTime, setProspectTime] = useState<string>('16:00');
+  const [prospectInterest, setProspectInterest] = useState<string>('');
+  const [prospectNotes, setProspectNotes] = useState<string>('');
 
   // Month navigation handlers
   const handlePrevMonth = () => {
@@ -63,8 +82,52 @@ export const CalendarView: React.FC = () => {
     setCurrentMonth(now.getMonth());
   };
 
-  // Status Change Handler
-  const handleStatusChange = async (order: Order, newStatus: string) => {
+  // Save new prospect appointment
+  const handleSaveProspect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prospectName.trim() || !prospectInterest.trim()) {
+      alert("Por favor ingresa el nombre del cliente y el producto o tela de interés.");
+      return;
+    }
+
+    const newAppt: ProspectAppointment = {
+      id: Date.now().toString(),
+      clientName: prospectName.trim(),
+      phone: prospectPhone.trim(),
+      date: prospectDate,
+      time: prospectTime,
+      interest: prospectInterest.trim(),
+      notes: prospectNotes.trim(),
+      status: 'pendiente',
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await saveProspectAppointmentData(newAppt);
+      setProspectName('');
+      setProspectPhone('');
+      setProspectInterest('');
+      setProspectNotes('');
+      setShowNewProspectModal(false);
+    } catch (err) {
+      alert("Error al guardar la cita del cliente.");
+    }
+  };
+
+  // Delete prospect appointment
+  const handleDeleteProspect = async (appt: ProspectAppointment) => {
+    if (!appt.firestoreId) return;
+    if (confirm(`¿Deseas eliminar la cita con ${appt.clientName}?`)) {
+      try {
+        await removeProspectAppointmentData(appt.firestoreId);
+      } catch (err) {
+        alert("Error al eliminar la cita.");
+      }
+    }
+  };
+
+  // Status Change Handler for Orders
+  const handleOrderStatusChange = async (order: Order, newStatus: string) => {
     const updatedOrder = { ...order, status: newStatus };
     try {
       await saveOrderData(updatedOrder, order.firestoreId || undefined);
@@ -120,7 +183,7 @@ export const CalendarView: React.FC = () => {
       });
     }
 
-    // Next month padding days to complete 35 or 42 grid cells
+    // Next month padding days to complete grid cells
     const remainingCells = (7 - (days.length % 7)) % 7;
     const nMonth = currentMonth === 11 ? 0 : currentMonth + 1;
     const nYear = currentMonth === 11 ? currentYear + 1 : currentYear;
@@ -140,34 +203,52 @@ export const CalendarView: React.FC = () => {
     return days;
   }, [currentYear, currentMonth, todayStr]);
 
-  // Map orders to date keys
+  // Map orders & prospect appointments to date keys
   const eventsByDate = useMemo(() => {
-    const map = new Map<string, Array<{ order: Order; type: 'delivery' | 'prueba' | 'overdue' }>>();
+    const map = new Map<string, Array<{ 
+      kind: 'order' | 'prospect'; 
+      order?: Order; 
+      prospect?: ProspectAppointment;
+      type: 'delivery' | 'prueba' | 'overdue' | 'prospect';
+    }>>();
 
+    // 1. Map Orders
     orders.forEach((o) => {
-      // Scheduled Delivery Date Event
       if (o.deliveryDate) {
         if (!map.has(o.deliveryDate)) map.set(o.deliveryDate, []);
         
         const isOverdue = o.deliveryDate < todayStr && o.status !== '🟢 Entregado';
         map.get(o.deliveryDate)!.push({
+          kind: 'order',
           order: o,
           type: isOverdue ? 'overdue' : 'delivery'
         });
       }
 
-      // Fitting Date Event (if status === '🔵 Prueba')
       if (o.status === '🔵 Prueba' && o.date) {
         if (!map.has(o.date)) map.set(o.date, []);
         map.get(o.date)!.push({
+          kind: 'order',
           order: o,
           type: 'prueba'
         });
       }
     });
 
+    // 2. Map Prospect Appointments
+    prospectAppointments.forEach((p) => {
+      if (p.date) {
+        if (!map.has(p.date)) map.set(p.date, []);
+        map.get(p.date)!.push({
+          kind: 'prospect',
+          prospect: p,
+          type: 'prospect'
+        });
+      }
+    });
+
     return map;
-  }, [orders, todayStr]);
+  }, [orders, prospectAppointments, todayStr]);
 
   // Summary KPIs for Top Bar
   const summaryMetrics = useMemo(() => {
@@ -178,17 +259,12 @@ export const CalendarView: React.FC = () => {
     let upcomingWeekDeliveries = 0;
     let activePruebas = 0;
     let overdueDeliveries = 0;
-    let currentMonthDeliveries = 0;
-
-    const mStr = String(currentMonth + 1).padStart(2, '0');
-    const monthPrefix = `${currentYear}-${mStr}`;
+    let totalProspects = prospectAppointments.length;
 
     orders.forEach((o) => {
       if (o.status === '🔵 Prueba') activePruebas++;
 
       if (o.deliveryDate) {
-        if (o.deliveryDate.startsWith(monthPrefix)) currentMonthDeliveries++;
-
         if (o.deliveryDate >= todayStr && o.deliveryDate <= next7DaysStr && o.status !== '🟢 Entregado') {
           upcomingWeekDeliveries++;
         }
@@ -203,11 +279,11 @@ export const CalendarView: React.FC = () => {
       upcomingWeekDeliveries,
       activePruebas,
       overdueDeliveries,
-      currentMonthDeliveries
+      totalProspects
     };
-  }, [orders, todayStr, currentMonth, currentYear]);
+  }, [orders, prospectAppointments, todayStr]);
 
-  // Orders for selected day modal
+  // Events for selected day modal
   const selectedDayEvents = useMemo(() => {
     if (!selectedDayDateStr) return [];
     return eventsByDate.get(selectedDayDateStr) || [];
@@ -220,17 +296,25 @@ export const CalendarView: React.FC = () => {
         <div>
           <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary flex items-center gap-2">
             <CalendarIcon className="w-6 h-6 text-ragucci-gold" />
-            <span>Agenda & Calendario de Pruebas y Entregas</span>
+            <span>Agenda & Calendario de Pruebas, Entregas y Citas</span>
           </h2>
           <p className="text-xs text-gray-500 font-medium mt-1">
-            Programación de citas para pruebas de calce y fechas límite de entregas de Sastrería Ragucci.
+            Citas de posibles clientes, pruebas de calce y entregas prometidas de Sastrería Ragucci.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setShowNewProspectModal(true)}
+            className="bg-purple-800 hover:bg-purple-900 text-white font-extrabold px-3.5 py-2 rounded text-xs uppercase flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm border border-purple-600"
+          >
+            <UserPlus className="w-4 h-4 text-purple-300" />
+            <span>➕ Agendar Cita Posible Cliente</span>
+          </button>
+
           <button
             onClick={handleToday}
-            className="bg-ragucci-gold hover:bg-ragucci-gold-light text-ragucci-primary font-extrabold px-3.5 py-1.5 rounded text-xs uppercase flex items-center gap-1 transition-colors cursor-pointer shadow-sm"
+            className="bg-ragucci-gold hover:bg-ragucci-gold-light text-ragucci-primary font-extrabold px-3.5 py-2 rounded text-xs uppercase flex items-center gap-1 transition-colors cursor-pointer shadow-sm"
           >
             <span>📅 Ir a Hoy</span>
           </button>
@@ -262,6 +346,17 @@ export const CalendarView: React.FC = () => {
         </div>
 
         <div className="bg-white p-4 rounded-lg shadow-sm border border-ragucci-gold-light">
+          <div className="flex justify-between items-center text-purple-600 mb-1">
+            <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Citas Posibles Clientes</span>
+            <UserPlus className="w-4 h-4 text-purple-600" />
+          </div>
+          <strong className="text-lg font-extrabold text-purple-700 block font-sans">
+            {summaryMetrics.totalProspects} citas
+          </strong>
+          <span className="text-[10px] text-gray-400 block mt-0.5">Consultas y prospectos</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-ragucci-gold-light">
           <div className="flex justify-between items-center text-red-600 mb-1">
             <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Entregas Vencidas / Alerta</span>
             <AlertTriangle className="w-4 h-4 text-red-600 animate-pulse" />
@@ -270,17 +365,6 @@ export const CalendarView: React.FC = () => {
             {summaryMetrics.overdueDeliveries} órdenes
           </strong>
           <span className="text-[10px] text-red-500 font-medium block mt-0.5">Fecha pasada sin entregar</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-ragucci-gold-light">
-          <div className="flex justify-between items-center text-ragucci-primary mb-1">
-            <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Programadas este Mes</span>
-            <Clock className="w-4 h-4 text-ragucci-gold" />
-          </div>
-          <strong className="text-lg font-extrabold text-ragucci-primary block font-sans">
-            {summaryMetrics.currentMonthDeliveries} entregas
-          </strong>
-          <span className="text-[10px] text-gray-400 block mt-0.5">En {MONTH_NAMES[currentMonth]} {currentYear}</span>
         </div>
       </div>
 
@@ -350,21 +434,36 @@ export const CalendarView: React.FC = () => {
 
                 {/* Event Pills */}
                 <div className="space-y-1 overflow-hidden">
-                  {events.slice(0, maxVisible).map((evt, idx) => (
-                    <div
-                      key={idx}
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold truncate border leading-tight ${
-                        evt.type === 'overdue'
-                          ? 'bg-red-100 text-red-800 border-red-300 animate-pulse'
-                          : evt.type === 'prueba'
-                          ? 'bg-sky-100 text-sky-900 border-sky-300'
-                          : 'bg-amber-100 text-amber-900 border-amber-300'
-                      }`}
-                      title={`${evt.order.client} - ${evt.order.products?.[0]?.description || 'Orden'}`}
-                    >
-                      {evt.type === 'overdue' ? '⚠️' : evt.type === 'prueba' ? '🔵' : '🚚'} {evt.order.client}
-                    </div>
-                  ))}
+                  {events.slice(0, maxVisible).map((evt, idx) => {
+                    if (evt.kind === 'prospect' && evt.prospect) {
+                      return (
+                        <div
+                          key={idx}
+                          className="px-1.5 py-0.5 rounded text-[10px] font-extrabold truncate border leading-tight bg-purple-100 text-purple-900 border-purple-300"
+                          title={`Cita Prospecto: ${evt.prospect.clientName} - ${evt.prospect.interest}`}
+                        >
+                          🟣 {evt.prospect.clientName} ({evt.prospect.interest.split(' ')[0]})
+                        </div>
+                      );
+                    } else if (evt.order) {
+                      return (
+                        <div
+                          key={idx}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold truncate border leading-tight ${
+                            evt.type === 'overdue'
+                              ? 'bg-red-100 text-red-800 border-red-300 animate-pulse'
+                              : evt.type === 'prueba'
+                              ? 'bg-sky-100 text-sky-900 border-sky-300'
+                              : 'bg-amber-100 text-amber-900 border-amber-300'
+                          }`}
+                          title={`${evt.order.client} - ${evt.order.products?.[0]?.description || 'Orden'}`}
+                        >
+                          {evt.type === 'overdue' ? '⚠️' : evt.type === 'prueba' ? '🔵' : '🚚'} {evt.order.client}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
 
                   {overflowCount > 0 && (
                     <span className="block text-[9px] font-extrabold text-ragucci-primary text-center bg-amber-50 py-0.5 rounded border border-amber-200">
@@ -377,6 +476,114 @@ export const CalendarView: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Modal: Agendar Cita con Posible Cliente */}
+      {showNewProspectModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleSaveProspect} className="bg-white rounded-lg shadow-xl border border-purple-700 max-w-md w-full p-5 space-y-4 animate-fadeIn">
+            <div className="flex justify-between items-center border-b border-purple-200 pb-2">
+              <h3 className="font-extrabold text-sm uppercase text-purple-900 flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-purple-700" />
+                <span>Agendar Cita / Posible Cliente</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowNewProspectModal(false)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-extrabold text-gray-800 block mb-1">Nombre del Cliente / Posible Cliente *</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Raúl Martínez"
+                  value={prospectName}
+                  onChange={(e) => setProspectName(e.target.value)}
+                  className="w-full p-2.5 border border-gray-300 rounded font-bold focus:outline-none focus:border-purple-600"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-extrabold text-gray-800 block mb-1">Fecha de la Cita *</label>
+                  <input
+                    type="date"
+                    value={prospectDate}
+                    onChange={(e) => setProspectDate(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded font-bold focus:outline-none focus:border-purple-600"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="font-extrabold text-gray-800 block mb-1">Hora de la Cita</label>
+                  <input
+                    type="time"
+                    value={prospectTime}
+                    onChange={(e) => setProspectTime(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded font-bold focus:outline-none focus:border-purple-600"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-extrabold text-gray-800 block mb-1">Teléfono / WhatsApp</label>
+                <input
+                  type="text"
+                  placeholder="Ej: 11 5566 7788"
+                  value={prospectPhone}
+                  onChange={(e) => setProspectPhone(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded font-medium focus:outline-none focus:border-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="font-extrabold text-gray-800 block mb-1">Consulta / Interés Principal *</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Consulta por traje a medida de lino"
+                  value={prospectInterest}
+                  onChange={(e) => setProspectInterest(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded font-bold text-purple-900 focus:outline-none focus:border-purple-600"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-extrabold text-gray-800 block mb-1">Notas / Especificaciones</label>
+                <textarea
+                  rows={2}
+                  placeholder="Ej: Busca telas de lino beige o azul para casamiento en verano..."
+                  value={prospectNotes}
+                  onChange={(e) => setProspectNotes(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded font-medium focus:outline-none focus:border-purple-600"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowNewProspectModal(false)}
+                className="w-1/2 py-2.5 bg-gray-200 text-gray-700 font-bold text-xs uppercase rounded hover:bg-gray-300 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="w-1/2 py-2.5 bg-purple-800 text-white font-extrabold text-xs uppercase rounded hover:bg-purple-900 transition-colors shadow-sm"
+              >
+                Agendar Cita
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Selected Day Appointments Modal */}
       {selectedDayDateStr && (
@@ -397,79 +604,141 @@ export const CalendarView: React.FC = () => {
 
             <div className="space-y-3">
               {selectedDayEvents.map((evt, idx) => {
-                const order = evt.order;
-                let cleanPhone = order.phone?.replace(/\D/g, '') || '';
-                if (cleanPhone && !cleanPhone.startsWith('549')) cleanPhone = '549' + cleanPhone;
+                if (evt.kind === 'prospect' && evt.prospect) {
+                  const p = evt.prospect;
+                  let cleanPhone = p.phone?.replace(/\D/g, '') || '';
+                  if (cleanPhone && !cleanPhone.startsWith('549')) cleanPhone = '549' + cleanPhone;
 
-                return (
-                  <div key={idx} className="bg-[#fffdfa] p-3.5 border border-ragucci-gold-light rounded shadow-sm space-y-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <strong className="text-sm font-extrabold text-ragucci-primary block">
-                          {order.client}
-                        </strong>
-                        <span className="text-xs text-gray-600 block mt-0.5">
-                          Prenda: {order.products?.map((p) => p.description).join(', ') || 'A medida'}
+                  return (
+                    <div key={idx} className="bg-purple-50 p-3.5 border border-purple-300 rounded shadow-sm space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <strong className="text-sm font-extrabold text-purple-950 flex items-center gap-1.5">
+                            <span>🟣 {p.clientName}</span>
+                            {p.time && <span className="text-xs font-bold text-purple-700 bg-purple-200 px-1.5 py-0.2 rounded">⏰ {p.time} hs</span>}
+                          </strong>
+                          <span className="text-xs font-bold text-purple-800 block mt-0.5">
+                            Interés: {p.interest}
+                          </span>
+                          {p.notes && <span className="text-[11px] text-gray-600 block mt-0.5 italic">"{p.notes}"</span>}
+                        </div>
+
+                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-200 text-purple-900 border border-purple-400">
+                          Posible Cliente / Lead
                         </span>
                       </div>
 
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${
-                        evt.type === 'overdue'
-                          ? 'bg-red-100 text-red-800 border-red-300'
-                          : evt.type === 'prueba'
-                          ? 'bg-sky-100 text-sky-900 border-sky-300'
-                          : 'bg-amber-100 text-amber-900 border-amber-300'
-                      }`}>
-                        {evt.type === 'overdue' ? '⚠️ Entrega Vencida' : evt.type === 'prueba' ? '🔵 Prueba de Calce' : '🚚 Fecha de Entrega'}
-                      </span>
-                    </div>
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-purple-200">
+                        <div className="flex items-center gap-1.5">
+                          {cleanPhone && (
+                            <a
+                              href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Hola ${p.clientName}, te escribimos de Sastrería Ragucci para confirmar tu cita pactada para la consulta de ${p.interest}.`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[11px] font-bold flex items-center gap-1 transition-colors"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>WhatsApp</span>
+                            </a>
+                          )}
 
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100">
-                      <div>
-                        <span className="text-gray-500">Saldo Pendiente: </span>
-                        <strong className={order.saldo > 0 ? 'text-ragucci-red font-extrabold' : 'text-emerald-600 font-extrabold'}>
-                          {order.saldo > 0 ? `$${formatMoney(order.saldo)}` : 'Pagado Completo'}
-                        </strong>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <select
-                          value={order.status || '🔴 Pendiente'}
-                          onChange={(e) => handleStatusChange(order, e.target.value)}
-                          className="p-1 border border-gray-300 rounded bg-gray-50 font-bold text-[11px] cursor-pointer focus:outline-none focus:border-ragucci-gold"
-                        >
-                          <option value="🔴 Pendiente">🔴 Pendiente</option>
-                          <option value="🟡 En Taller">🟡 En Taller</option>
-                          <option value="🔵 Prueba">🔵 Prueba</option>
-                          <option value="🟢 Entregado">🟢 Entregado / Pagado</option>
-                        </select>
-
-                        {cleanPhone && (
-                          <a
-                            href={`https://wa.me/${cleanPhone}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white p-1 rounded transition-colors"
-                            title="Enviar WhatsApp"
+                          <button
+                            onClick={() => handleDeleteProspect(p)}
+                            className="bg-red-600 hover:bg-red-700 text-white p-1 rounded transition-colors"
+                            title="Eliminar cita"
                           >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                          </a>
-                        )}
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
 
                         <button
                           onClick={() => {
-                            setSelectedDetailOrder(order);
                             setSelectedDayDateStr(null);
+                            setActiveTab('carga');
                           }}
-                          className="bg-ragucci-gold text-ragucci-primary hover:bg-ragucci-primary hover:text-ragucci-gold p-1 rounded transition-colors text-xs font-bold"
-                          title="Ver Detalle de Orden"
+                          className="bg-ragucci-primary text-ragucci-gold hover:bg-ragucci-primary-light font-extrabold text-[11px] px-2.5 py-1 rounded transition-colors flex items-center gap-1"
                         >
-                          <Eye className="w-3.5 h-3.5" />
+                          <span>➕ Crear Orden de Venta</span>
                         </button>
                       </div>
                     </div>
-                  </div>
-                );
+                  );
+                } else if (evt.order) {
+                  const order = evt.order;
+                  let cleanPhone = order.phone?.replace(/\D/g, '') || '';
+                  if (cleanPhone && !cleanPhone.startsWith('549')) cleanPhone = '549' + cleanPhone;
+
+                  return (
+                    <div key={idx} className="bg-[#fffdfa] p-3.5 border border-ragucci-gold-light rounded shadow-sm space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <strong className="text-sm font-extrabold text-ragucci-primary block">
+                            {order.client}
+                          </strong>
+                          <span className="text-xs text-gray-600 block mt-0.5">
+                            Prenda: {order.products?.map((p) => p.description).join(', ') || 'A medida'}
+                          </span>
+                        </div>
+
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${
+                          evt.type === 'overdue'
+                            ? 'bg-red-100 text-red-800 border-red-300'
+                            : evt.type === 'prueba'
+                            ? 'bg-sky-100 text-sky-900 border-sky-300'
+                            : 'bg-amber-100 text-amber-900 border-amber-300'
+                        }`}>
+                          {evt.type === 'overdue' ? '⚠️ Entrega Vencida' : evt.type === 'prueba' ? '🔵 Prueba de Calce' : '🚚 Fecha de Entrega'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100">
+                        <div>
+                          <span className="text-gray-500">Saldo: </span>
+                          <strong className={order.saldo > 0 ? 'text-ragucci-red font-extrabold' : 'text-emerald-600 font-extrabold'}>
+                            {order.saldo > 0 ? `$${formatMoney(order.saldo)}` : 'Pagado'}
+                          </strong>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={order.status || '🔴 Pendiente'}
+                            onChange={(e) => handleOrderStatusChange(order, e.target.value)}
+                            className="p-1 border border-gray-300 rounded bg-gray-50 font-bold text-[11px] cursor-pointer focus:outline-none focus:border-ragucci-gold"
+                          >
+                            <option value="🔴 Pendiente">🔴 Pendiente</option>
+                            <option value="🟡 En Taller">🟡 En Taller</option>
+                            <option value="🔵 Prueba">🔵 Prueba</option>
+                            <option value="🟢 Entregado">🟢 Entregado / Pagado</option>
+                          </select>
+
+                          {cleanPhone && (
+                            <a
+                              href={`https://wa.me/${cleanPhone}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white p-1 rounded transition-colors"
+                              title="Enviar WhatsApp"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              setSelectedDetailOrder(order);
+                              setSelectedDayDateStr(null);
+                            }}
+                            className="bg-ragucci-gold text-ragucci-primary hover:bg-ragucci-primary hover:text-ragucci-gold p-1 rounded transition-colors text-xs font-bold"
+                            title="Ver Detalle de Orden"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
               })}
             </div>
 

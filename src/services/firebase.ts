@@ -10,7 +10,7 @@ import {
   getDoc,
   onSnapshot
 } from "firebase/firestore";
-import { Order, AppConfig, CashMovement } from "../types";
+import { Order, AppConfig, CashMovement, ProspectAppointment } from "../types";
 import { DEFAULT_CONFIG } from "../utils/constants";
 
 const firebaseConfig = {
@@ -160,6 +160,48 @@ export const saveConfig = async (config: AppConfig): Promise<void> => {
     localStorage.setItem('ragucci_config', JSON.stringify(config));
   } catch (error) {
     console.error("Error al guardar configuración:", error);
+    throw error;
+  }
+};
+
+// Prospect Appointments Firestore Services
+const prospectAppointmentsColRef = collection(db, "ragucci_prospect_appointments");
+
+export const subscribeProspectAppointments = (callback: (appointments: ProspectAppointment[]) => void) => {
+  return onSnapshot(prospectAppointmentsColRef, (snapshot) => {
+    const list: ProspectAppointment[] = snapshot.docs.map((docSnap) => ({
+      ...(docSnap.data() as ProspectAppointment),
+      firestoreId: docSnap.id,
+    }));
+    callback(list);
+  }, (error) => {
+    console.error("Error al escuchar citas de prospectos en tiempo real:", error);
+  });
+};
+
+export const saveProspectAppointment = async (appointmentData: ProspectAppointment, firestoreId?: string): Promise<string> => {
+  try {
+    const { firestoreId: _, ...dataToSave } = appointmentData;
+    const cleanData = JSON.parse(JSON.stringify(dataToSave));
+
+    if (firestoreId) {
+      await setDoc(doc(db, "ragucci_prospect_appointments", firestoreId), cleanData);
+      return firestoreId;
+    } else {
+      const docRef = await addDoc(prospectAppointmentsColRef, cleanData);
+      return docRef.id;
+    }
+  } catch (error) {
+    console.error("Error al guardar cita de prospecto en Firestore:", error);
+    throw error;
+  }
+};
+
+export const deleteProspectAppointment = async (firestoreId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, "ragucci_prospect_appointments", firestoreId));
+  } catch (error) {
+    console.error("Error al eliminar cita de prospecto:", error);
     throw error;
   }
 };
