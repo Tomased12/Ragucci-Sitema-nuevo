@@ -39,69 +39,158 @@
   }
 }
 
-/* Dark Mode Luxury Styles */
+/* Dark Mode Luxury High-Contrast Styles */
 body.dark {
   background-color: #0d0202 !important;
-  color: #ddccb1 !important;
-}
-
-body.dark .bg-white {
-  background-color: #190303 !important;
   color: #f3e8d3 !important;
-  border-color: #470202 !important;
 }
 
+/* All Container / Card Overrides */
+body.dark .bg-white,
+body.dark .bg-\[\#fffdfa\],
+body.dark .bg-\[\#fdfaf5\],
 body.dark .bg-ragucci-bg {
-  background-color: #240505 !important;
-  color: #f3e8d3 !important;
-  border-color: #470202 !important;
+  background-color: #1a0404 !important;
+  color: #f5ead7 !important;
+  border-color: #591616 !important;
 }
 
-body.dark .bg-\[\#fffdfa\] {
-  background-color: #1a0505 !important;
-  border-color: #5c0f0f !important;
+body.dark .bg-gray-50,
+body.dark .bg-gray-100,
+body.dark .bg-gray-200,
+body.dark .bg-amber-50,
+body.dark .bg-purple-50,
+body.dark .bg-purple-100 {
+  background-color: #2b0808 !important;
+  color: #f7ede0 !important;
+  border-color: #611818 !important;
 }
 
-body.dark .bg-\[\#fdfaf5\] {
-  background-color: #240808 !important;
+/* Comprehensive Text Overrides for Dark Mode */
+body.dark .text-gray-950,
+body.dark .text-gray-900,
+body.dark .text-gray-800,
+body.dark .text-gray-700,
+body.dark .text-gray-600,
+body.dark .text-gray-500,
+body.dark .text-gray-400,
+body.dark .text-ragucci-primary,
+body.dark .text-ragucci-primary-light,
+body.dark .text-purple-950,
+body.dark .text-purple-900,
+body.dark .text-purple-800,
+body.dark .text-purple-700 {
+  color: #f5ead7 !important;
 }
 
-body.dark input, body.dark select, body.dark textarea {
-  background-color: #260606 !important;
+body.dark .text-ragucci-gold {
+  color: #e5be7a !important;
+}
+
+body.dark .text-emerald-600,
+body.dark .text-emerald-700,
+body.dark .text-emerald-800,
+body.dark .text-emerald-900 {
+  color: #4ade80 !important; /* Bright green for money/paid in dark mode */
+}
+
+body.dark .text-amber-600,
+body.dark .text-amber-700,
+body.dark .text-amber-800,
+body.dark .text-amber-900 {
+  color: #fcd34d !important; /* Bright gold for metrics in dark mode */
+}
+
+body.dark .text-red-500,
+body.dark .text-red-600,
+body.dark .text-red-700,
+body.dark .text-red-800 {
+  color: #f87171 !important; /* Bright red for alerts/overdue in dark mode */
+}
+
+/* Inputs, Selects, Textareas & Placeholders */
+body.dark input, 
+body.dark select, 
+body.dark textarea {
+  background-color: #2b0808 !important;
   color: #ffffff !important;
   border-color: #c59f5e !important;
 }
 
+body.dark input::placeholder,
+body.dark textarea::placeholder {
+  color: #cca472 !important;
+  opacity: 1 !important;
+}
+
 body.dark label {
-  color: #ddccb1 !important;
+  color: #e5be7a !important;
 }
 
+/* Table Headers, Rows & Borders */
 body.dark table {
-  border-color: #470202 !important;
+  border-color: #591616 !important;
 }
 
-body.dark td, body.dark th {
-  border-color: #380404 !important;
+body.dark th {
+  background-color: #260505 !important;
+  color: #e5be7a !important;
+  border-color: #591616 !important;
+}
+
+body.dark td {
+  border-color: #380707 !important;
+  color: #f5ead7 !important;
 }
 
 body.dark tr:hover {
-  background-color: #380404 !important;
+  background-color: #3d0c0c !important;
 }
 
-body.dark .text-gray-700, 
-body.dark .text-gray-800, 
-body.dark .text-gray-600,
-body.dark .text-gray-500 {
-  color: #ddccb1 !important;
+/* Border Overrides */
+body.dark .border-gray-100,
+body.dark .border-gray-200,
+body.dark .border-gray-300,
+body.dark .border-ragucci-border,
+body.dark .border-ragucci-gold-light {
+  border-color: #591616 !important;
 }
 
-body.dark .bg-gray-100, body.dark .bg-gray-50 {
-  background-color: #260606 !important;
-  border-color: #470202 !important;
+/* Badges & Modals in Dark Mode */
+body.dark .bg-purple-200 {
+  background-color: #4a154b !important;
+  color: #f3d5f5 !important;
+  border-color: #86198f !important;
 }
 
-body.dark .border-gray-200, body.dark .border-gray-300 {
-  border-color: #570606 !important;
+body.dark .bg-emerald-100 {
+  background-color: #064e3b !important;
+  color: #a7f3d0 !important;
+  border-color: #047857 !important;
+}
+
+body.dark .bg-amber-100 {
+  background-color: #78350f !important;
+  color: #fde68a !important;
+  border-color: #b45309 !important;
+}
+
+body.dark .bg-red-100 {
+  background-color: #7f1d1d !important;
+  color: #fca5a5 !important;
+  border-color: #b91c1c !important;
+}
+
+body.dark .bg-sky-100 {
+  background-color: #0c4a6e !important;
+  color: #bae6fd !important;
+  border-color: #0369a1 !important;
+}
+
+/* Nav Tabs in Dark Mode */
+body.dark nav {
+  background-color: #1a0404 !important;
+  border-color: #591616 !important;
 }
 
 /* Custom scrollbar for tables, modals & autocomplete */
