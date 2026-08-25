@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, CloudOff, Smartphone, Moon, Sun, LogOut, User } from 'lucide-react';
+import { Cloud, CloudOff, Smartphone, Moon, Sun, LogOut, User, ArrowDownRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onOpenQuickExpense?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onOpenQuickExpense }) => {
   const { loading, darkMode, toggleDarkMode, currentUser, logoutUser } = useApp();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
@@ -36,8 +40,19 @@ export const Header: React.FC = () => {
         />
       </div>
 
-      {/* Top Controls: Cloud Status + User Profile + Dark Mode Toggle */}
+      {/* Top Controls: Cloud Status + User Profile + Quick Expense + Dark Mode Toggle */}
       <div className="absolute top-3 right-4 flex items-center gap-2 z-20 flex-wrap justify-end">
+        {currentUser && onOpenQuickExpense && (
+          <button
+            onClick={onOpenQuickExpense}
+            className="flex items-center gap-1.5 text-xs font-black text-white bg-red-700 hover:bg-red-800 px-3 py-1 rounded-full border border-red-400/60 shadow-md transition-all cursor-pointer hover:scale-105"
+            title="Cargar egreso o gasto de dinero en 1-clic"
+          >
+            <ArrowDownRight className="w-3.5 h-3.5 text-white" />
+            <span>💸 Egreso Rápido</span>
+          </button>
+        )}
+
         {currentUser && (
           <button
             onClick={logoutUser}
