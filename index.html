@@ -26,10 +26,22 @@
     <!-- Service Worker Registration -->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('✅ Service Worker Ragucci registrado con éxito'))
-            .catch(err => console.log('Error registrando Service Worker:', err));
+        window.addEventListener('load', async () => {
+          try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+            const cacheKeys = await caches.keys();
+            await Promise.all(cacheKeys.map((cacheName) => caches.delete(cacheName)));
+          } catch (error) {
+            console.warn('No se pudieron limpiar cachés anteriores:', error);
+          }
+
+          try {
+            const registration = await navigator.serviceWorker.register(`/sw.js?v=${Date.now()}`);
+            console.log('✅ Service Worker Ragucci registrado con éxito', registration);
+          } catch (err) {
+            console.log('Service Worker no disponible en este entorno:', err);
+          }
         });
       }
     </script>

@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from './context/AppContext';
 import { Header } from './components/layout/Header';
 import { Tabs } from './components/layout/Tabs';
+import { EntryPanel } from './components/layout/EntryPanel';
 import { OrderForm } from './components/orders/OrderForm';
 import { OrderTable } from './components/orders/OrderTable';
 import { WorkshopPayments } from './components/workshops/WorkshopPayments';
@@ -14,7 +15,11 @@ import { ConfigForm } from './components/config/ConfigForm';
 import { BackupView } from './components/backup/BackupView';
 
 export const AppContent: React.FC = () => {
-  const { activeTab } = useApp();
+  const { activeTab, currentUser, isAuthenticated } = useApp();
+
+  if (!isAuthenticated || !currentUser) {
+    return <EntryPanel />;
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6">

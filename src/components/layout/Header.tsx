@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, CloudOff, Smartphone, Moon, Sun } from 'lucide-react';
+import { Cloud, CloudOff, Smartphone, Moon, Sun, LogOut, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const Header: React.FC = () => {
-  const { loading, darkMode, toggleDarkMode } = useApp();
+  const { loading, darkMode, toggleDarkMode, currentUser, logoutUser } = useApp();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
@@ -36,8 +36,22 @@ export const Header: React.FC = () => {
         />
       </div>
 
-      {/* Top Controls: Cloud Status + Dark Mode Toggle */}
-      <div className="absolute top-3 right-4 flex items-center gap-2 z-20">
+      {/* Top Controls: Cloud Status + User Profile + Dark Mode Toggle */}
+      <div className="absolute top-3 right-4 flex items-center gap-2 z-20 flex-wrap justify-end">
+        {currentUser && (
+          <button
+            onClick={logoutUser}
+            className="flex items-center gap-1.5 text-xs font-bold text-ragucci-gold bg-ragucci-primary-light/90 hover:bg-ragucci-gold/20 px-3 py-1 rounded-full border border-ragucci-gold/50 transition-all cursor-pointer shadow-sm group"
+            title="Cambiar de usuario / Salir"
+          >
+            <span className="w-4 h-4 rounded-full bg-ragucci-gold text-ragucci-primary flex items-center justify-center text-[10px] font-black">
+              {currentUser.initial}
+            </span>
+            <span className="group-hover:text-ragucci-gold-light">{currentUser.name}</span>
+            <LogOut className="w-3.5 h-3.5 text-ragucci-gold/70 group-hover:text-ragucci-gold ml-0.5" />
+          </button>
+        )}
+
         <button
           onClick={toggleDarkMode}
           className="flex items-center gap-1.5 text-xs font-bold text-ragucci-gold bg-ragucci-primary-light/80 hover:bg-ragucci-primary px-3 py-1 rounded-full border border-ragucci-gold/40 transition-colors cursor-pointer shadow-sm"
@@ -85,7 +99,7 @@ export const Header: React.FC = () => {
 
       {/* Main Foreground Title */}
       <div className="relative z-10 py-1">
-        <h1 className="font-display text-2xl md:text-4xl tracking-widest font-black uppercase text-ragucci-gold mb-1 drop-shadow-md">
+        <h1 className="font-display text-3xl md:text-5xl tracking-widest font-black uppercase text-ragucci-gold mb-1 drop-shadow-md">
           SASTRERÍA RAGUCCI
         </h1>
         <p className="text-ragucci-gold-light text-xs md:text-sm tracking-wider font-medium font-sans drop-shadow-sm">

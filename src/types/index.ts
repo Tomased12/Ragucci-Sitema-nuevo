@@ -114,6 +114,8 @@ export interface ClientMeasurements {
   puno?: string;
 }
 
+export type UserInitial = 'L' | 'C' | 'T';
+
 export interface Order {
   firestoreId?: string;
   id?: number;
@@ -140,9 +142,12 @@ export interface Order {
   measurements?: ClientMeasurements;
   totalCost: number;
   profit: number;
+  createdBy?: UserInitial;
+  updatedBy?: UserInitial;
 }
 
 export interface AppConfig {
+  lastEditedBy?: UserInitial;
   saco: number;
   ambo: number;
   traje: number;
@@ -174,6 +179,8 @@ export interface CashMovement {
   category: string;
   description: string;
   clientOrRef?: string;
+  createdBy?: UserInitial;
+  updatedBy?: UserInitial;
 }
 
 export interface ProspectAppointment {
@@ -187,6 +194,8 @@ export interface ProspectAppointment {
   notes?: string;
   status: 'pendiente' | 'confirmada' | 'concretada' | 'cancelada';
   createdAt?: string;
+  createdBy?: UserInitial;
+  updatedBy?: UserInitial;
 }
 
 export interface StockSizeVariant {
@@ -211,6 +220,8 @@ export interface StockItem {
   supplier?: string;
   notes?: string;
   lastUpdated?: string;
+  createdBy?: UserInitial;
+  updatedBy?: UserInitial;
 }
 
 export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'agenda' | 'stock' | 'crm' | 'capitales' | 'configuracion' | 'backup';
