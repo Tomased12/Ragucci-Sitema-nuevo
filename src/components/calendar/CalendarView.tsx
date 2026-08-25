@@ -268,7 +268,7 @@ export const CalendarView: React.FC = () => {
       kind: 'order' | 'prospect'; 
       order?: Order; 
       prospect?: ProspectAppointment;
-      type: 'delivery' | 'prueba' | 'overdue' | 'prospect';
+      type: 'delivery' | 'prueba' | 'overdue' | 'prospect' | 'prospect-past';
     }>>();
 
     // 1. Map Orders
@@ -298,10 +298,11 @@ export const CalendarView: React.FC = () => {
     prospectAppointments.forEach((p) => {
       if (p.date) {
         if (!map.has(p.date)) map.set(p.date, []);
+        const isPast = p.date < todayStr && (p.status === 'pendiente' || !p.status);
         map.get(p.date)!.push({
           kind: 'prospect',
           prospect: p,
-          type: 'prospect'
+          type: isPast ? 'prospect-past' : 'prospect'
         });
       }
     });
@@ -318,7 +319,13 @@ export const CalendarView: React.FC = () => {
     let upcomingWeekDeliveries = 0;
     let activePruebas = 0;
     let overdueDeliveries = 0;
-    let totalProspects = prospectAppointments.length;
+    
+    // Contar únicamente citas pendientes activas de hoy en adelante (no caducadas de días pasados)
+    let activePendingProspects = prospectAppointments.filter((p) => {
+      const isNotPast = !p.date || p.date >= todayStr;
+      const isPending = p.status === 'pendiente' || p.status === 'confirmada' || !p.status;
+      return isNotPast && isPending;
+    }).length;
 
     orders.forEach((o) => {
       if (o.status === '🔵 Prueba') activePruebas++;
@@ -338,7 +345,7 @@ export const CalendarView: React.FC = () => {
       upcomingWeekDeliveries,
       activePruebas,
       overdueDeliveries,
-      totalProspects
+      totalProspects: activePendingProspects
     };
   }, [orders, prospectAppointments, todayStr]);
 
@@ -506,13 +513,18 @@ export const CalendarView: React.FC = () => {
                 <div className="space-y-1 overflow-hidden">
                   {events.slice(0, maxVisible).map((evt, idx) => {
                     if (evt.kind === 'prospect' && evt.prospect) {
+                      const isPast = evt.type === 'prospect-past';
                       return (
                         <div
                           key={idx}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-extrabold truncate border leading-tight bg-purple-100 text-purple-900 border-purple-300"
-                          title={`Cita Prospecto: ${evt.prospect.clientName} - ${evt.prospect.interest}`}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold truncate border leading-tight ${
+                            isPast
+                              ? 'bg-gray-100 text-gray-500 border-gray-300 opacity-60'
+                              : 'bg-purple-100 text-purple-900 border-purple-300'
+                          }`}
+                          title={isPast ? `Cita Pasada: ${evt.prospect.clientName}` : `Cita Prospecto: ${evt.prospect.clientName} - ${evt.prospect.interest}`}
                         >
-                          🟣 {evt.prospect.clientName} ({evt.prospect.interest.split(' ')[0]})
+                          {isPast ? '⚪' : '🟣'} {evt.prospect.clientName} ({evt.prospect.interest.split(' ')[0]})
                         </div>
                       );
                     } else if (evt.order) {
@@ -676,25 +688,30 @@ export const CalendarView: React.FC = () => {
               {selectedDayEvents.map((evt, idx) => {
                 if (evt.kind === 'prospect' && evt.prospect) {
                   const p = evt.prospect;
+                  const isPast = p.date < todayStr && (p.status === 'pendiente' || !p.status);
                   let cleanPhone = p.phone?.replace(/\D/g, '') || '';
                   if (cleanPhone && !cleanPhone.startsWith('549')) cleanPhone = '549' + cleanPhone;
 
                   return (
-                    <div key={idx} className="bg-purple-50 p-3.5 border border-purple-300 rounded shadow-sm space-y-2">
+                    <div key={idx} className={`p-3.5 border rounded shadow-sm space-y-2 ${
+                      isPast ? 'bg-gray-50 border-gray-300 opacity-80' : 'bg-purple-50 border-purple-300'
+                    }`}>
                       <div className="flex justify-between items-start">
                         <div>
-                          <strong className="text-sm font-extrabold text-purple-950 flex items-center gap-1.5">
-                            <span>🟣 {p.clientName}</span>
-                            {p.time && <span className="text-xs font-bold text-purple-700 bg-purple-200 px-1.5 py-0.2 rounded">⏰ {p.time} hs</span>}
+                          <strong className={`text-sm font-extrabold flex items-center gap-1.5 ${isPast ? 'text-gray-700' : 'text-purple-950'}`}>
+                            <span>{isPast ? '⚪' : '🟣'} {p.clientName}</span>
+                            {p.time && <span className={`text-xs font-bold px-1.5 py-0.2 rounded ${isPast ? 'bg-gray-200 text-gray-700' : 'bg-purple-200 text-purple-700'}`}>⏰ {p.time} hs</span>}
                           </strong>
-                          <span className="text-xs font-bold text-purple-800 block mt-0.5">
+                          <span className={`text-xs font-bold block mt-0.5 ${isPast ? 'text-gray-600' : 'text-purple-800'}`}>
                             Interés: {p.interest}
                           </span>
                           {p.notes && <span className="text-[11px] text-gray-600 block mt-0.5 italic">"{p.notes}"</span>}
                         </div>
 
-                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-200 text-purple-900 border border-purple-400">
-                          Posible Cliente / Lead
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${
+                          isPast ? 'bg-gray-200 text-gray-700 border-gray-400' : 'bg-purple-200 text-purple-900 border-purple-400'
+                        }`}>
+                          {isPast ? '⚪ Cita Pasada' : '🟣 Cita Posible Cliente'}
                         </span>
                       </div>
 
