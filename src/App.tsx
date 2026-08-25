@@ -4,6 +4,7 @@ import { Header } from './components/layout/Header';
 import { Tabs } from './components/layout/Tabs';
 import { EntryPanel } from './components/layout/EntryPanel';
 import { QuickExpenseModal } from './components/common/QuickExpenseModal';
+import { MobileQuickFab } from './components/layout/MobileQuickFab';
 import { OrderForm } from './components/orders/OrderForm';
 import { OrderTable } from './components/orders/OrderTable';
 import { WorkshopPayments } from './components/workshops/WorkshopPayments';
@@ -24,7 +25,7 @@ export const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6">
+    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 md:pb-6">
       <Header onOpenQuickExpense={() => setIsQuickExpenseOpen(true)} />
       <Tabs />
 
@@ -44,6 +45,10 @@ export const AppContent: React.FC = () => {
       <QuickExpenseModal
         isOpen={isQuickExpenseOpen}
         onClose={() => setIsQuickExpenseOpen(false)}
+      />
+
+      <MobileQuickFab
+        onOpenQuickExpense={() => setIsQuickExpenseOpen(true)}
       />
     </div>
   );

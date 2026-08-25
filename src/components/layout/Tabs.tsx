@@ -20,14 +20,14 @@ export const Tabs: React.FC = () => {
   ];
 
   return (
-    <nav className="flex flex-wrap md:flex-nowrap items-center justify-between gap-1 md:gap-1.5 mb-6 p-1.5 bg-white rounded-lg shadow-sm border border-ragucci-border">
+    <nav className="flex overflow-x-auto items-center gap-1 md:gap-1.5 mb-6 p-1.5 bg-white rounded-xl shadow-sm border border-ragucci-border scrollbar-none">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 md:py-2.5 rounded text-[11px] md:text-xs font-extrabold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${
+            className={`flex-none md:flex-1 flex items-center justify-center gap-1.5 px-3 md:px-2 py-2.5 rounded-lg text-[11px] md:text-xs font-extrabold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap ${
               isActive
                 ? 'bg-ragucci-primary text-ragucci-gold shadow border-b-2 border-ragucci-gold'
                 : tab.isBackup
