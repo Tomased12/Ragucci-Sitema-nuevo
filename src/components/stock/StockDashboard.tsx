@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { StockItem, StockSizeVariant } from '../../types';
 import { formatMoney, getTodayString } from '../../utils/formatters';
+import { UserBadge } from '../common/UserBadge';
 import { 
   Package, 
   PlusCircle, 
@@ -543,6 +544,11 @@ export const StockDashboard: React.FC = () => {
                       <td className="py-3 px-3">
                         <strong className="text-gray-900 block font-bold text-xs">{item.name}</strong>
                         {item.supplier && <span className="text-[10px] text-gray-500 block">Prov: {item.supplier}</span>}
+                        {(item.createdBy || item.updatedBy) && (
+                          <div className="mt-1">
+                            <UserBadge initial={item.updatedBy || item.createdBy} size="xs" showFullName={true} />
+                          </div>
+                        )}
                       </td>
 
                       {/* Size Matrix Column */}

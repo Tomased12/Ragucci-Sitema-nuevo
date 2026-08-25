@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CashMovement } from '../../types';
+import { CashMovement, UserInitial } from '../../types';
 import { formatMoney, getTodayString, formatDate } from '../../utils/formatters';
+import { UserBadge } from '../common/UserBadge';
 import { 
   Wallet, 
   Landmark, 
@@ -128,6 +129,8 @@ export const CapitalesDashboard: React.FC = () => {
       description: string;
       amount: number;
       isManual: boolean;
+      createdBy?: UserInitial;
+      updatedBy?: UserInitial;
     }> = [];
 
     // Add manual cash movements
@@ -142,7 +145,9 @@ export const CapitalesDashboard: React.FC = () => {
         category: m.category || 'Movimiento Manual',
         description: m.description || '',
         amount: m.amount,
-        isManual: true
+        isManual: true,
+        createdBy: m.createdBy,
+        updatedBy: m.updatedBy
       });
     });
 
@@ -163,7 +168,9 @@ export const CapitalesDashboard: React.FC = () => {
             category: '💰 Cobro a Cliente',
             description: `Pago de ${o.client} (${p.method})`,
             amount: p.amount,
-            isManual: false
+            isManual: false,
+            createdBy: o.createdBy,
+            updatedBy: o.updatedBy
           });
         });
       }
@@ -187,7 +194,9 @@ export const CapitalesDashboard: React.FC = () => {
                 category: '✂️ Pago a Taller',
                 description: `${tallerName} - Orden ${o.client}`,
                 amount: costVal,
-                isManual: false
+                isManual: false,
+                createdBy: o.createdBy,
+                updatedBy: o.updatedBy
               });
             }
           }
@@ -682,15 +691,20 @@ export const CapitalesDashboard: React.FC = () => {
                     </td>
 
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      {t.isManual ? (
-                        <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded text-[10px] font-extrabold border border-amber-300">
-                          ✍️ Manual
-                        </span>
-                      ) : (
-                        <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200">
-                          ⚡ Automático (Orden)
-                        </span>
-                      )}
+                      <div className="flex flex-col items-center gap-1">
+                        {t.isManual ? (
+                          <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded text-[10px] font-extrabold border border-amber-300">
+                            ✍️ Manual
+                          </span>
+                        ) : (
+                          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200">
+                            ⚡ Automático (Orden)
+                          </span>
+                        )}
+                        {(t.createdBy || t.updatedBy) && (
+                          <UserBadge initial={t.updatedBy || t.createdBy} size="xs" showFullName={true} />
+                        )}
+                      </div>
                     </td>
 
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
