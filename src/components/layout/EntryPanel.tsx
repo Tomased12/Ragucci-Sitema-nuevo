@@ -51,7 +51,7 @@ export const EntryPanel: React.FC = () => {
               <span>Panel de Entrada</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black uppercase tracking-widest font-display text-ragucci-gold drop-shadow-md">
-              <span className="text-blue-500">R</span>AGUCCI
+              RAGUCCI
             </h1>
             <p className="mt-2 text-sm text-ragucci-gold-light/80 tracking-wide font-medium">
               Selecciona tu usuario para ingresar
