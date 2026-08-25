@@ -11,12 +11,15 @@ interface QuickExpenseModalProps {
 }
 
 const PRESET_CATEGORIES = [
-  'Insumos & Telas',
-  'Pago a Taller',
-  'Servicios & Expensas',
-  'Comida & Viáticos',
-  'Publicidad & Redes',
-  'Varios / Retiro',
+  'Uber',
+  'Maria',
+  'Arturo',
+  'Jesus',
+  'Santiago',
+  'Alquiler',
+  'Charly',
+  'Tomi',
+  'Lu',
 ];
 
 export const QuickExpenseModal: React.FC<QuickExpenseModalProps> = ({ isOpen, onClose }) => {
@@ -24,7 +27,7 @@ export const QuickExpenseModal: React.FC<QuickExpenseModalProps> = ({ isOpen, on
 
   const [amount, setAmount] = useState<string>('');
   const [account, setAccount] = useState<'efectivo' | 'banco' | 'dolar'>('efectivo');
-  const [category, setCategory] = useState<string>('Insumos & Telas');
+  const [category, setCategory] = useState<string>('Uber');
   const [customCategory, setCustomCategory] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [date, setDate] = useState<string>(getTodayString());
