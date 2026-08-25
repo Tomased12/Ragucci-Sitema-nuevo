@@ -2,6 +2,7 @@ import React from 'react';
 import { Order } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { Modal } from '../common/Modal';
+import { UserBadge } from '../common/UserBadge';
 import { formatDate, formatMoney } from '../../utils/formatters';
 import { MessageCircle } from 'lucide-react';
 
@@ -66,7 +67,11 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
         {clientOrders.map((o, idx) => (
           <div key={idx} className="bg-ragucci-bg border border-ragucci-border rounded p-4 text-xs">
             <div className="flex justify-between items-center border-b border-ragucci-gold-light pb-2 mb-2">
-              <strong className="text-sm font-bold">Orden del {formatDate(o.date)}</strong>
+              <div className="flex items-center gap-2">
+                <strong className="text-sm font-bold">Orden del {formatDate(o.date)}</strong>
+                {o.createdBy && <UserBadge initial={o.createdBy} size="xs" actionLabel="Creada por" />}
+                {o.updatedBy && o.updatedBy !== o.createdBy && <UserBadge initial={o.updatedBy} size="xs" actionLabel="Mod. por" />}
+              </div>
               <span className={`px-2.5 py-1 rounded text-[11px] font-bold text-white ${o.status === '🟢 Entregado' ? 'bg-emerald-600' : 'bg-ragucci-primary'}`}>
                 {o.status || '🔴 Pendiente'}
               </span>

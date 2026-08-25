@@ -1,6 +1,7 @@
 import React from 'react';
 import { Order } from '../../types';
 import { Modal } from '../common/Modal';
+import { UserBadge } from '../common/UserBadge';
 import { formatDate, formatMoney } from '../../utils/formatters';
 
 interface OrderDetailModalProps {
@@ -37,6 +38,13 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
         )}
         <p className="my-1"><strong>Canal:</strong> {order.origin || 'A Medida (Local)'}</p>
         <p className="my-1"><strong>Estado Actual:</strong> {order.status || '🔴 Pendiente'}</p>
+
+        {(order.createdBy || order.updatedBy) && (
+          <div className="mt-3 pt-3 border-t border-dashed border-gray-300 flex flex-wrap items-center gap-2">
+            {order.createdBy && <UserBadge initial={order.createdBy} actionLabel="Registrado por" size="sm" />}
+            {order.updatedBy && <UserBadge initial={order.updatedBy} actionLabel="Última mod." size="sm" />}
+          </div>
+        )}
 
         <div className="mt-3 pt-3 border-t border-dashed border-gray-300">
           <p className="my-1 font-bold">Venta Total: ${formatMoney(order.sale)}</p>

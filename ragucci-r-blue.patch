@@ -1,0 +1,13 @@
+diff --git a/src/App.tsx b/src/App.tsx
+index 0000000..0000000 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@
+-          <div className="mb-6 text-center">
+-            <p className="text-xs uppercase tracking-[0.35em] text-ragucci-gold-light/80">Ingreso</p>
+-            <h1 className="mt-3 text-3xl font-black uppercase tracking-widest">Ragucci</h1>
+-          </div>
++          <div className="mb-6 text-center">
++            <p className="text-xs uppercase tracking-[0.35em] text-ragucci-gold-light/80">Ingreso</p>
++            <h1 className="mt-3 text-3xl font-black uppercase tracking-widest"><span className="text-blue-500">R</span>agucci</h1>
++          </div>

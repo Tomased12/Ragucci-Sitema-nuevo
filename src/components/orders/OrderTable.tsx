@@ -7,6 +7,7 @@ import { PaymentModal } from './PaymentModal';
 import { ClientHistoryModal } from '../clients/ClientHistoryModal';
 import { Modal } from '../common/Modal';
 import { MoneyInput } from '../common/MoneyInput';
+import { UserBadge } from '../common/UserBadge';
 import { Search, Eye, Edit, Plus, Trash2, MessageCircle, FileSpreadsheet, Clock, AlertTriangle } from 'lucide-react';
 import { exportOrdersToCSV } from '../../utils/exportCsv';
 
@@ -296,6 +297,11 @@ export const OrderTable: React.FC = () => {
                       </div>
                     )}
                     <div className="text-[10px] text-gray-500 mt-0.5">{order.origin || 'A Medida'}</div>
+                    {(order.createdBy || order.updatedBy) && (
+                      <div className="mt-1">
+                        <UserBadge initial={order.updatedBy || order.createdBy} size="xs" showFullName={true} />
+                      </div>
+                    )}
                     {(() => {
                       const info = getDeliveryInfo(order);
                       if (!info || order.status === '🟢 Entregado') return null;

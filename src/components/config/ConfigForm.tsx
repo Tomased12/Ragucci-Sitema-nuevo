@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AppConfig } from '../../types';
 import { MoneyInput } from '../common/MoneyInput';
+import { UserBadge } from '../common/UserBadge';
 import { Save, Plus, Trash2, Package } from 'lucide-react';
 import { formatMoney, parseMoney } from '../../utils/formatters';
 
@@ -44,9 +45,14 @@ export const ConfigForm: React.FC = () => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-ragucci-border">
-      <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
-        Configuración de Costos Base
-      </h2>
+      <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-2 mb-4">
+        <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary tracking-wide">
+          Configuración de Costos Base
+        </h2>
+        {config.lastEditedBy && (
+          <UserBadge initial={config.lastEditedBy} actionLabel="Última edición por" size="sm" />
+        )}
+      </div>
       <p className="text-xs text-ragucci-primary-light mb-6">
         Modifica los precios base para Confección, Camiseros, Avios, Productos Terminados y Arreglos.
       </p>
