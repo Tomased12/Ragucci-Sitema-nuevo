@@ -24,10 +24,13 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
   const [customArregloName, setCustomArregloName] = useState('');
   const [customArregloPrice, setCustomArregloPrice] = useState(0);
 
-  const isArreglo = product.description.toUpperCase().includes('ARREGLO');
-  const isSastreria = /TRAJE|AMBO|PANTALON|PANTALÓN|SOBRETODO|SMOKING|CHALECO|SACO/.test(product.description.toUpperCase());
-  const isForreriaApplicable = /SACO|AMBO|SOBRETODO|SMOKING|TRAJE/.test(product.description.toUpperCase());
-  const isCamiseria = /CAMISA/.test(product.description.toUpperCase());
+  const upperDesc = product.description.toUpperCase();
+  const isArreglo = upperDesc.includes('ARREGLO');
+  const isRTW = upperDesc.includes('RTW') || upperDesc.includes('TERMINADO');
+  const isMedida = !isArreglo && !isRTW;
+  const isSastreria = /TRAJE|AMBO|PANTALON|PANTALÓN|SOBRETODO|SMOKING|CHALECO|SACO/.test(upperDesc);
+  const isForreriaApplicable = isMedida && /SACO|AMBO|SOBRETODO|SMOKING|TRAJE/.test(upperDesc);
+  const isCamiseria = /CAMISA/.test(upperDesc);
 
   // Filter autocomplete
   const filteredProducts = STANDARD_PRODUCTS.filter(p =>
@@ -352,7 +355,7 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
 
       {/* Cost inputs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-        {!isArreglo && (
+        {isMedida && (
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="font-bold text-ragucci-primary-light">Telas ($)</label>

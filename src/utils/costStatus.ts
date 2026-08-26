@@ -11,12 +11,14 @@ export interface CostStatusItem {
 export function getProductCostStatuses(p: ProductItem): CostStatusItem[] {
   const upper = p.description.toUpperCase();
   const isArreglo = upper.includes('ARREGLO');
-  const isForreriaApplicable = /SACO|AMBO|SOBRETODO|SMOKING|TRAJE/.test(upper);
+  const isRTW = upper.includes('RTW') || upper.includes('TERMINADO');
+  const isMedida = !isArreglo && !isRTW;
+  const isForreriaApplicable = isMedida && /SACO|AMBO|SOBRETODO|SMOKING|TRAJE/.test(upper);
 
   const statuses: CostStatusItem[] = [];
 
-  if (!isArreglo) {
-    // Telas
+  if (isMedida) {
+    // Telas (solo aplica para productos A Medida, no RTW ni Arreglos)
     if (p.costs?.noTelas) {
       statuses.push({ key: 'telas', label: 'Tela', status: 'no' });
     } else if ((p.costs?.telas || 0) > 0) {
@@ -25,7 +27,7 @@ export function getProductCostStatuses(p: ProductItem): CostStatusItem[] {
       statuses.push({ key: 'telas', label: 'Tela', status: 'pending' });
     }
 
-    // Forrería (solo aplica para Saco, Ambo, Sobretodo, Smoking y Traje)
+    // Forrería (solo aplica para Saco, Ambo, Sobretodo, Smoking y Traje a medida)
     if (isForreriaApplicable) {
       if (p.costs?.noForreria) {
         statuses.push({ key: 'forreria', label: 'Forrería', status: 'no' });
