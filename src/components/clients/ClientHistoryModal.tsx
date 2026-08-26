@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Modal } from '../common/Modal';
 import { UserBadge } from '../common/UserBadge';
 import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
+import { ProductCostBadges } from '../common/ProductCostBadges';
 import { formatDate, formatMoney } from '../../utils/formatters';
 import { MessageCircle } from 'lucide-react';
 
@@ -80,13 +81,16 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
 
             <div className="font-semibold mb-2">
               {o.products && o.products.map((p, pIdx) => (
-                <div key={pIdx}>
-                  • {p.description} {p.modista ? `(Modista: ${p.modista})` : ''}
-                  {p.arreglosDetalle && p.arreglosDetalle.length > 0 && (
-                    <span className="text-gray-600 font-normal">
-                      {' '}— Arreglos: {p.arreglosDetalle.map(ad => `${ad.tipo} (x${ad.qty})`).join(', ')}
-                    </span>
-                  )}
+                <div key={pIdx} className="mb-2">
+                  <div>
+                    • {p.description} {p.modista ? `(Modista: ${p.modista})` : ''}
+                    {p.arreglosDetalle && p.arreglosDetalle.length > 0 && (
+                      <span className="text-gray-600 font-normal">
+                        {' '}— Arreglos: {p.arreglosDetalle.map(ad => `${ad.tipo} (x${ad.qty})`).join(', ')}
+                      </span>
+                    )}
+                  </div>
+                  <ProductCostBadges product={p} className="ml-3" />
                 </div>
               ))}
               {o.rtwItems && o.rtwItems.map((rtw, rIdx) => (

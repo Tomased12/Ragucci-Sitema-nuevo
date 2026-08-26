@@ -353,21 +353,75 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
         {!isArreglo && (
           <div>
-            <label className="block font-bold text-ragucci-primary-light mb-1">Telas ($)</label>
-            <MoneyInput
-              value={product.costs.telas}
-              onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, telas: val } })}
-            />
+            <div className="flex justify-between items-center mb-1">
+              <label className="font-bold text-ragucci-primary-light">Telas ($)</label>
+              <label className="flex items-center gap-1 text-[10px] font-extrabold cursor-pointer text-gray-700 bg-gray-100 hover:bg-gray-200 px-1.5 py-0.5 rounded border border-gray-300">
+                <input
+                  type="checkbox"
+                  checked={!!product.costs.noTelas}
+                  onChange={(e) => {
+                    const isChecked = e.target.checked;
+                    onChange({
+                      ...product,
+                      costs: {
+                        ...product.costs,
+                        noTelas: isChecked,
+                        telas: isChecked ? 0 : product.costs.telas
+                      }
+                    });
+                  }}
+                  className="rounded border-gray-300"
+                />
+                <span>NO lleva</span>
+              </label>
+            </div>
+            {product.costs.noTelas ? (
+              <div className="p-2 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded font-extrabold text-center text-xs">
+                🚫 NO (No lleva costo de tela)
+              </div>
+            ) : (
+              <MoneyInput
+                value={product.costs.telas}
+                onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, telas: val, noTelas: val > 0 ? false : product.costs.noTelas } })}
+              />
+            )}
           </div>
         )}
 
         {!isArreglo && isSastreria && (
           <div>
-            <label className="block font-bold text-ragucci-primary-light mb-1">Forrería ($)</label>
-            <MoneyInput
-              value={product.costs.forreria}
-              onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, forreria: val } })}
-            />
+            <div className="flex justify-between items-center mb-1">
+              <label className="font-bold text-ragucci-primary-light">Forrería ($)</label>
+              <label className="flex items-center gap-1 text-[10px] font-extrabold cursor-pointer text-gray-700 bg-gray-100 hover:bg-gray-200 px-1.5 py-0.5 rounded border border-gray-300">
+                <input
+                  type="checkbox"
+                  checked={!!product.costs.noForreria}
+                  onChange={(e) => {
+                    const isChecked = e.target.checked;
+                    onChange({
+                      ...product,
+                      costs: {
+                        ...product.costs,
+                        noForreria: isChecked,
+                        forreria: isChecked ? 0 : product.costs.forreria
+                      }
+                    });
+                  }}
+                  className="rounded border-gray-300"
+                />
+                <span>NO lleva</span>
+              </label>
+            </div>
+            {product.costs.noForreria ? (
+              <div className="p-2 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded font-extrabold text-center text-xs">
+                🚫 NO (No lleva forrería)
+              </div>
+            ) : (
+              <MoneyInput
+                value={product.costs.forreria}
+                onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, forreria: val, noForreria: val > 0 ? false : product.costs.noForreria } })}
+              />
+            )}
           </div>
         )}
 
@@ -414,13 +468,40 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
 
         {isArreglo && (
           <div>
-            <label className="block font-bold text-ragucci-primary-light mb-1">Arreglos Total ($)</label>
-            <MoneyInput
-              value={product.costs.arreglos}
-              onValueChange={() => {}}
-              disabled
-              className="bg-gray-100 font-bold"
-            />
+            <div className="flex justify-between items-center mb-1">
+              <label className="font-bold text-ragucci-primary-light">Arreglos Total ($)</label>
+              <label className="flex items-center gap-1 text-[10px] font-extrabold cursor-pointer text-gray-700 bg-gray-100 hover:bg-gray-200 px-1.5 py-0.5 rounded border border-gray-300">
+                <input
+                  type="checkbox"
+                  checked={!!product.costs.noArreglos}
+                  onChange={(e) => {
+                    const isChecked = e.target.checked;
+                    onChange({
+                      ...product,
+                      costs: {
+                        ...product.costs,
+                        noArreglos: isChecked,
+                        arreglos: isChecked ? 0 : product.costs.arreglos
+                      }
+                    });
+                  }}
+                  className="rounded border-gray-300"
+                />
+                <span>NO lleva</span>
+              </label>
+            </div>
+            {product.costs.noArreglos ? (
+              <div className="p-2 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded font-extrabold text-center text-xs">
+                🚫 NO (Sin costo de arreglos)
+              </div>
+            ) : (
+              <MoneyInput
+                value={product.costs.arreglos}
+                onValueChange={() => {}}
+                disabled
+                className="bg-gray-100 font-bold"
+              />
+            )}
           </div>
         )}
       </div>

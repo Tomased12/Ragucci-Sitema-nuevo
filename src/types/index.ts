@@ -18,6 +18,9 @@ export interface ProductCosts {
   camisero: number;
   arreglos: number;
   otros?: number;
+  noTelas?: boolean;
+  noForreria?: boolean;
+  noArreglos?: boolean;
 }
 
 export interface ProductItem {

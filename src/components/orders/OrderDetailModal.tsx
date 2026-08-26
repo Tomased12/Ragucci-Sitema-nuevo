@@ -3,6 +3,7 @@ import { Order } from '../../types';
 import { Modal } from '../common/Modal';
 import { UserBadge } from '../common/UserBadge';
 import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
+import { ProductCostBadges } from '../common/ProductCostBadges';
 import { formatDate, formatMoney } from '../../utils/formatters';
 
 interface OrderDetailModalProps {
@@ -89,7 +90,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
       </h4>
       <div className="bg-white p-3 border border-gray-200 rounded text-xs mb-4 space-y-2">
         {order.products && order.products.map((p, i) => (
-          <div key={i} className="border-b border-gray-100 pb-2 last:border-none">
+          <div key={i} className="border-b border-gray-100 pb-2.5 last:border-none">
             <strong>• {p.description}</strong> {p.modista ? <em>(Modista: {p.modista})</em> : ''}
             {p.arreglosDetalle && p.arreglosDetalle.length > 0 && (
               <div className="text-gray-700 ml-3">
@@ -97,6 +98,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
               </div>
             )}
             {p.notes && <div className="text-gray-500 italic ml-3">Notas: {p.notes}</div>}
+            <ProductCostBadges product={p} className="ml-3" />
           </div>
         ))}
 

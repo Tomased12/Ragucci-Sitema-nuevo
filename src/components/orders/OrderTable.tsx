@@ -8,6 +8,7 @@ import { ClientHistoryModal } from '../clients/ClientHistoryModal';
 import { Modal } from '../common/Modal';
 import { MoneyInput } from '../common/MoneyInput';
 import { UserBadge } from '../common/UserBadge';
+import { ProductCostBadges } from '../common/ProductCostBadges';
 import { Search, Eye, Edit, Plus, Trash2, MessageCircle, FileSpreadsheet, Clock, AlertTriangle } from 'lucide-react';
 import { exportOrdersToCSV } from '../../utils/exportCsv';
 
@@ -342,7 +343,12 @@ export const OrderTable: React.FC = () => {
                     )}
                   </td>
 
-                  <td className="py-2.5 px-2 text-gray-700 max-w-[150px] md:max-w-[200px] truncate" title={productListText}>{productListText}</td>
+                  <td className="py-2.5 px-2 text-gray-700 max-w-[180px] md:max-w-[240px]">
+                    <div className="font-semibold text-xs text-ragucci-primary">{productListText}</div>
+                    {order.products && order.products.map((p, pIdx) => (
+                      <ProductCostBadges key={pIdx} product={p} />
+                    ))}
+                  </td>
 
                   <td className="py-2.5 px-2 whitespace-nowrap">
                     <div>Venta: ${formatMoney(order.sale)}</div>
