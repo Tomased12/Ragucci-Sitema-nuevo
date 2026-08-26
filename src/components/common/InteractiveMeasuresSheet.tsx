@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { SacoDrawing, ChalecoDrawing, PantalonDrawing, CamisaDrawing } from './GarmentSvgDrawings';
 import { ChevronDown, ChevronUp, CheckCircle, Ruler } from 'lucide-react';
 
 import { ClientMeasurements } from '../../types';
@@ -35,20 +34,19 @@ export const InteractiveMeasuresSheet: React.FC<InteractiveMeasuresSheetProps> =
   const hasPantalonMeasures = !!(measurements.pantCintura || measurements.pantCadera || measurements.pantLargoConCintura || measurements.pantTiro || measurements.pantRodilla || measurements.pantBota || measurements.cinturaPant || measurements.largoPant);
   const hasCamisaMeasures = !!(measurements.camisaCuello || measurements.camisaEspalda || measurements.camisaPecho || measurements.camisaAbdomen || measurements.camisaCintura || measurements.camisaLargo || measurements.camisaManga || measurements.cuello);
 
-  const garmentTabs: Array<{ id: GarmentType; label: string; icon: string; hasData: boolean; DrawingComponent: React.FC<any> }> = [
-    { id: 'saco', label: 'SACO / BLAZER', icon: '🧥', hasData: hasSacoMeasures, DrawingComponent: SacoDrawing },
-    { id: 'chaleco', label: 'CHALECO', icon: '🦺', hasData: hasChalecoMeasures, DrawingComponent: ChalecoDrawing },
-    { id: 'pantalon', label: 'PANTALÓN', icon: '👖', hasData: hasPantalonMeasures, DrawingComponent: PantalonDrawing },
-    { id: 'camisa', label: 'CAMISA', icon: '👔', hasData: hasCamisaMeasures, DrawingComponent: CamisaDrawing },
+  const garmentTabs: Array<{ id: GarmentType; label: string; icon: string; hasData: boolean; imageSrc: string }> = [
+    { id: 'saco', label: 'SACO / BLAZER', icon: '🧥', hasData: hasSacoMeasures, imageSrc: '/garments/saco.png' },
+    { id: 'chaleco', label: 'CHALECO', icon: '🦺', hasData: hasChalecoMeasures, imageSrc: '/garments/chaleco.png' },
+    { id: 'pantalon', label: 'PANTALÓN', icon: '👖', hasData: hasPantalonMeasures, imageSrc: '/garments/pantalon.png' },
+    { id: 'camisa', label: 'CAMISA', icon: '👔', hasData: hasCamisaMeasures, imageSrc: '/garments/camisa.png' },
   ];
 
   return (
     <div className="space-y-4 font-sans text-xs">
-      {/* Selector Cards Matrix (B&N Technical Illustrations) */}
+      {/* Selector Cards Matrix (Exact User Provided B&N Technical Illustrations) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {garmentTabs.map((g) => {
           const isSelected = activeGarment === g.id && !showAll;
-          const DrawingComponent = g.DrawingComponent;
 
           return (
             <button
@@ -80,9 +78,13 @@ export const InteractiveMeasuresSheet: React.FC<InteractiveMeasuresSheetProps> =
                 )}
               </div>
 
-              {/* Technical Drawing SVG */}
-              <div className="w-full py-1 px-2 flex items-center justify-center bg-white rounded-lg border border-gray-100 group-hover:scale-105 transition-transform">
-                <DrawingComponent className="w-full h-24 text-gray-900" />
+              {/* Exact Technical B&N Image */}
+              <div className="w-full py-1.5 px-2 flex items-center justify-center bg-white rounded-lg border border-gray-100 group-hover:scale-105 transition-transform overflow-hidden">
+                <img 
+                  src={g.imageSrc} 
+                  alt={g.label} 
+                  className="w-full h-28 object-contain filter brightness-95" 
+                />
               </div>
 
               {/* Action Hint */}
