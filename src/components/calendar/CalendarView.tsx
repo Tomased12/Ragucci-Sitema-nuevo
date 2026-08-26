@@ -485,14 +485,19 @@ export const CalendarView: React.FC = () => {
             return (
               <div
                 key={d.dateStr}
-                onClick={() => events.length > 0 && setSelectedDayDateStr(d.dateStr)}
-                className={`p-1.5 md:p-2 min-h-[90px] md:min-h-[110px] flex flex-col justify-between transition-colors ${
+                onClick={() => {
+                  if (events.length > 0) {
+                    setSelectedDayDateStr(d.dateStr);
+                  } else {
+                    setProspectDate(d.dateStr);
+                    setShowNewProspectModal(true);
+                  }
+                }}
+                className={`p-1.5 md:p-2 min-h-[90px] md:min-h-[110px] flex flex-col justify-between transition-colors cursor-pointer hover:bg-[#f7ebd4] dark:hover:bg-[#220505] ${
                   !d.isCurrentMonth 
                     ? 'bg-[#f4eee1] dark:bg-[#0a0101] text-gray-400 dark:text-gray-600 opacity-60' 
                     : 'bg-[#fffcf2] dark:bg-[#140303] text-gray-900 dark:text-gray-100'
-                } ${d.isToday ? 'ring-2 ring-ragucci-gold bg-amber-100/90 dark:bg-amber-950/30' : ''} ${
-                  events.length > 0 ? 'cursor-pointer hover:bg-[#f7ebd4] dark:hover:bg-[#220505]' : ''
-                }`}
+                } ${d.isToday ? 'ring-2 ring-ragucci-gold bg-amber-100/90 dark:bg-amber-950/30' : ''}`}
               >
                 {/* Day Header */}
                 <div className="flex justify-between items-center mb-1">
@@ -502,11 +507,26 @@ export const CalendarView: React.FC = () => {
                     {d.dayNumber}
                   </span>
 
-                  {events.length > 0 && (
-                    <span className="text-[9px] font-extrabold bg-ragucci-primary text-ragucci-gold px-1.5 py-0.2 rounded-full">
-                      {events.length}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {events.length > 0 && (
+                      <span className="text-[9px] font-extrabold bg-ragucci-primary text-ragucci-gold px-1.5 py-0.2 rounded-full">
+                        {events.length}
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setProspectDate(d.dateStr);
+                        setShowNewProspectModal(true);
+                      }}
+                      className="w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-800 hover:text-white text-purple-900 flex items-center justify-center text-xs font-black transition-colors shadow-2xs"
+                      title={`Agendar cita para el ${formatDate(d.dateStr)}`}
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
 
                 {/* Event Pills */}
@@ -676,12 +696,28 @@ export const CalendarView: React.FC = () => {
                 <CalendarIcon className="w-5 h-5 text-ragucci-gold" />
                 <span>Citas del día: {formatDate(selectedDayDateStr)}</span>
               </h3>
-              <button
-                onClick={() => setSelectedDayDateStr(null)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-sm"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetDate = selectedDayDateStr;
+                    setSelectedDayDateStr(null);
+                    setProspectDate(targetDate);
+                    setShowNewProspectModal(true);
+                  }}
+                  className="bg-purple-800 hover:bg-purple-900 text-white px-2.5 py-1 rounded text-xs font-extrabold flex items-center gap-1 shadow-sm transition-colors cursor-pointer"
+                  title="Agendar nueva cita para esta fecha"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>+ Agendar Cita</span>
+                </button>
+                <button
+                  onClick={() => setSelectedDayDateStr(null)}
+                  className="text-gray-400 hover:text-gray-600 font-bold text-sm"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
