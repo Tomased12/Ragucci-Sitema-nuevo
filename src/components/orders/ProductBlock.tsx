@@ -26,6 +26,7 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
 
   const isArreglo = product.description.toUpperCase().includes('ARREGLO');
   const isSastreria = /TRAJE|AMBO|PANTALON|PANTALÓN|SOBRETODO|SMOKING|CHALECO|SACO/.test(product.description.toUpperCase());
+  const isForreriaApplicable = /SACO|AMBO|SOBRETODO|SMOKING|TRAJE/.test(product.description.toUpperCase());
   const isCamiseria = /CAMISA/.test(product.description.toUpperCase());
 
   // Filter autocomplete
@@ -388,7 +389,7 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
           </div>
         )}
 
-        {!isArreglo && isSastreria && (
+        {!isArreglo && isForreriaApplicable && (
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="font-bold text-ragucci-primary-light">Forrería ($)</label>

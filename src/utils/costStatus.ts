@@ -11,7 +11,7 @@ export interface CostStatusItem {
 export function getProductCostStatuses(p: ProductItem): CostStatusItem[] {
   const upper = p.description.toUpperCase();
   const isArreglo = upper.includes('ARREGLO');
-  const isSastreria = /TRAJE|AMBO|PANTALON|PANTALÓN|SOBRETODO|SMOKING|CHALECO|SACO/.test(upper);
+  const isForreriaApplicable = /SACO|AMBO|SOBRETODO|SMOKING|TRAJE/.test(upper);
 
   const statuses: CostStatusItem[] = [];
 
@@ -25,8 +25,8 @@ export function getProductCostStatuses(p: ProductItem): CostStatusItem[] {
       statuses.push({ key: 'telas', label: 'Tela', status: 'pending' });
     }
 
-    // Forrería
-    if (isSastreria) {
+    // Forrería (solo aplica para Saco, Ambo, Sobretodo, Smoking y Traje)
+    if (isForreriaApplicable) {
       if (p.costs?.noForreria) {
         statuses.push({ key: 'forreria', label: 'Forrería', status: 'no' });
       } else if ((p.costs?.forreria || 0) > 0) {
