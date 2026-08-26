@@ -3,6 +3,7 @@ import { Order } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { Modal } from '../common/Modal';
 import { UserBadge } from '../common/UserBadge';
+import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
 import { formatDate, formatMoney } from '../../utils/formatters';
 import { MessageCircle } from 'lucide-react';
 
@@ -93,7 +94,19 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
               ))}
             </div>
 
-            <div className="bg-white p-2.5 rounded border border-dashed border-gray-300">
+            {o.measurements && (
+              <div className="mt-3 pt-3 border-t border-ragucci-gold/30">
+                <h5 className="font-extrabold text-xs uppercase text-ragucci-primary mb-2">
+                  🧵 Medidas de la Orden
+                </h5>
+                <InteractiveMeasuresSheet
+                  mode="view"
+                  measurements={o.measurements}
+                />
+              </div>
+            )}
+
+            <div className="bg-white p-2.5 rounded border border-dashed border-gray-300 mt-3">
               <div className="font-bold text-sm mb-1">💰 Valor Total: ${formatMoney(o.sale)}</div>
               <div className="text-ragucci-primary-light font-bold mb-1">Historial de Pagos:</div>
               {o.paymentHistory && o.paymentHistory.length > 0 ? (

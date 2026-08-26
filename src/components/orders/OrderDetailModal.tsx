@@ -2,6 +2,7 @@ import React from 'react';
 import { Order } from '../../types';
 import { Modal } from '../common/Modal';
 import { UserBadge } from '../common/UserBadge';
+import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
 import { formatDate, formatMoney } from '../../utils/formatters';
 
 interface OrderDetailModalProps {
@@ -67,91 +68,18 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
       </div>
 
       {order.measurements && (
-        <div className="mb-4">
-          <h4 className="font-extrabold text-sm text-ragucci-primary uppercase border-b border-ragucci-border pb-1 mb-2">
-            🧵 Ficha de medidas
+        <div className="mb-5">
+          <h4 className="font-extrabold text-sm text-ragucci-primary uppercase border-b border-ragucci-border pb-1 mb-3 flex items-center justify-between">
+            <span>🧵 Ficha de medidas del Cliente</span>
+            <span className="text-[10px] text-ragucci-gold-light bg-ragucci-primary px-2 py-0.5 rounded font-extrabold">
+              Haz clic en la prenda para ver sus medidas
+            </span>
           </h4>
-          <div className="bg-[#fffdfa] p-3 border border-ragucci-gold-light rounded text-xs space-y-2">
-            {/* SACO */}
-            {(order.measurements.sacoLargoMangas || order.measurements.sacoPecho || order.measurements.sacoCintura || order.measurements.sacoHombro || order.measurements.hombro) && (
-              <div>
-                <strong className="text-ragucci-primary font-extrabold">• SACO: </strong>
-                <span className="text-gray-700">
-                  {[
-                    (order.measurements.sacoLargoMangas || order.measurements.largoManga) && `Largo Mangas: ${order.measurements.sacoLargoMangas || order.measurements.largoManga}`,
-                    (order.measurements.sacoPecho || order.measurements.torax) && `Pecho: ${order.measurements.sacoPecho || order.measurements.torax}`,
-                    (order.measurements.sacoCintura || order.measurements.cinturaSaco) && `Cintura: ${order.measurements.sacoCintura || order.measurements.cinturaSaco}`,
-                    (order.measurements.sacoCadera || order.measurements.caderaSaco) && `Cadera: ${order.measurements.sacoCadera || order.measurements.caderaSaco}`,
-                    order.measurements.sacoAbdomen && `Abdomen: ${order.measurements.sacoAbdomen}`,
-                    (order.measurements.sacoLargoTotal || order.measurements.largoSaco) && `Largo total: ${order.measurements.sacoLargoTotal || order.measurements.largoSaco}`,
-                    (order.measurements.sacoHombro || order.measurements.hombro) && `Hombro: ${order.measurements.sacoHombro || order.measurements.hombro}`
-                  ].filter(Boolean).join(' | ')}
-                </span>
-              </div>
-            )}
-
-            {/* CHALECO */}
-            {(order.measurements.chalecoPecho || order.measurements.chalecoLargoDelantero || order.measurements.chalecoLargoTrasero || order.measurements.chalecoEscote) && (
-              <div>
-                <strong className="text-ragucci-primary font-extrabold">• CHALECO: </strong>
-                <span className="text-gray-700">
-                  {[
-                    order.measurements.chalecoPecho && `Pecho: ${order.measurements.chalecoPecho}`,
-                    order.measurements.chalecoLargoDelantero && `Largo delantero: ${order.measurements.chalecoLargoDelantero}`,
-                    order.measurements.chalecoLargoTrasero && `Largo trasero: ${order.measurements.chalecoLargoTrasero}`,
-                    order.measurements.chalecoEscote && `Escote: ${order.measurements.chalecoEscote}`
-                  ].filter(Boolean).join(' | ')}
-                </span>
-              </div>
-            )}
-
-            {/* PANTALÓN */}
-            {(order.measurements.pantCintura || order.measurements.pantCadera || order.measurements.pantLargoConCintura || order.measurements.pantTiro || order.measurements.cinturaPant) && (
-              <div>
-                <strong className="text-ragucci-primary font-extrabold">• PANTALÓN: </strong>
-                <span className="text-gray-700">
-                  {[
-                    (order.measurements.pantCintura || order.measurements.cinturaPant) && `Cintura: ${order.measurements.pantCintura || order.measurements.cinturaPant}`,
-                    (order.measurements.pantCadera || order.measurements.caderaPant) && `Cadera: ${order.measurements.pantCadera || order.measurements.caderaPant}`,
-                    (order.measurements.pantLargoConCintura || order.measurements.largoPant) && `Largo con cintura: ${order.measurements.pantLargoConCintura || order.measurements.largoPant}`,
-                    (order.measurements.pantTiro || order.measurements.tiro) && `Tiro: ${order.measurements.pantTiro || order.measurements.tiro}`,
-                    order.measurements.pantRodilla && `Rodilla: ${order.measurements.pantRodilla}`,
-                    (order.measurements.pantBota || order.measurements.botamanga) && `Bota: ${order.measurements.pantBota || order.measurements.botamanga}`
-                  ].filter(Boolean).join(' | ')}
-                </span>
-              </div>
-            )}
-
-            {/* CAMISA */}
-            {(order.measurements.camisaCuello || order.measurements.camisaEspalda || order.measurements.camisaPecho || order.measurements.camisaAbdomen || order.measurements.camisaCintura || order.measurements.camisaManga || order.measurements.cuello) && (
-              <div>
-                <strong className="text-ragucci-primary font-extrabold">• CAMISA: </strong>
-                <span className="text-gray-700">
-                  {[
-                    (order.measurements.camisaCuello || order.measurements.cuello) && `Cuello: ${order.measurements.camisaCuello || order.measurements.cuello}`,
-                    order.measurements.camisaEspalda && `Espalda: ${order.measurements.camisaEspalda}`,
-                    order.measurements.camisaPecho && `Pecho: ${order.measurements.camisaPecho}`,
-                    order.measurements.camisaAbdomen && `Abdomen: ${order.measurements.camisaAbdomen}`,
-                    (order.measurements.camisaCintura || order.measurements.cinturaCamisa) && `Cintura: ${order.measurements.camisaCintura || order.measurements.cinturaCamisa}`,
-                    order.measurements.camisaLargo && `Largo: ${order.measurements.camisaLargo}`,
-                    (order.measurements.camisaManga || order.measurements.largoMangaCamisa) && `Manga: ${order.measurements.camisaManga || order.measurements.largoMangaCamisa}`,
-                    order.measurements.camisaBicep && `Bicep: ${order.measurements.camisaBicep}`,
-                    order.measurements.camisaAntebrazo && `Antebrazo: ${order.measurements.camisaAntebrazo}`,
-                    (order.measurements.camisaPunoIzq || order.measurements.puno) && `Puño Izq: ${order.measurements.camisaPunoIzq || order.measurements.puno}`,
-                    (order.measurements.camisaPunoDer || order.measurements.puno) && `Puño Der: ${order.measurements.camisaPunoDer || order.measurements.puno}`,
-                    order.measurements.camisaTipoCuello && `Tipo de cuello: ${order.measurements.camisaTipoCuello}`,
-                    order.measurements.camisaTipoPuno && `Tipo de puño: ${order.measurements.camisaTipoPuno}`,
-                    order.measurements.camisaMonograma && `Monograma: ${order.measurements.camisaMonograma}`
-                  ].filter(Boolean).join(' | ')}
-                </span>
-              </div>
-            )}
-
-            {order.measurements.posturaNotes && (
-              <div className="bg-amber-50 p-2 rounded border border-amber-200 text-amber-900 font-medium mt-1">
-                <strong>Postura & Calce:</strong> {order.measurements.posturaNotes}
-              </div>
-            )}
+          <div className="bg-[#fffdfa] p-3.5 border border-ragucci-gold-light rounded-xl text-xs space-y-3">
+            <InteractiveMeasuresSheet
+              mode="view"
+              measurements={order.measurements}
+            />
           </div>
         </div>
       )}

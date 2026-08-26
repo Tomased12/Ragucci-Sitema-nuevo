@@ -52,6 +52,7 @@ export interface CostsBreakdown {
 }
 
 export interface ClientMeasurements {
+  [key: string]: string | undefined;
   // SACO
   sacoLargoMangas?: string;
   sacoPecho?: string;

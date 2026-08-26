@@ -5,6 +5,7 @@ import { getTodayString, formatMoney, parseMoney } from '../../utils/formatters'
 import { ProductBlock } from './ProductBlock';
 import { RTWBlock } from './RTWBlock';
 import { MoneyInput } from '../common/MoneyInput';
+import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
 import { Plus, Check, X, Ruler, DollarSign } from 'lucide-react';
 
 export const OrderForm: React.FC = () => {
@@ -674,181 +675,12 @@ export const OrderForm: React.FC = () => {
           </button>
 
           {showMeasurements && (
-            <div className="mt-3 p-4 bg-[#fffdfa] border border-ragucci-gold-light rounded-md text-xs space-y-4 shadow-inner">
-              {/* SACO */}
-              <div>
-                <h4 className="font-extrabold text-ragucci-primary uppercase border-b border-ragucci-gold/30 pb-1 mb-2">
-                  🧥 SACO
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Largo Mangas</label>
-                    <input type="text" placeholder="Ej: 64" value={measurements.sacoLargoMangas || measurements.largoManga || ''} onChange={e => setMeasurements({...measurements, sacoLargoMangas: e.target.value, largoManga: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Pecho</label>
-                    <input type="text" placeholder="Ej: 104" value={measurements.sacoPecho || measurements.torax || ''} onChange={e => setMeasurements({...measurements, sacoPecho: e.target.value, torax: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cintura</label>
-                    <input type="text" placeholder="Ej: 92" value={measurements.sacoCintura || measurements.cinturaSaco || ''} onChange={e => setMeasurements({...measurements, sacoCintura: e.target.value, cinturaSaco: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cadera</label>
-                    <input type="text" placeholder="Ej: 102" value={measurements.sacoCadera || measurements.caderaSaco || ''} onChange={e => setMeasurements({...measurements, sacoCadera: e.target.value, caderaSaco: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Abdomen</label>
-                    <input type="text" placeholder="Ej: 94" value={measurements.sacoAbdomen || ''} onChange={e => setMeasurements({...measurements, sacoAbdomen: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Largo total</label>
-                    <input type="text" placeholder="Ej: 75" value={measurements.sacoLargoTotal || measurements.largoSaco || ''} onChange={e => setMeasurements({...measurements, sacoLargoTotal: e.target.value, largoSaco: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Hombro</label>
-                    <input type="text" placeholder="Ej: 46" value={measurements.sacoHombro || measurements.hombro || ''} onChange={e => setMeasurements({...measurements, sacoHombro: e.target.value, hombro: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                </div>
-              </div>
-
-              {/* CHALECO */}
-              <div>
-                <h4 className="font-extrabold text-ragucci-primary uppercase border-b border-ragucci-gold/30 pb-1 mb-2">
-                  🎽 CHALECO
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Pecho</label>
-                    <input type="text" placeholder="Ej: 102" value={measurements.chalecoPecho || ''} onChange={e => setMeasurements({...measurements, chalecoPecho: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Largo delantero</label>
-                    <input type="text" placeholder="Ej: 62" value={measurements.chalecoLargoDelantero || ''} onChange={e => setMeasurements({...measurements, chalecoLargoDelantero: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Largo trasero</label>
-                    <input type="text" placeholder="Ej: 56" value={measurements.chalecoLargoTrasero || ''} onChange={e => setMeasurements({...measurements, chalecoLargoTrasero: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Escote</label>
-                    <input type="text" placeholder="Ej: 32" value={measurements.chalecoEscote || ''} onChange={e => setMeasurements({...measurements, chalecoEscote: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                </div>
-              </div>
-
-              {/* PANTALÓN */}
-              <div>
-                <h4 className="font-extrabold text-ragucci-primary uppercase border-b border-ragucci-gold/30 pb-1 mb-2">
-                  👖 PANTALÓN
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cintura</label>
-                    <input type="text" placeholder="Ej: 88" value={measurements.pantCintura || measurements.cinturaPant || ''} onChange={e => setMeasurements({...measurements, pantCintura: e.target.value, cinturaPant: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cadera</label>
-                    <input type="text" placeholder="Ej: 100" value={measurements.pantCadera || measurements.caderaPant || ''} onChange={e => setMeasurements({...measurements, pantCadera: e.target.value, caderaPant: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Largo con cintura</label>
-                    <input type="text" placeholder="Ej: 102" value={measurements.pantLargoConCintura || measurements.largoPant || ''} onChange={e => setMeasurements({...measurements, pantLargoConCintura: e.target.value, largoPant: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Tiro</label>
-                    <input type="text" placeholder="Ej: 26" value={measurements.pantTiro || measurements.tiro || ''} onChange={e => setMeasurements({...measurements, pantTiro: e.target.value, tiro: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Rodilla</label>
-                    <input type="text" placeholder="Ej: 24" value={measurements.pantRodilla || ''} onChange={e => setMeasurements({...measurements, pantRodilla: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Bota</label>
-                    <input type="text" placeholder="Ej: 19" value={measurements.pantBota || measurements.botamanga || ''} onChange={e => setMeasurements({...measurements, pantBota: e.target.value, botamanga: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                </div>
-              </div>
-
-              {/* CAMISA */}
-              <div>
-                <h4 className="font-extrabold text-ragucci-primary uppercase border-b border-ragucci-gold/30 pb-1 mb-2">
-                  👔 CAMISA
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 mb-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cuello</label>
-                    <input type="text" placeholder="Ej: 41" value={measurements.camisaCuello || measurements.cuello || ''} onChange={e => setMeasurements({...measurements, camisaCuello: e.target.value, cuello: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Espalda</label>
-                    <input type="text" placeholder="Ej: 45" value={measurements.camisaEspalda || ''} onChange={e => setMeasurements({...measurements, camisaEspalda: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Pecho</label>
-                    <input type="text" placeholder="Ej: 104" value={measurements.camisaPecho || ''} onChange={e => setMeasurements({...measurements, camisaPecho: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Abdomen</label>
-                    <input type="text" placeholder="Ej: 92" value={measurements.camisaAbdomen || ''} onChange={e => setMeasurements({...measurements, camisaAbdomen: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Cintura</label>
-                    <input type="text" placeholder="Ej: 90" value={measurements.camisaCintura || measurements.cinturaCamisa || ''} onChange={e => setMeasurements({...measurements, camisaCintura: e.target.value, cinturaCamisa: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Largo</label>
-                    <input type="text" placeholder="Ej: 78" value={measurements.camisaLargo || ''} onChange={e => setMeasurements({...measurements, camisaLargo: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Manga</label>
-                    <input type="text" placeholder="Ej: 65" value={measurements.camisaManga || measurements.largoMangaCamisa || ''} onChange={e => setMeasurements({...measurements, camisaManga: e.target.value, largoMangaCamisa: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Bicep</label>
-                    <input type="text" placeholder="Ej: 34" value={measurements.camisaBicep || ''} onChange={e => setMeasurements({...measurements, camisaBicep: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Antebrazo</label>
-                    <input type="text" placeholder="Ej: 28" value={measurements.camisaAntebrazo || ''} onChange={e => setMeasurements({...measurements, camisaAntebrazo: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Puño Izq</label>
-                    <input type="text" placeholder="Ej: 24" value={measurements.camisaPunoIzq || measurements.puno || ''} onChange={e => setMeasurements({...measurements, camisaPunoIzq: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Puño Der</label>
-                    <input type="text" placeholder="Ej: 24.5" value={measurements.camisaPunoDer || measurements.puno || ''} onChange={e => setMeasurements({...measurements, camisaPunoDer: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Tipo de cuello</label>
-                    <input type="text" placeholder="Ej: Italiano / Francés" value={measurements.camisaTipoCuello || ''} onChange={e => setMeasurements({...measurements, camisaTipoCuello: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Tipo de puño</label>
-                    <input type="text" placeholder="Ej: Botón / Doble Gemelo" value={measurements.camisaTipoPuno || ''} onChange={e => setMeasurements({...measurements, camisaTipoPuno: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Monograma</label>
-                    <input type="text" placeholder="Ej: E.A. (Hilo Azul)" value={measurements.camisaMonograma || ''} onChange={e => setMeasurements({...measurements, camisaMonograma: e.target.value})} className="w-full p-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-bold" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Postura y Observaciones */}
-              <div>
-                <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Observaciones de Postura & Calce</label>
-                <textarea
-                  rows={2}
-                  placeholder="Ej: Hombro izquierdo caído -2cm, postura erguida, caída de cintura ligera..."
-                  value={measurements.posturaNotes || ''}
-                  onChange={e => setMeasurements({...measurements, posturaNotes: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-medium"
-                />
-              </div>
+            <div className="mt-3 p-3.5 bg-[#fffdfa] border border-ragucci-gold-light rounded-xl text-xs space-y-4 shadow-inner">
+              <InteractiveMeasuresSheet
+                mode="edit"
+                measurements={measurements}
+                onChangeMeasurements={setMeasurements}
+              />
             </div>
           )}
         </div>
