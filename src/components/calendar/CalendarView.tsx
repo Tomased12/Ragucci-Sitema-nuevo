@@ -19,7 +19,8 @@ import {
   Trash2,
   Tag,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Pencil
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -97,14 +98,16 @@ export const CalendarView: React.FC = () => {
   const [selectedDayDateStr, setSelectedDayDateStr] = useState<string | null>(null);
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
   const [showNewProspectModal, setShowNewProspectModal] = useState<boolean>(false);
+  const [editingProspectAppt, setEditingProspectAppt] = useState<ProspectAppointment | null>(null);
 
-  // New Prospect Form State
+  // New / Edit Prospect Form State
   const [prospectName, setProspectName] = useState<string>('');
   const [prospectPhone, setProspectPhone] = useState<string>('');
   const [prospectDate, setProspectDate] = useState<string>(todayStr);
   const [prospectTime, setProspectTime] = useState<string>('16:00');
   const [prospectInterest, setProspectInterest] = useState<string>('');
   const [prospectNotes, setProspectNotes] = useState<string>('');
+  const [prospectStatus, setProspectStatus] = useState<'pendiente' | 'confirmada' | 'concretada' | 'cancelada'>('pendiente');
 
   // Month navigation handlers
   const handlePrevMonth = () => {
@@ -131,7 +134,53 @@ export const CalendarView: React.FC = () => {
     setCurrentMonth(now.getMonth());
   };
 
-  // Save new prospect appointment & automatically prompt Google Calendar
+  // Open modal in edit mode for a prospect appointment
+  const handleEditProspect = (appt: ProspectAppointment) => {
+    setEditingProspectAppt(appt);
+    setProspectName(appt.clientName || '');
+    setProspectPhone(appt.phone || '');
+    setProspectDate(appt.date || todayStr);
+    setProspectTime(appt.time || '16:00');
+    setProspectInterest(appt.interest || '');
+    setProspectNotes(appt.notes || '');
+    setProspectStatus(appt.status || 'pendiente');
+    setSelectedDayDateStr(null);
+    setShowNewProspectModal(true);
+  };
+
+  // Drag and Drop handlers for rescheduling appointments
+  const handleDragStartProspect = (e: React.DragEvent, appt: ProspectAppointment) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('application/json', JSON.stringify(appt));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOverDay = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDropOnDay = async (e: React.DragEvent, targetDateStr: string) => {
+    e.preventDefault();
+    try {
+      const rawData = e.dataTransfer.getData('application/json');
+      if (!rawData) return;
+      const appt: ProspectAppointment = JSON.parse(rawData);
+
+      if (!appt || !appt.firestoreId || appt.date === targetDateStr) return;
+
+      const updatedAppt: ProspectAppointment = {
+        ...appt,
+        date: targetDateStr
+      };
+
+      await saveProspectAppointmentData(updatedAppt, appt.firestoreId);
+    } catch (err) {
+      console.error("Error al trasladar la cita:", err);
+    }
+  };
+
+  // Save (create or update) prospect appointment & automatically prompt Google Calendar if new
   const handleSaveProspect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prospectName.trim() || !prospectInterest.trim()) {
@@ -139,37 +188,41 @@ export const CalendarView: React.FC = () => {
       return;
     }
 
-    const newAppt: ProspectAppointment = {
-      id: Date.now().toString(),
+    const apptData: ProspectAppointment = {
+      id: editingProspectAppt ? editingProspectAppt.id : Date.now().toString(),
       clientName: prospectName.trim(),
       phone: prospectPhone.trim(),
       date: prospectDate,
       time: prospectTime,
       interest: prospectInterest.trim(),
       notes: prospectNotes.trim(),
-      status: 'pendiente',
-      createdAt: new Date().toISOString()
+      status: prospectStatus,
+      createdAt: editingProspectAppt ? editingProspectAppt.createdAt : new Date().toISOString()
     };
 
     try {
-      await saveProspectAppointmentData(newAppt);
+      await saveProspectAppointmentData(apptData, editingProspectAppt?.firestoreId || undefined);
       
-      // Auto-abrir Google Calendar directamente sin apretar ningún botón manual extra
-      const gUrl = getGoogleCalendarUrl(
-        `Cita: ${newAppt.clientName} (${newAppt.interest})`,
-        newAppt.date,
-        newAppt.time,
-        `Teléfono: ${newAppt.phone || ''}. Notas: ${newAppt.notes || ''}`
-      );
-      window.open(gUrl, '_blank');
+      // Auto-abrir Google Calendar directamente sólo para citas nuevas o cambio explícito
+      if (!editingProspectAppt) {
+        const gUrl = getGoogleCalendarUrl(
+          `Cita: ${apptData.clientName} (${apptData.interest})`,
+          apptData.date,
+          apptData.time,
+          `Teléfono: ${apptData.phone || ''}. Notas: ${apptData.notes || ''}`
+        );
+        window.open(gUrl, '_blank');
+      }
 
+      setEditingProspectAppt(null);
       setProspectName('');
       setProspectPhone('');
       setProspectInterest('');
       setProspectNotes('');
+      setProspectStatus('pendiente');
       setShowNewProspectModal(false);
     } catch (err) {
-      alert("Error al guardar la cita del cliente.");
+      alert("Error al guardar los datos de la cita.");
     }
   };
 
@@ -485,10 +538,13 @@ export const CalendarView: React.FC = () => {
             return (
               <div
                 key={d.dateStr}
+                onDragOver={handleDragOverDay}
+                onDrop={(e) => handleDropOnDay(e, d.dateStr)}
                 onClick={() => {
                   if (events.length > 0) {
                     setSelectedDayDateStr(d.dateStr);
                   } else {
+                    setEditingProspectAppt(null);
                     setProspectDate(d.dateStr);
                     setShowNewProspectModal(true);
                   }
@@ -518,6 +574,7 @@ export const CalendarView: React.FC = () => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        setEditingProspectAppt(null);
                         setProspectDate(d.dateStr);
                         setShowNewProspectModal(true);
                       }}
@@ -537,12 +594,14 @@ export const CalendarView: React.FC = () => {
                       return (
                         <div
                           key={idx}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold truncate border leading-tight ${
+                          draggable={true}
+                          onDragStart={(e) => handleDragStartProspect(e, evt.prospect!)}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold truncate border leading-tight cursor-grab active:cursor-grabbing hover:scale-105 transition-transform ${
                             isPast
                               ? 'bg-gray-100 text-gray-500 border-gray-300 opacity-60'
                               : 'bg-purple-100 text-purple-900 border-purple-300'
                           }`}
-                          title={isPast ? `Cita Pasada: ${evt.prospect.clientName}` : `Cita Prospecto: ${evt.prospect.clientName} - ${evt.prospect.interest}`}
+                          title={`¡Manten presionado y arrastra para cambiar la cita de día! ${isPast ? 'Cita Pasada' : 'Cita Prospecto'}: ${evt.prospect.clientName} - ${evt.prospect.interest}`}
                         >
                           {isPast ? '⚪' : '🟣'} {evt.prospect.clientName} ({evt.prospect.interest.split(' ')[0]})
                         </div>
@@ -579,18 +638,21 @@ export const CalendarView: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal: Agendar Cita con Posible Cliente */}
+      {/* Modal: Agendar / Editar Cita con Posible Cliente */}
       {showNewProspectModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSaveProspect} className="bg-white rounded-lg shadow-xl border border-purple-700 max-w-md w-full p-5 space-y-4 animate-fadeIn">
             <div className="flex justify-between items-center border-b border-purple-200 pb-2">
               <h3 className="font-extrabold text-sm uppercase text-purple-900 flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-purple-700" />
-                <span>Agendar Cita / Posible Cliente</span>
+                <span>{editingProspectAppt ? '✏️ Editar Cita de Cliente' : '➕ Agendar Cita / Posible Cliente'}</span>
               </h3>
               <button
                 type="button"
-                onClick={() => setShowNewProspectModal(false)}
+                onClick={() => {
+                  setEditingProspectAppt(null);
+                  setShowNewProspectModal(false);
+                }}
                 className="text-gray-400 hover:text-gray-600 font-bold text-sm"
               >
                 ✕
@@ -666,12 +728,29 @@ export const CalendarView: React.FC = () => {
                   className="w-full p-2 border border-gray-300 rounded font-medium focus:outline-none focus:border-purple-600"
                 />
               </div>
+
+              <div>
+                <label className="font-extrabold text-gray-800 block mb-1">Estado de la Cita</label>
+                <select
+                  value={prospectStatus}
+                  onChange={(e) => setProspectStatus(e.target.value as any)}
+                  className="w-full p-2 border border-gray-300 rounded font-bold text-xs bg-white focus:outline-none focus:border-purple-600 cursor-pointer"
+                >
+                  <option value="pendiente">🟣 Pendiente / En Consulta</option>
+                  <option value="confirmada">🔵 Cita Confirmada</option>
+                  <option value="concretada">🟢 Concretada (Cliente Vendido)</option>
+                  <option value="cancelada">🔴 Cancelada / No Asistió</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setShowNewProspectModal(false)}
+                onClick={() => {
+                  setEditingProspectAppt(null);
+                  setShowNewProspectModal(false);
+                }}
                 className="w-1/2 py-2.5 bg-gray-200 text-gray-700 font-bold text-xs uppercase rounded hover:bg-gray-300 transition-colors"
               >
                 Cancelar
@@ -680,7 +759,7 @@ export const CalendarView: React.FC = () => {
                 type="submit"
                 className="w-1/2 py-2.5 bg-purple-800 text-white font-extrabold text-xs uppercase rounded hover:bg-purple-900 transition-colors shadow-sm"
               >
-                Agendar Cita
+                {editingProspectAppt ? 'Guardar Cambios' : 'Agendar Cita'}
               </button>
             </div>
           </form>
@@ -783,6 +862,16 @@ export const CalendarView: React.FC = () => {
                             title="Descargar para iPhone / Apple Calendar (.ics)"
                           >
                             <span>📱 Apple .ics</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleEditProspect(p)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                            title="Editar datos de la cita o cambiar fecha"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            <span>Editar</span>
                           </button>
 
                           <button
