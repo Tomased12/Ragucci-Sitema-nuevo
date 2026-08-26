@@ -99,6 +99,7 @@ export const CalendarView: React.FC = () => {
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
   const [showNewProspectModal, setShowNewProspectModal] = useState<boolean>(false);
   const [editingProspectAppt, setEditingProspectAppt] = useState<ProspectAppointment | null>(null);
+  const [isSubmittingProspect, setIsSubmittingProspect] = useState<boolean>(false);
 
   // New / Edit Prospect Form State
   const [prospectName, setProspectName] = useState<string>('');
@@ -183,10 +184,14 @@ export const CalendarView: React.FC = () => {
   // Save (create or update) prospect appointment & automatically prompt Google Calendar if new
   const handleSaveProspect = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingProspect) return;
+
     if (!prospectName.trim() || !prospectInterest.trim()) {
       alert("Por favor ingresa el nombre del cliente y el producto o tela de interés.");
       return;
     }
+
+    setIsSubmittingProspect(true);
 
     const apptData: ProspectAppointment = {
       id: editingProspectAppt ? editingProspectAppt.id : Date.now().toString(),
@@ -223,6 +228,8 @@ export const CalendarView: React.FC = () => {
       setShowNewProspectModal(false);
     } catch (err) {
       alert("Error al guardar los datos de la cita.");
+    } finally {
+      setIsSubmittingProspect(false);
     }
   };
 
@@ -757,9 +764,12 @@ export const CalendarView: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="w-1/2 py-2.5 bg-purple-800 text-white font-extrabold text-xs uppercase rounded hover:bg-purple-900 transition-colors shadow-sm"
+                disabled={isSubmittingProspect}
+                className={`w-1/2 py-2.5 bg-purple-800 text-white font-extrabold text-xs uppercase rounded transition-colors shadow-sm ${
+                  isSubmittingProspect ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-900 cursor-pointer'
+                }`}
               >
-                {editingProspectAppt ? 'Guardar Cambios' : 'Agendar Cita'}
+                {isSubmittingProspect ? 'Guardando...' : (editingProspectAppt ? 'Guardar Cambios' : 'Agendar Cita')}
               </button>
             </div>
           </form>
