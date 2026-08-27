@@ -98,7 +98,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
               </div>
             )}
             {p.notes && <div className="text-gray-500 italic ml-3">Notas: {p.notes}</div>}
-            <ProductCostBadges product={p} className="ml-3" />
+            <ProductCostBadges product={p} onlyPending={false} className="ml-3" />
           </div>
         ))}
 

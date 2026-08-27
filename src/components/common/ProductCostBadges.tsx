@@ -5,11 +5,17 @@ import { formatMoney } from '../../utils/formatters';
 
 interface ProductCostBadgesProps {
   product: ProductItem;
+  onlyPending?: boolean;
   className?: string;
 }
 
-export const ProductCostBadges: React.FC<ProductCostBadgesProps> = ({ product, className = '' }) => {
-  const statuses = getProductCostStatuses(product);
+export const ProductCostBadges: React.FC<ProductCostBadgesProps> = ({ 
+  product, 
+  onlyPending = true, 
+  className = '' 
+}) => {
+  const allStatuses = getProductCostStatuses(product);
+  const statuses = onlyPending ? allStatuses.filter(s => s.status === 'pending') : allStatuses;
 
   if (statuses.length === 0) return null;
 
