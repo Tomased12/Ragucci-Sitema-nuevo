@@ -38,7 +38,7 @@ interface ExplanationModalData {
 export const BalanceDashboard: React.FC = () => {
   const { orders, config, dolarBlueVenta, saveConfigData } = useApp();
 
-  const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
+  const [filterMonth, setFilterMonth] = useState('all');
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const [activeExplanation, setActiveExplanation] = useState<ExplanationModalData | null>(null);
 

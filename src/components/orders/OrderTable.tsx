@@ -16,7 +16,7 @@ export const OrderTable: React.FC = () => {
   const { orders, saveOrderData, removeOrderData, setEditingOrderId, setActiveTab } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
+  const [filterMonth, setFilterMonth] = useState('all');
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterUpcomingOnly, setFilterUpcomingOnly] = useState(false);
