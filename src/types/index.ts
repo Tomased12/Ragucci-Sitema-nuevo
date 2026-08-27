@@ -36,6 +36,7 @@ export interface RTWItem {
   desc: string;
   qty: number;
   price: number;
+  notes?: string;
 }
 
 export type AviosQuantities = Record<'percha' | 'funda' | 'bolsa' | 'bolsaplastica', number>;

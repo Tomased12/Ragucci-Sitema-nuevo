@@ -105,6 +105,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
         {order.rtwItems && order.rtwItems.map((rtw, i) => (
           <div key={i} className="border-b border-gray-100 pb-2 last:border-none">
             <strong>• {rtw.desc} (x{rtw.qty})</strong> - ${formatMoney(rtw.price * rtw.qty)}
+            {rtw.notes && <div className="text-gray-500 italic ml-3">Detalle: {rtw.notes}</div>}
           </div>
         ))}
       </div>

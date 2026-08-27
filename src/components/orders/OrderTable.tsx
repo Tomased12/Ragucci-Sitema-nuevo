@@ -83,7 +83,7 @@ export const OrderTable: React.FC = () => {
       ? order.products.map((p) => `${p.description}${p.modista ? ` (${p.modista})` : ''}`).join(' + ')
       : '';
     if (order.rtwItems && order.rtwItems.length > 0) {
-      productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc} (x${rtw.qty})`).join(' + ');
+      productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc} (x${rtw.qty})${rtw.notes ? ` [${rtw.notes}]` : ''}`).join(' + ');
     }
 
     const matchSearch =
@@ -285,7 +285,7 @@ export const OrderTable: React.FC = () => {
                 ? order.products.map((p) => `${p.description}${p.modista ? ` (${p.modista})` : ''}`).join(' + ')
                 : '';
               if (order.rtwItems && order.rtwItems.length > 0) {
-                productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc} (x${rtw.qty})`).join(' + ');
+                productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc} (x${rtw.qty})${rtw.notes ? ` [${rtw.notes}]` : ''}`).join(' + ');
               }
 
               return (

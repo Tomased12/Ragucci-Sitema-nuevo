@@ -94,7 +94,10 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
                 </div>
               ))}
               {o.rtwItems && o.rtwItems.map((rtw, rIdx) => (
-                <div key={rIdx}>• {rtw.desc} (x{rtw.qty}) - ${formatMoney(rtw.price * rtw.qty)}</div>
+                <div key={rIdx}>
+                  • {rtw.desc} (x{rtw.qty}) - ${formatMoney(rtw.price * rtw.qty)}
+                  {rtw.notes && <span className="text-gray-500 font-normal italic ml-2">({rtw.notes})</span>}
+                </div>
               ))}
             </div>
 
