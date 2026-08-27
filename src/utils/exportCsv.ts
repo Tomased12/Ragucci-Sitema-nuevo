@@ -103,3 +103,55 @@ export const exportBalanceToCSV = (
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 };
+
+export interface ClientProfitabilityItem {
+  client: string;
+  orderCount: number;
+  totalVenta: number;
+  totalCosto: number;
+  totalGanancia: number;
+  profitMarginPct: number;
+  statusLabel: string;
+}
+
+export const exportClientProfitabilityToCSV = (
+  items: ClientProfitabilityItem[],
+  filename = 'ragucci_rentabilidad_clientes.csv'
+) => {
+  if (!items || items.length === 0) {
+    alert("No hay datos de rentabilidad para exportar.");
+    return;
+  }
+
+  const headers = [
+    "Cliente",
+    "Cantidad de Órdenes",
+    "Total Venta ($)",
+    "Total Costo ($)",
+    "Ganancia Teórica ($)",
+    "Margen % Ganancia Teórica",
+    "Calificación Rentabilidad"
+  ];
+
+  const rows = items.map((item) => [
+    `"${(item.client || '').replace(/"/g, '""')}"`,
+    item.orderCount,
+    item.totalVenta,
+    item.totalCosto,
+    item.totalGanancia,
+    `${item.profitMarginPct.toFixed(1)}%`,
+    `"${item.statusLabel.replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};

@@ -20,9 +20,12 @@ import {
   BarChart3,
   PieChart,
   Trophy,
-  Target
+  Target,
+  Users,
+  Search
 } from 'lucide-react';
-import { exportBalanceToCSV } from '../../utils/exportCsv';
+import { exportBalanceToCSV, exportClientProfitabilityToCSV } from '../../utils/exportCsv';
+import { ClientHistoryModal } from '../clients/ClientHistoryModal';
 
 interface ExplanationModalData {
   title: string;
@@ -38,6 +41,12 @@ export const BalanceDashboard: React.FC = () => {
   const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const [activeExplanation, setActiveExplanation] = useState<ExplanationModalData | null>(null);
+
+  // Client Profitability Table State
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [clientFilterCategory, setClientFilterCategory] = useState<'all' | 'high' | 'medium' | 'low'>('all');
+  const [clientSortBy, setClientSortBy] = useState<'margin_desc' | 'margin_asc' | 'venta_desc' | 'profit_desc' | 'name_asc'>('margin_desc');
+  const [selectedClientForHistory, setSelectedClientForHistory] = useState<string | null>(null);
 
   // Fixed Costs Local Form State
   const [alquilerUsd, setAlquilerUsd] = useState(config.gasto_alquiler_usd !== undefined ? config.gasto_alquiler_usd : 1500);
@@ -189,7 +198,9 @@ export const BalanceDashboard: React.FC = () => {
 
     return {
       fixedCostsMonthly,
+      marginPct,
       breakevenVentaRequired,
+      currentSalesPctOfBreakeven: (totalVenta / (breakevenVentaRequired || 1)) * 100,
       averageOrderTicket,
       trajesRequiredTotal,
       camisasRequiredTotal,
@@ -198,10 +209,82 @@ export const BalanceDashboard: React.FC = () => {
       fixedCostsCoveredPct,
       isBreakevenReached,
       shortageAmount,
-      shortageVentaAmount,
-      marginPct
+      shortageVentaAmount
     };
   }, [totals, gastosFijosMensualesBase, filteredOrders]);
+
+  // Aggregating Client Profitability Data
+  const clientMap: Record<string, {
+    client: string;
+    orderCount: number;
+    totalVenta: number;
+    totalCosto: number;
+    totalGanancia: number;
+    profitMarginPct: number;
+    status: 'high' | 'medium' | 'low';
+    statusLabel: string;
+  }> = {};
+
+  filteredOrders.forEach((o) => {
+    const rawName = (o.client || '').trim();
+    if (!rawName) return;
+
+    if (!clientMap[rawName]) {
+      clientMap[rawName] = {
+        client: rawName,
+        orderCount: 0,
+        totalVenta: 0,
+        totalCosto: 0,
+        totalGanancia: 0,
+        profitMarginPct: 0,
+        status: 'medium',
+        statusLabel: ''
+      };
+    }
+
+    clientMap[rawName].orderCount += 1;
+    clientMap[rawName].totalVenta += o.sale || 0;
+    clientMap[rawName].totalCosto += o.totalCost || 0;
+    clientMap[rawName].totalGanancia += o.profit || 0;
+  });
+
+  const allClientProfitability = Object.values(clientMap).map(item => {
+    const marginPct = item.totalVenta > 0 ? (item.totalGanancia / item.totalVenta) * 100 : 0;
+    let status: 'high' | 'medium' | 'low' = 'medium';
+    let statusLabel = '🟡 Ganamos Bien (35% - 49%)';
+
+    if (marginPct >= 50) {
+      status = 'high';
+      statusLabel = '🟢 Ganamos Muy Bien (≥50%)';
+    } else if (marginPct < 35) {
+      status = 'low';
+      statusLabel = '🔴 Ganamos Mal (<35%)';
+    }
+
+    return {
+      ...item,
+      profitMarginPct: marginPct,
+      status,
+      statusLabel
+    };
+  });
+
+  const highMarginCount = allClientProfitability.filter(c => c.status === 'high').length;
+  const mediumMarginCount = allClientProfitability.filter(c => c.status === 'medium').length;
+  const lowMarginCount = allClientProfitability.filter(c => c.status === 'low').length;
+
+  const filteredClients = allClientProfitability.filter(c => {
+    const matchSearch = !clientSearchTerm.trim() || c.client.toLowerCase().includes(clientSearchTerm.toLowerCase());
+    const matchCategory = clientFilterCategory === 'all' || c.status === clientFilterCategory;
+    return matchSearch && matchCategory;
+  }).sort((a, b) => {
+    if (clientSortBy === 'margin_desc') return b.profitMarginPct - a.profitMarginPct;
+    if (clientSortBy === 'margin_asc') return a.profitMarginPct - b.profitMarginPct;
+    if (clientSortBy === 'venta_desc') return b.totalVenta - a.totalVenta;
+    if (clientSortBy === 'profit_desc') return b.totalGanancia - a.totalGanancia;
+    if (clientSortBy === 'name_asc') return a.client.localeCompare(b.client);
+    return 0;
+  });
 
   const handleSaveGastosFijos = async () => {
     const updatedConfig = {
@@ -911,6 +994,220 @@ export const BalanceDashboard: React.FC = () => {
             })}
           </div>
         </div>
+
+        {/* Tabla de Rentabilidad por Cliente (% Ganancia Teórica) */}
+        <div className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm col-span-1 md:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-ragucci-gold shrink-0" />
+                <h4 className="text-sm font-extrabold uppercase text-ragucci-primary">
+                  📈 Tabla de Rentabilidad por Cliente (% Ganancia Teórica)
+                </h4>
+              </div>
+              <p className="text-xs text-gray-500 font-medium mt-0.5">
+                Analiza con qué clientes obtenemos un margen excelente (≥50%) y con cuáles el margen es bajo (&lt;35%).
+              </p>
+            </div>
+
+            <button
+              onClick={() => exportClientProfitabilityToCSV(filteredClients, `ragucci_rentabilidad_clientes_${filterYear}_${filterMonth}.csv`)}
+              className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold py-1.5 px-3 rounded transition-all cursor-pointer shadow-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Exportar Rentabilidad (.csv)</span>
+            </button>
+          </div>
+
+          {/* KPI Summary Badges */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div 
+              onClick={() => setClientFilterCategory(clientFilterCategory === 'high' ? 'all' : 'high')}
+              className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                clientFilterCategory === 'high'
+                  ? 'bg-emerald-100 border-emerald-500 ring-2 ring-emerald-400'
+                  : 'bg-emerald-50/60 border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-extrabold text-emerald-900">🟢 Ganamos Muy Bien (≥50%)</span>
+                <span className="bg-emerald-700 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{highMarginCount} clientes</span>
+              </div>
+              <p className="text-[11px] text-emerald-800 mt-1">Margen de ganancia directo superior al 50%.</p>
+            </div>
+
+            <div 
+              onClick={() => setClientFilterCategory(clientFilterCategory === 'medium' ? 'all' : 'medium')}
+              className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                clientFilterCategory === 'medium'
+                  ? 'bg-amber-100 border-amber-500 ring-2 ring-amber-400'
+                  : 'bg-amber-50/60 border-amber-200 hover:bg-amber-100'
+              }`}
+            >
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-extrabold text-amber-900">🟡 Ganamos Bien (35% - 49%)</span>
+                <span className="bg-amber-700 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{mediumMarginCount} clientes</span>
+              </div>
+              <p className="text-[11px] text-amber-800 mt-1">Margen de ganancia saludable estándar.</p>
+            </div>
+
+            <div 
+              onClick={() => setClientFilterCategory(clientFilterCategory === 'low' ? 'all' : 'low')}
+              className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                clientFilterCategory === 'low'
+                  ? 'bg-rose-100 border-rose-500 ring-2 ring-rose-400'
+                  : 'bg-rose-50/60 border-rose-200 hover:bg-rose-100'
+              }`}
+            >
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-extrabold text-rose-900">🔴 Ganamos Mal (&lt;35%)</span>
+                <span className="bg-rose-700 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{lowMarginCount} clientes</span>
+              </div>
+              <p className="text-[11px] text-rose-800 mt-1">Margen bajo o ajustado. Revisar costos de taller.</p>
+            </div>
+          </div>
+
+          {/* Table Filters & Search */}
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between mb-4 bg-gray-50 p-3 rounded border border-gray-200">
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar cliente..."
+                value={clientSearchTerm}
+                onChange={(e) => setClientSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-medium"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
+              <select
+                value={clientFilterCategory}
+                onChange={(e) => setClientFilterCategory(e.target.value as any)}
+                className="p-1.5 border border-gray-300 rounded text-xs font-bold text-gray-700 focus:outline-none focus:border-ragucci-gold"
+              >
+                <option value="all">🔍 Todos los Clientes</option>
+                <option value="high">🟢 Ganamos Muy Bien (≥50%)</option>
+                <option value="medium">🟡 Ganamos Bien (35% - 49%)</option>
+                <option value="low">🔴 Ganamos Mal (&lt;35%)</option>
+              </select>
+
+              <select
+                value={clientSortBy}
+                onChange={(e) => setClientSortBy(e.target.value as any)}
+                className="p-1.5 border border-amber-300 bg-amber-50 text-amber-900 rounded text-xs font-extrabold focus:outline-none focus:border-ragucci-gold cursor-pointer"
+              >
+                <option value="margin_desc">📉 Margen % (Mayor a Menor)</option>
+                <option value="margin_asc">📈 Margen % (Menor a Mayor - Ganamos Mal)</option>
+                <option value="venta_desc">💰 Mayor Venta Total ($)</option>
+                <option value="profit_desc">💵 Mayor Ganancia ($)</option>
+                <option value="name_asc">🔤 Nombre Cliente (A-Z)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="bg-ragucci-primary text-ragucci-gold uppercase text-[11px] tracking-wider border-b border-ragucci-gold">
+                  <th className="py-2.5 px-3">Cliente</th>
+                  <th className="py-2.5 px-2 text-center">Órdenes</th>
+                  <th className="py-2.5 px-3 text-right">Venta Total ($)</th>
+                  <th className="py-2.5 px-3 text-right">Costo Directo ($)</th>
+                  <th className="py-2.5 px-3 text-right">Ganancia Teórica ($)</th>
+                  <th className="py-2.5 px-3 text-center">% Margen Teórico</th>
+                  <th className="py-2.5 px-3 text-center">Estado Rentabilidad</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredClients.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-gray-500 font-medium italic">
+                      No se encontraron clientes con los filtros seleccionados.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredClients.map((item, idx) => {
+                    const isHigh = item.status === 'high';
+                    const isLow = item.status === 'low';
+
+                    return (
+                      <tr key={idx} className="hover:bg-[#fdfaf5] transition-colors">
+                        <td className="py-2.5 px-3 font-bold text-ragucci-primary">
+                          <button
+                            onClick={() => setSelectedClientForHistory(item.client)}
+                            className="hover:underline text-left cursor-pointer flex items-center gap-1 text-ragucci-primary font-extrabold"
+                            title="Hacer clic para ver historial completo del cliente"
+                          >
+                            <span>{item.client}</span>
+                          </button>
+                        </td>
+
+                        <td className="py-2.5 px-2 text-center font-semibold text-gray-700">
+                          {item.orderCount}
+                        </td>
+
+                        <td className="py-2.5 px-3 text-right font-medium text-gray-800">
+                          ${formatMoney(item.totalVenta)}
+                        </td>
+
+                        <td className="py-2.5 px-3 text-right font-medium text-ragucci-red">
+                          -${formatMoney(item.totalCosto)}
+                        </td>
+
+                        <td className="py-2.5 px-3 text-right font-extrabold text-emerald-700">
+                          ${formatMoney(item.totalGanancia)}
+                        </td>
+
+                        <td className="py-2.5 px-3 text-center">
+                          <div className="inline-flex items-center gap-1.5">
+                            <span className={`font-black text-xs ${isHigh ? 'text-emerald-700' : isLow ? 'text-rose-700' : 'text-amber-800'}`}>
+                              {item.profitMarginPct.toFixed(1)}%
+                            </span>
+                            <div className="w-14 h-2 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
+                              <div
+                                style={{ width: `${Math.min(100, Math.max(0, item.profitMarginPct))}%` }}
+                                className={`h-full ${isHigh ? 'bg-emerald-600' : isLow ? 'bg-rose-600' : 'bg-amber-500'}`}
+                              ></div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          {isHigh && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+                              <span>🟢 Ganamos Muy Bien (≥50%)</span>
+                            </span>
+                          )}
+                          {!isHigh && !isLow && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                              <span>🟡 Ganamos Bien (35%-49%)</span>
+                            </span>
+                          )}
+                          {isLow && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-100 text-rose-900 border border-rose-300">
+                              <span>🔴 Ganamos Mal (&lt;35%)</span>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Modal de Historial del Cliente si se hace clic */}
+        {selectedClientForHistory && (
+          <ClientHistoryModal
+            clientName={selectedClientForHistory}
+            isOpen={!!selectedClientForHistory}
+            onClose={() => setSelectedClientForHistory(null)}
+          />
+        )}
       </div>
 
       {/* Explanation Modal */}
