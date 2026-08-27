@@ -239,16 +239,80 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
             <select
               value={product.modista || ''}
               onChange={(e) => handleModistaChange(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-ragucci-gold"
+              className="w-full p-2 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
             >
-              <option value="">- Seleccionar Modista -</option>
-              <option value="MARIA">MARIA</option>
-              <option value="JESUS">JESUS</option>
-              <option value="ARTURO">ARTURO</option>
+              <option value="MARIA">María (Modista Arreglos)</option>
+              <option value="JESUS">Jesús (Modista Arreglos)</option>
+              <option value="ARTURO">Arturo (Modista Arreglos)</option>
             </select>
           </div>
         )}
       </div>
+
+      {/* Color Palette Selector for A Medida Products */}
+      {isMedida && (
+        <div className="mb-4 bg-ragucci-bg p-3 rounded-lg border border-ragucci-gold-light">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <label className="text-xs font-extrabold uppercase text-ragucci-primary flex items-center gap-1.5">
+              <span>🎨 Paleta de Color (A Medida)</span>
+            </label>
+            {product.color && (
+              <span className="text-[11px] font-bold text-ragucci-primary bg-white px-2 py-0.5 rounded border border-ragucci-gold-light flex items-center gap-1.5 shadow-2xs">
+                <span>Color seleccionado:</span>
+                <strong className="text-ragucci-primary">{product.color}</strong>
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center mb-2.5">
+            {[
+              { label: 'Azul Marino', hex: '#1B2A4A', text: '#FFFFFF' },
+              { label: 'Negro', hex: '#0F0F10', text: '#FFFFFF' },
+              { label: 'Gris Marengo', hex: '#2D3748', text: '#FFFFFF' },
+              { label: 'Gris Medio', hex: '#718096', text: '#FFFFFF' },
+              { label: 'Azul Noche', hex: '#1E3A8A', text: '#FFFFFF' },
+              { label: 'Verde Inglés', hex: '#14532D', text: '#FFFFFF' },
+              { label: 'Bordó', hex: '#701A75', text: '#FFFFFF' },
+              { label: 'Beige / Arena', hex: '#D6C0B3', text: '#1E293B' },
+              { label: 'Marrón', hex: '#4A2E2B', text: '#FFFFFF' },
+              { label: 'Blanco', hex: '#FFFFFF', text: '#0F172A', border: true },
+              { label: 'Celeste', hex: '#BAE6FD', text: '#0F172A' },
+              { label: 'Rayado / Cuadros', hex: '#94A3B8', text: '#0F172A' }
+            ].map((c) => {
+              const isSelected = (product.color || '').toLowerCase().includes(c.label.toLowerCase());
+
+              return (
+                <button
+                  key={c.label}
+                  type="button"
+                  onClick={() => onChange({ ...product, color: c.label })}
+                  className={`relative w-7 h-7 rounded-full transition-transform flex items-center justify-center cursor-pointer shadow-xs ${
+                    isSelected ? 'ring-2 ring-ragucci-gold scale-110' : 'hover:scale-105 opacity-90 hover:opacity-100'
+                  } ${c.border ? 'border border-gray-300' : ''}`}
+                  style={{ backgroundColor: c.hex }}
+                  title={c.label}
+                >
+                  {isSelected && (
+                    <span style={{ color: c.text }} className="text-xs font-black">
+                      ✓
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Especificar tono o código de tela (ej: Azul Marino Loro Piana 130s, Gris Galés, etc.)"
+              value={product.color || ''}
+              onChange={(e) => onChange({ ...product, color: e.target.value })}
+              className="w-full text-xs p-2 border border-gray-300 rounded bg-white font-medium focus:outline-none focus:border-ragucci-gold"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="mb-3">
         <input

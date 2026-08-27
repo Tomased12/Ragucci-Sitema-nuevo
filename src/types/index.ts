@@ -26,6 +26,7 @@ export interface ProductCosts {
 export interface ProductItem {
   description: string;
   notes?: string;
+  color?: string;
   modista?: string;
   camiseroSelected?: string;
   arreglosDetalle?: ArregloDetalleItem[];

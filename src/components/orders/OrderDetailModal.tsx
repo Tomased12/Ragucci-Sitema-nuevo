@@ -93,7 +93,13 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
       <div className="bg-white p-3 border border-gray-200 rounded text-xs mb-4 space-y-2">
         {order.products && order.products.map((p, i) => (
           <div key={i} className="border-b border-gray-100 pb-2.5 last:border-none">
-            <strong>• {p.description}</strong> {p.modista ? <em>(Modista: {p.modista})</em> : ''}
+            <strong>• {p.description}</strong>
+            {p.color && (
+              <span className="ml-1.5 inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-300 text-[10px] font-extrabold px-1.5 py-0.5 rounded shadow-2xs">
+                🎨 {p.color}
+              </span>
+            )}
+            {p.modista ? <em> (Modista: {p.modista})</em> : ''}
             {p.arreglosDetalle && p.arreglosDetalle.length > 0 && (
               <div className="text-gray-700 ml-3">
                 Arreglos: {p.arreglosDetalle.map(ad => `${ad.tipo} (x${ad.qty})`).join(', ')}

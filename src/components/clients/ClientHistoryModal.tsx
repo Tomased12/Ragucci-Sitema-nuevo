@@ -83,7 +83,13 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
               {o.products && o.products.map((p, pIdx) => (
                 <div key={pIdx} className="mb-2">
                   <div>
-                    • {p.description} {p.modista ? `(Modista: ${p.modista})` : ''}
+                    • {p.description}
+                    {p.color && (
+                      <span className="ml-1.5 inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-300 text-[10px] font-extrabold px-1.5 py-0.5 rounded">
+                        🎨 {p.color}
+                      </span>
+                    )}
+                    {p.modista ? ` (Modista: ${p.modista})` : ''}
                     {p.arreglosDetalle && p.arreglosDetalle.length > 0 && (
                       <span className="text-gray-600 font-normal">
                         {' '}— Arreglos: {p.arreglosDetalle.map(ad => `${ad.tipo} (x${ad.qty})`).join(', ')}
