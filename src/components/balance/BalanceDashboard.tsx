@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { exportBalanceToCSV, exportClientProfitabilityToCSV } from '../../utils/exportCsv';
 import { ClientHistoryModal } from '../clients/ClientHistoryModal';
+import { getOrderPendingCosts } from '../../utils/costStatus';
 
 interface ExplanationModalData {
   title: string;
@@ -36,7 +37,7 @@ interface ExplanationModalData {
 }
 
 export const BalanceDashboard: React.FC = () => {
-  const { orders, config, dolarBlueVenta, saveConfigData } = useApp();
+  const { orders, config, dolarBlueVenta, saveConfigData, setEditingOrderId, setActiveTab } = useApp();
 
   const [filterMonth, setFilterMonth] = useState('all');
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
@@ -221,6 +222,7 @@ export const BalanceDashboard: React.FC = () => {
     totalCosto: number;
     totalGanancia: number;
     profitMarginPct: number;
+    pendingCosts: { key: string; label: string; orderId: string }[];
     status: 'high' | 'medium' | 'low';
     statusLabel: string;
   }> = {};
@@ -237,6 +239,7 @@ export const BalanceDashboard: React.FC = () => {
         totalCosto: 0,
         totalGanancia: 0,
         profitMarginPct: 0,
+        pendingCosts: [],
         status: 'medium',
         statusLabel: ''
       };
@@ -246,6 +249,18 @@ export const BalanceDashboard: React.FC = () => {
     clientMap[rawName].totalVenta += o.sale || 0;
     clientMap[rawName].totalCosto += o.totalCost || 0;
     clientMap[rawName].totalGanancia += o.profit || 0;
+
+    const orderPending = getOrderPendingCosts(o);
+    orderPending.forEach(pc => {
+      const exists = clientMap[rawName].pendingCosts.some(p => p.key === pc.key);
+      if (!exists && o.firestoreId) {
+        clientMap[rawName].pendingCosts.push({
+          key: pc.key,
+          label: pc.label,
+          orderId: o.firestoreId
+        });
+      }
+    });
   });
 
   const allClientProfitability = Object.values(clientMap).map(item => {
@@ -1054,13 +1069,34 @@ export const BalanceDashboard: React.FC = () => {
                     return (
                       <tr key={idx} className="hover:bg-[#fdfaf5] transition-colors">
                         <td className="py-2.5 px-3 font-bold text-ragucci-primary">
-                          <button
-                            onClick={() => setSelectedClientForHistory(item.client)}
-                            className="hover:underline text-left cursor-pointer flex items-center gap-1 text-ragucci-primary font-extrabold"
-                            title="Hacer clic para ver historial completo del cliente"
-                          >
-                            <span>{item.client}</span>
-                          </button>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => setSelectedClientForHistory(item.client)}
+                              className="hover:underline text-left cursor-pointer flex items-center gap-1 text-ragucci-primary font-extrabold"
+                              title="Hacer clic para ver historial completo del cliente"
+                            >
+                              <span>{item.client}</span>
+                            </button>
+
+                            {item.pendingCosts && item.pendingCosts.length > 0 && (
+                              <div className="flex flex-wrap gap-1 items-center">
+                                {item.pendingCosts.map((pc, pIdx) => (
+                                  <button
+                                    key={pIdx}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingOrderId(pc.orderId);
+                                      setActiveTab('carga');
+                                    }}
+                                    className="inline-flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-[10px] font-black px-1.5 py-0.5 rounded shadow-2xs transition-all cursor-pointer"
+                                    title={`Hacer clic para ir a editar la orden y cargar ${pc.label}`}
+                                  >
+                                    <span>⚠️ Falta {pc.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </td>
 
                         <td className="py-2.5 px-2 text-center font-semibold text-gray-700">
