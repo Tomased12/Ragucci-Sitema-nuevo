@@ -27,6 +27,7 @@ export interface ProductItem {
   description: string;
   notes?: string;
   color?: string;
+  colorHex?: string;
   modista?: string;
   camiseroSelected?: string;
   arreglosDetalle?: ArregloDetalleItem[];

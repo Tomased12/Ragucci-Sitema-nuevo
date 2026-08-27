@@ -249,60 +249,104 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
         )}
       </div>
 
-      {/* Color Palette Selector for A Medida Products */}
+      {/* Color Selector for A Medida Products */}
       {isMedida && (
-        <div className="mb-4 bg-ragucci-bg p-3 rounded-lg border border-ragucci-gold-light">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="mb-4 bg-ragucci-bg p-3.5 rounded-lg border border-ragucci-gold-light space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ragucci-gold-light/60 pb-2">
             <label className="text-xs font-extrabold uppercase text-ragucci-primary flex items-center gap-1.5">
-              <span>🎨 Paleta de Color (A Medida)</span>
+              <span>🎨 Selección de Color de Tela / Prenda (A Medida)</span>
             </label>
             {product.color && (
-              <span className="text-[11px] font-bold text-ragucci-primary bg-white px-2 py-0.5 rounded border border-ragucci-gold-light flex items-center gap-1.5 shadow-2xs">
-                <span>Color seleccionado:</span>
-                <strong className="text-ragucci-primary">{product.color}</strong>
-              </span>
+              <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded border border-ragucci-gold-light shadow-2xs">
+                <span
+                  className="w-4 h-4 rounded-full border border-gray-300 shadow-2xs shrink-0"
+                  style={{ backgroundColor: product.colorHex || '#1B2A4A' }}
+                />
+                <span className="text-xs font-extrabold text-ragucci-primary">{product.color}</span>
+              </div>
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 items-center mb-2.5">
-            {[
-              { label: 'Azul Marino', hex: '#1B2A4A', text: '#FFFFFF' },
-              { label: 'Negro', hex: '#0F0F10', text: '#FFFFFF' },
-              { label: 'Gris Marengo', hex: '#2D3748', text: '#FFFFFF' },
-              { label: 'Gris Medio', hex: '#718096', text: '#FFFFFF' },
-              { label: 'Azul Noche', hex: '#1E3A8A', text: '#FFFFFF' },
-              { label: 'Verde Inglés', hex: '#14532D', text: '#FFFFFF' },
-              { label: 'Bordó', hex: '#701A75', text: '#FFFFFF' },
-              { label: 'Beige / Arena', hex: '#D6C0B3', text: '#1E293B' },
-              { label: 'Marrón', hex: '#4A2E2B', text: '#FFFFFF' },
-              { label: 'Blanco', hex: '#FFFFFF', text: '#0F172A', border: true },
-              { label: 'Celeste', hex: '#BAE6FD', text: '#0F172A' },
-              { label: 'Rayado / Cuadros', hex: '#94A3B8', text: '#0F172A' }
-            ].map((c) => {
-              const isSelected = (product.color || '').toLowerCase().includes(c.label.toLowerCase());
+          {/* Full Spectrum Native Color Picker Button */}
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2.5 bg-gradient-to-r from-ragucci-primary via-[#3b1212] to-ragucci-primary text-ragucci-gold hover:opacity-95 font-extrabold text-xs py-2 px-3.5 rounded border border-ragucci-gold/50 cursor-pointer transition-all shadow-xs shrink-0">
+              <input
+                type="color"
+                value={product.colorHex || '#1B2A4A'}
+                onChange={(e) => {
+                  const hex = e.target.value;
+                  onChange({
+                    ...product,
+                    colorHex: hex,
+                    color: product.color && !product.color.startsWith('Tono') ? `${product.color} (${hex})` : `Tono Personalizado (${hex})`
+                  });
+                }}
+                className="w-7 h-7 rounded cursor-pointer border border-ragucci-gold p-0.5 bg-white shrink-0"
+                title="Hacer clic para abrir la paleta interactiva de color exacto"
+              />
+              <span>🎨 ABRIR PALETA INTERACTIVA DE COLOR EXACTO</span>
+            </label>
 
-              return (
-                <button
-                  key={c.label}
-                  type="button"
-                  onClick={() => onChange({ ...product, color: c.label })}
-                  className={`relative w-7 h-7 rounded-full transition-transform flex items-center justify-center cursor-pointer shadow-xs ${
-                    isSelected ? 'ring-2 ring-ragucci-gold scale-110' : 'hover:scale-105 opacity-90 hover:opacity-100'
-                  } ${c.border ? 'border border-gray-300' : ''}`}
-                  style={{ backgroundColor: c.hex }}
-                  title={c.label}
-                >
-                  {isSelected && (
-                    <span style={{ color: c.text }} className="text-xs font-black">
-                      ✓
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            <span className="text-xs text-gray-500 font-medium italic hidden sm:inline">
+              (Haz clic en el cuadro para elegir cualquier matiz exacto en el espectro completo)
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Expanded Presets Palette */}
+          <div>
+            <span className="block text-[11px] font-bold text-gray-600 uppercase mb-1.5">
+              O seleccionar tono clásico de sastrería / camisería:
+            </span>
+            <div className="flex flex-wrap gap-2 items-center">
+              {[
+                { label: 'Azul Marino', hex: '#1B2A4A', text: '#FFFFFF' },
+                { label: 'Azul Noche', hex: '#0D1B2A', text: '#FFFFFF' },
+                { label: 'Azul Francia', hex: '#1E3A8A', text: '#FFFFFF' },
+                { label: 'Celeste', hex: '#BAE6FD', text: '#0F172A' },
+                { label: 'Azul Acero', hex: '#4682B4', text: '#FFFFFF' },
+                { label: 'Negro Azabache', hex: '#0F0F10', text: '#FFFFFF' },
+                { label: 'Gris Marengo', hex: '#2D3748', text: '#FFFFFF' },
+                { label: 'Gris Medio', hex: '#718096', text: '#FFFFFF' },
+                { label: 'Gris Plata', hex: '#CBD5E1', text: '#0F172A' },
+                { label: 'Blanco', hex: '#FFFFFF', text: '#0F172A', border: true },
+                { label: 'Verde Inglés', hex: '#14532D', text: '#FFFFFF' },
+                { label: 'Verde Botella', hex: '#064E3B', text: '#FFFFFF' },
+                { label: 'Bordó', hex: '#701A75', text: '#FFFFFF' },
+                { label: 'Vino', hex: '#4C1D95', text: '#FFFFFF' },
+                { label: 'Carmesí', hex: '#991B1B', text: '#FFFFFF' },
+                { label: 'Beige / Arena', hex: '#D6C0B3', text: '#1E293B' },
+                { label: 'Camel', hex: '#C19A6B', text: '#FFFFFF' },
+                { label: 'Marrón', hex: '#4A2E2B', text: '#FFFFFF' },
+                { label: 'Tabaco', hex: '#78350F', text: '#FFFFFF' },
+                { label: 'Terracota', hex: '#9A3412', text: '#FFFFFF' },
+                { label: 'Rayado Diplómatico', hex: '#475569', text: '#FFFFFF' },
+                { label: 'Cuadros Galés', hex: '#94A3B8', text: '#0F172A' }
+              ].map((c) => {
+                const isSelected = (product.color || '').toLowerCase().includes(c.label.toLowerCase()) || product.colorHex === c.hex;
+
+                return (
+                  <button
+                    key={c.label}
+                    type="button"
+                    onClick={() => onChange({ ...product, color: c.label, colorHex: c.hex })}
+                    className={`relative w-7 h-7 rounded-full transition-transform flex items-center justify-center cursor-pointer shadow-xs ${
+                      isSelected ? 'ring-2 ring-ragucci-gold scale-110' : 'hover:scale-105 opacity-90 hover:opacity-100'
+                    } ${c.border ? 'border border-gray-300' : ''}`}
+                    style={{ backgroundColor: c.hex }}
+                    title={c.label}
+                  >
+                    {isSelected && (
+                      <span style={{ color: c.text }} className="text-xs font-black">
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
             <input
               type="text"
               placeholder="Especificar tono o código de tela (ej: Azul Marino Loro Piana 130s, Gris Galés, etc.)"
