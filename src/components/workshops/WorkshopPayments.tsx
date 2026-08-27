@@ -37,6 +37,10 @@ export const WorkshopPayments: React.FC = () => {
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
 
   const filteredOrders = orders.filter((o) => {
+    // Las órdenes en estado "🔴 Pendiente" no ingresan a talleres hasta entrar la tela (al pasar a "En Taller", "Prueba" o "Entregado")
+    const isPendienteStatus = !o.status || o.status.includes('Pendiente');
+    if (isPendienteStatus) return false;
+
     const d = new Date(o.date + 'T12:00:00');
     const matchYear = d.getFullYear().toString() === filterYear;
     const matchMonth = filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth;
@@ -277,7 +281,7 @@ export const WorkshopPayments: React.FC = () => {
         Control de Pagos a Talleres y Personal
       </h2>
       <p className="text-xs text-ragucci-primary-light mb-6">
-        Aquí puedes marcar las boletas abonadas (se descuentan automáticamente del Total a Pagar), abrir cualquier recuadro en pantalla completa y filtrar por estado de pago.
+        Aquí puedes gestionar las boletas abonadas y pendientes de cada trabajo. Las órdenes en estado <strong>🔴 Pendiente</strong> no ingresan al taller hasta que la tela haya entrado (al cambiar a <strong>🟡 En Taller</strong>, <strong>🔵 Prueba</strong> o <strong>🟢 Entregado</strong>).
       </p>
 
       {/* Period & Payment Status Filters */}
