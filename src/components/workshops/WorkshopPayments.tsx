@@ -171,6 +171,13 @@ export const WorkshopPayments: React.FC = () => {
     }
   });
 
+  // Sort items for each workshop person from most recent order date to oldest
+  Object.keys(dataTalleres).forEach((persona) => {
+    dataTalleres[persona].items.sort((a, b) => {
+      return new Date(b.date + 'T12:00:00').getTime() - new Date(a.date + 'T12:00:00').getTime();
+    });
+  });
+
   const handleTogglePaid = async (item: WorkshopItem, isChecked: boolean) => {
     const updatedMap = { ...(item.order.paidTalleresMap || {}), [item.key]: isChecked };
     const updatedOrder = { ...item.order, paidTalleresMap: updatedMap };
