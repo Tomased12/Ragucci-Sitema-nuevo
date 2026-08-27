@@ -346,7 +346,14 @@ export const OrderTable: React.FC = () => {
                   <td className="py-2.5 px-2 text-gray-700 max-w-[180px] md:max-w-[240px]">
                     <div className="font-semibold text-xs text-ragucci-primary">{productListText}</div>
                     {order.products && order.products.map((p, pIdx) => (
-                      <ProductCostBadges key={pIdx} product={p} />
+                      <ProductCostBadges 
+                        key={pIdx} 
+                        product={p} 
+                        onPendingClick={() => {
+                          setEditingOrderId(order.firestoreId || null);
+                          setActiveTab('carga');
+                        }}
+                      />
                     ))}
                   </td>
 

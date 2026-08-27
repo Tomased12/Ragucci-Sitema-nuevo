@@ -15,7 +15,7 @@ interface ClientHistoryModalProps {
 }
 
 export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientName, isOpen, onClose }) => {
-  const { orders } = useApp();
+  const { orders, setEditingOrderId, setActiveTab } = useApp();
 
   if (!clientName) return null;
 
@@ -90,7 +90,17 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
                       </span>
                     )}
                   </div>
-                  <ProductCostBadges product={p} className="ml-3" />
+                  <ProductCostBadges 
+                    product={p} 
+                    className="ml-3" 
+                    onPendingClick={() => {
+                      onClose();
+                      if (o.firestoreId) {
+                        setEditingOrderId(o.firestoreId);
+                        setActiveTab('carga');
+                      }
+                    }}
+                  />
                 </div>
               ))}
               {o.rtwItems && o.rtwItems.map((rtw, rIdx) => (

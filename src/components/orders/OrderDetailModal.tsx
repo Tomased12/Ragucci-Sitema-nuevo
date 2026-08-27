@@ -1,5 +1,6 @@
 import React from 'react';
 import { Order } from '../../types';
+import { useApp } from '../../context/AppContext';
 import { Modal } from '../common/Modal';
 import { UserBadge } from '../common/UserBadge';
 import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
@@ -13,6 +14,7 @@ interface OrderDetailModalProps {
 }
 
 export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpen, onClose }) => {
+  const { setEditingOrderId, setActiveTab } = useApp();
   if (!order) return null;
 
   const labels: Record<string, string> = {
@@ -98,7 +100,18 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, isOpe
               </div>
             )}
             {p.notes && <div className="text-gray-500 italic ml-3">Notas: {p.notes}</div>}
-            <ProductCostBadges product={p} onlyPending={false} className="ml-3" />
+            <ProductCostBadges 
+              product={p} 
+              onlyPending={false} 
+              className="ml-3" 
+              onPendingClick={() => {
+                onClose();
+                if (order.firestoreId) {
+                  setEditingOrderId(order.firestoreId);
+                  setActiveTab('carga');
+                }
+              }}
+            />
           </div>
         ))}
 

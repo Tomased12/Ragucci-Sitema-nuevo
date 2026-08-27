@@ -7,12 +7,14 @@ interface ProductCostBadgesProps {
   product: ProductItem;
   onlyPending?: boolean;
   className?: string;
+  onPendingClick?: (key: 'telas' | 'forreria' | 'arreglos') => void;
 }
 
 export const ProductCostBadges: React.FC<ProductCostBadgesProps> = ({ 
   product, 
   onlyPending = true, 
-  className = '' 
+  className = '',
+  onPendingClick
 }) => {
   const allStatuses = getProductCostStatuses(product);
   const statuses = onlyPending ? allStatuses.filter(s => s.status === 'pending') : allStatuses;
@@ -35,13 +37,21 @@ export const ProductCostBadges: React.FC<ProductCostBadgesProps> = ({
           );
         } else if (s.status === 'pending') {
           return (
-            <span
+            <button
               key={idx}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-xs"
-              title={`${s.label}: Pendiente de cargar costo`}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onPendingClick) {
+                  onPendingClick(s.key);
+                }
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 shadow-xs cursor-pointer hover:scale-105 transition-all group"
+              title={`Hacer clic para editar la venta y cargar ${s.label}`}
             >
               <span>⚠️ {s.label}: Pendiente</span>
-            </span>
+              <span className="text-[9px] underline font-extrabold ml-0.5 text-amber-950 group-hover:text-black">✏️ Cargar</span>
+            </button>
           );
         } else {
           return (
