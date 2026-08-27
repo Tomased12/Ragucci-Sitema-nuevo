@@ -144,6 +144,7 @@ export interface Order {
   aviosQtys?: AviosQuantities;
   costs: CostsBreakdown;
   paidTalleresMap?: Record<string, boolean>;
+  tallerNotesMap?: Record<string, string>;
   measurements?: ClientMeasurements;
   totalCost: number;
   profit: number;
