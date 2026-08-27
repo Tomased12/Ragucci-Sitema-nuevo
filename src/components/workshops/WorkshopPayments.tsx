@@ -3,14 +3,22 @@ import { useApp } from '../../context/AppContext';
 import { Order } from '../../types';
 import { formatDate, formatMoney } from '../../utils/formatters';
 import { Modal } from '../common/Modal';
-import { Maximize2, Search, Filter, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Maximize2, Search, Filter, Clock, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+
+interface WorkshopSubDetail {
+  tipo: string;
+  qty: number;
+  amount: number;
+}
 
 interface WorkshopItem {
   firestoreId?: string;
   key: string;
+  subKeys?: string[];
   client: string;
   detail: string;
   productNotes?: string;
+  subDetails?: WorkshopSubDetail[];
   date: string;
   amount: number;
   isPaid: boolean;
@@ -35,6 +43,11 @@ export const WorkshopPayments: React.FC = () => {
   const [selectedWorkshopModal, setSelectedWorkshopModal] = useState<string | null>(null);
   const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
+  const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (key: string) => {
+    setExpandedKeys(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const filteredOrders = orders.filter((o) => {
     // Las órdenes en estado "🔴 Pendiente" no ingresan a talleres hasta entrar la tela (al pasar a "En Taller", "Prueba" o "Entregado")
@@ -132,7 +145,7 @@ export const WorkshopPayments: React.FC = () => {
           });
         }
 
-        // 3. Modistas por Arreglos
+        // 3. Modistas por Arreglos (Agrupados por Cliente y Producto)
         if (c.arreglos && c.arreglos > 0 && p.arreglosDetalle && p.arreglosDetalle.length > 0) {
           const modistaKey = p.modista ? p.modista.toUpperCase() : 'MARIA';
           let targetModistaKey = 'MARÍA (Modista Arreglos)';
@@ -140,6 +153,10 @@ export const WorkshopPayments: React.FC = () => {
           if (modistaKey === 'ARTURO') targetModistaKey = 'ARTURO (Modista Arreglos)';
 
           const preciosModista = config.arreglosPrecios?.[modistaKey] || config.arreglosPrecios?.['MARIA'] || {};
+
+          let totalSub = 0;
+          const subDetails: WorkshopSubDetail[] = [];
+          const subKeys: string[] = [];
 
           p.arreglosDetalle.forEach((ad, adIdx) => {
             let sub = 0;
@@ -150,32 +167,48 @@ export const WorkshopPayments: React.FC = () => {
               sub = pUnit * (ad.qty || 1);
             }
             if (sub > 0) {
-              const itemKey = `${o.firestoreId}_p${pIdx}_arr${adIdx}`;
-              const isPaid = !!paidMap[itemKey];
-              const itemNote = notesMap[itemKey] || '';
-              const group = dataTalleres[targetModistaKey];
-
-              group.totalAccumulated += sub;
-              if (isPaid) {
-                group.totalPaid += sub;
-              } else {
-                group.totalPending += sub;
-              }
-
-              group.items.push({
-                firestoreId: o.firestoreId,
-                key: itemKey,
-                client: clientName,
-                detail: `Arreglo: ${ad.tipo} (x${ad.qty})`,
-                productNotes: pNotes,
-                date: orderDate,
-                amount: sub,
-                isPaid,
-                note: itemNote,
-                order: o
+              totalSub += sub;
+              subDetails.push({
+                tipo: ad.tipo,
+                qty: ad.qty || 1,
+                amount: sub
               });
+              subKeys.push(`${o.firestoreId}_p${pIdx}_arr${adIdx}`);
             }
           });
+
+          if (totalSub > 0) {
+            const itemKey = `${o.firestoreId}_p${pIdx}_arreglos`;
+            const isPaid = !!paidMap[itemKey] || (subKeys.length > 0 && subKeys.every(sk => !!paidMap[sk]));
+            const itemNote = notesMap[itemKey] || (subKeys.length > 0 ? notesMap[subKeys[0]] : '') || '';
+            const group = dataTalleres[targetModistaKey];
+
+            group.totalAccumulated += totalSub;
+            if (isPaid) {
+              group.totalPaid += totalSub;
+            } else {
+              group.totalPending += totalSub;
+            }
+
+            const detailSummary = desc
+              ? `${desc} (${subDetails.length} arreglo${subDetails.length > 1 ? 's' : ''})`
+              : `Arreglos (${subDetails.length})`;
+
+            group.items.push({
+              firestoreId: o.firestoreId,
+              key: itemKey,
+              subKeys,
+              client: clientName,
+              detail: detailSummary,
+              productNotes: pNotes,
+              subDetails,
+              date: orderDate,
+              amount: totalSub,
+              isPaid,
+              note: itemNote,
+              order: o
+            });
+          }
         }
       });
     }
@@ -190,6 +223,11 @@ export const WorkshopPayments: React.FC = () => {
 
   const handleTogglePaid = async (item: WorkshopItem, isChecked: boolean) => {
     const updatedMap = { ...(item.order.paidTalleresMap || {}), [item.key]: isChecked };
+    if (item.subKeys && item.subKeys.length > 0) {
+      item.subKeys.forEach(sk => {
+        updatedMap[sk] = isChecked;
+      });
+    }
     const updatedOrder = { ...item.order, paidTalleresMap: updatedMap };
     try {
       await saveOrderData(updatedOrder, item.firestoreId);
@@ -200,6 +238,11 @@ export const WorkshopPayments: React.FC = () => {
 
   const handleSaveNote = async (item: WorkshopItem, newNote: string) => {
     const updatedNotes = { ...(item.order.tallerNotesMap || {}), [item.key]: newNote };
+    if (item.subKeys && item.subKeys.length > 0) {
+      item.subKeys.forEach(sk => {
+        updatedNotes[sk] = newNote;
+      });
+    }
     const updatedOrder = { ...item.order, tallerNotesMap: updatedNotes };
     try {
       await saveOrderData(updatedOrder, item.firestoreId);
@@ -211,6 +254,8 @@ export const WorkshopPayments: React.FC = () => {
   // Helper to render an item row
   const renderItemRow = (it: WorkshopItem) => {
     const currentNoteValue = localNotes[it.key] !== undefined ? localNotes[it.key] : it.note;
+    const isExpanded = !!expandedKeys[it.key];
+    const hasSubDetails = it.subDetails && it.subDetails.length > 0;
 
     return (
       <div
@@ -239,6 +284,26 @@ export const WorkshopPayments: React.FC = () => {
                 <strong>{it.client}</strong> — <em>{it.detail}</em>
               </span>
 
+              {hasSubDetails && (
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(it.key)}
+                  className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-2 py-0.5 rounded transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  {isExpanded ? (
+                    <>
+                      <span>Ocultar detalle</span>
+                      <ChevronUp className="w-3 h-3" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Ver {it.subDetails!.length} arreglos</span>
+                      <ChevronDown className="w-3 h-3" />
+                    </>
+                  )}
+                </button>
+              )}
+
               {it.productNotes && (
                 <span className="text-[10px] text-gray-500 italic bg-gray-100 px-1.5 py-0.5 rounded">
                   {it.productNotes}
@@ -251,6 +316,25 @@ export const WorkshopPayments: React.FC = () => {
             ${formatMoney(it.amount)}
           </span>
         </div>
+
+        {/* Collapsible Sub-Details for Arreglos */}
+        {isExpanded && hasSubDetails && (
+          <div className="mt-2.5 ml-6 bg-amber-50/80 p-3 rounded-lg border border-amber-200 text-xs space-y-1.5 shadow-2xs">
+            <div className="flex justify-between items-center border-b border-amber-200 pb-1 mb-1.5">
+              <span className="font-extrabold text-ragucci-primary text-[11px] uppercase tracking-wide">
+                ✂️ Detalle de Arreglos de {it.client} ({it.subDetails!.length}):
+              </span>
+              <span className="text-[10px] font-extrabold text-amber-900">Total Arreglos: ${formatMoney(it.amount)}</span>
+            </div>
+
+            {it.subDetails!.map((sd, sdIdx) => (
+              <div key={sdIdx} className="flex justify-between items-center text-gray-800 text-xs font-medium py-0.5">
+                <span>• <strong>{sd.tipo}</strong> (Cantidad: x{sd.qty})</span>
+                <span className="font-extrabold text-emerald-700">${formatMoney(sd.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Custom Workshop Note / Detail Input */}
         <div className="mt-2 flex items-center gap-2 pl-6">
