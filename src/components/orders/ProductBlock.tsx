@@ -429,7 +429,7 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
           </div>
         )}
 
-        {!isArreglo && (
+        {!isArreglo && isSastreria && (
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="font-bold text-ragucci-primary-light">Santiago (Sastre)</label>
