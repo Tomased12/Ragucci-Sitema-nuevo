@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Order } from '../../types';
 import { formatDate, formatMoney } from '../../utils/formatters';
+import { Modal } from '../common/Modal';
+import { Maximize2, Search, Filter, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface WorkshopItem {
   firestoreId?: string;
@@ -28,6 +30,10 @@ export const WorkshopPayments: React.FC = () => {
 
   const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState<'all' | 'pending' | 'paid'>('all');
+  
+  const [selectedWorkshopModal, setSelectedWorkshopModal] = useState<string | null>(null);
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
 
   const filteredOrders = orders.filter((o) => {
@@ -198,18 +204,85 @@ export const WorkshopPayments: React.FC = () => {
     }
   };
 
+  // Helper to render an item row
+  const renderItemRow = (it: WorkshopItem) => {
+    const currentNoteValue = localNotes[it.key] !== undefined ? localNotes[it.key] : it.note;
+
+    return (
+      <div
+        key={it.key}
+        className={`p-3 border rounded transition-all ${
+          it.isPaid 
+            ? 'bg-gray-50/80 border-gray-200' 
+            : 'bg-white border-gray-200 hover:border-ragucci-gold-light hover:shadow-xs'
+        }`}
+      >
+        <div className="flex flex-wrap sm:flex-nowrap justify-between items-center text-xs gap-2">
+          <div className="flex items-center gap-2.5 flex-1 min-w-[240px]">
+            <input
+              type="checkbox"
+              checked={it.isPaid}
+              onChange={(e) => handleTogglePaid(it, e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-ragucci-primary focus:ring-ragucci-gold cursor-pointer shrink-0"
+            />
+            
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-1.5 py-0.5 rounded border border-amber-300 shrink-0">
+                🗓️ {formatDate(it.date)}
+              </span>
+
+              <span className={it.isPaid ? 'line-through text-gray-400 font-medium' : 'text-gray-900 font-bold'}>
+                <strong>{it.client}</strong> — <em>{it.detail}</em>
+              </span>
+
+              {it.productNotes && (
+                <span className="text-[10px] text-gray-500 italic bg-gray-100 px-1.5 py-0.5 rounded">
+                  {it.productNotes}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <span className={`font-extrabold text-sm shrink-0 ${it.isPaid ? 'text-gray-400 line-through' : 'text-emerald-600'}`}>
+            ${formatMoney(it.amount)}
+          </span>
+        </div>
+
+        {/* Custom Workshop Note / Detail Input */}
+        <div className="mt-2 flex items-center gap-2 pl-6">
+          <span className="text-[10px] text-ragucci-primary-light font-extrabold uppercase shrink-0">
+            ✏️ Nota / Detalle:
+          </span>
+          <input
+            type="text"
+            placeholder="Agregar observación o detalle de pago (ej: Pagado 15/08 transf, entrega parcial, etc.)"
+            value={currentNoteValue}
+            onChange={(e) => setLocalNotes({ ...localNotes, [it.key]: e.target.value })}
+            onBlur={(e) => handleSaveNote(it, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            className="w-full text-xs p-1.5 border border-gray-200 rounded text-gray-800 bg-gray-50 focus:bg-white focus:outline-none focus:border-ragucci-gold font-medium"
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-ragucci-border">
       <h2 className="text-lg md:text-xl font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
         Control de Pagos a Talleres y Personal
       </h2>
       <p className="text-xs text-ragucci-primary-light mb-6">
-        Aquí puedes marcar las boletas abonadas (se descuentan automáticamente del Total a Pagar) y agregar notas o fechas a cada trabajo.
+        Aquí puedes marcar las boletas abonadas (se descuentan automáticamente del Total a Pagar), abrir cualquier recuadro en pantalla completa y filtrar por estado de pago.
       </p>
 
-      {/* Period Filter */}
+      {/* Period & Payment Status Filters */}
       <div className="bg-ragucci-bg p-4 rounded-lg border border-ragucci-gold-light mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
               Filtrar Período (Mes)
@@ -241,6 +314,21 @@ export const WorkshopPayments: React.FC = () => {
               <option value="2027">2027</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+              Filtrar por Estado de Pago
+            </label>
+            <select
+              value={filterPaymentStatus}
+              onChange={(e) => setFilterPaymentStatus(e.target.value as any)}
+              className="w-full p-2 border border-amber-300 bg-amber-50 text-amber-900 rounded text-xs font-extrabold focus:outline-none focus:border-ragucci-gold cursor-pointer"
+            >
+              <option value="all">🔍 Todos los trabajos (Pendientes y Pagados)</option>
+              <option value="pending">⏳ Solo Pendientes de Pago</option>
+              <option value="paid">✅ Solo Pagados / Liquidados</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -248,10 +336,32 @@ export const WorkshopPayments: React.FC = () => {
       <div className="space-y-6">
         {Object.keys(dataTalleres).map((persona) => {
           const info = dataTalleres[persona];
+
+          // Filter items based on selected payment status
+          const displayItems = info.items.filter(it => {
+            if (filterPaymentStatus === 'pending') return !it.isPaid;
+            if (filterPaymentStatus === 'paid') return it.isPaid;
+            return true;
+          });
+
           return (
-            <div key={persona} className="border border-ragucci-border p-4 rounded-lg bg-white shadow-sm">
-              <div className="flex flex-wrap justify-between items-center border-b-2 border-ragucci-gold pb-2 mb-3 gap-2">
-                <h3 className="text-base font-extrabold text-ragucci-primary uppercase">{persona}</h3>
+            <div key={persona} className="border border-ragucci-border p-4 rounded-lg bg-white shadow-sm hover:border-ragucci-gold transition-all">
+              {/* Header - Click to open modal */}
+              <div 
+                onClick={() => setSelectedWorkshopModal(persona)}
+                className="flex flex-wrap justify-between items-center border-b-2 border-ragucci-gold pb-2 mb-3 gap-2 cursor-pointer group hover:bg-ragucci-gold-light/20 p-1 rounded transition-colors"
+                title="Hacer clic para abrir en pantalla completa"
+              >
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-extrabold text-ragucci-primary uppercase group-hover:text-ragucci-primary-light transition-colors">
+                    {persona}
+                  </h3>
+                  <span className="text-[10px] font-bold bg-ragucci-primary text-ragucci-gold hover:bg-ragucci-primary-light px-2 py-0.5 rounded flex items-center gap-1 shadow-xs transition-colors">
+                    <Maximize2 className="w-3 h-3" />
+                    <span>Ver Pantalla Completa</span>
+                  </span>
+                </div>
+
                 <div className="text-right">
                   <span className="text-sm md:text-lg font-bold text-ragucci-primary">
                     Total a Pagar (Pendiente):{' '}
@@ -270,75 +380,15 @@ export const WorkshopPayments: React.FC = () => {
               </div>
 
               <div className="max-h-72 overflow-y-auto space-y-3 pr-1">
-                {info.items.length > 0 ? (
-                  info.items.map((it) => {
-                    const currentNoteValue = localNotes[it.key] !== undefined ? localNotes[it.key] : it.note;
-
-                    return (
-                      <div
-                        key={it.key}
-                        className={`p-3 border rounded transition-all ${
-                          it.isPaid 
-                            ? 'bg-gray-50/80 border-gray-200' 
-                            : 'bg-white border-gray-200 hover:border-ragucci-gold-light hover:shadow-xs'
-                        }`}
-                      >
-                        <div className="flex flex-wrap sm:flex-nowrap justify-between items-center text-xs gap-2">
-                          <div className="flex items-center gap-2.5 flex-1 min-w-[240px]">
-                            <input
-                              type="checkbox"
-                              checked={it.isPaid}
-                              onChange={(e) => handleTogglePaid(it, e.target.checked)}
-                              className="w-4 h-4 rounded border-gray-300 text-ragucci-primary focus:ring-ragucci-gold cursor-pointer shrink-0"
-                            />
-                            
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-1.5 py-0.5 rounded border border-amber-300 shrink-0">
-                                🗓️ {formatDate(it.date)}
-                              </span>
-
-                              <span className={it.isPaid ? 'line-through text-gray-400 font-medium' : 'text-gray-900 font-bold'}>
-                                <strong>{it.client}</strong> — <em>{it.detail}</em>
-                              </span>
-
-                              {it.productNotes && (
-                                <span className="text-[10px] text-gray-500 italic bg-gray-100 px-1.5 py-0.5 rounded">
-                                  {it.productNotes}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <span className={`font-extrabold text-sm shrink-0 ${it.isPaid ? 'text-gray-400 line-through' : 'text-emerald-600'}`}>
-                            ${formatMoney(it.amount)}
-                          </span>
-                        </div>
-
-                        {/* Custom Workshop Note / Detail Input */}
-                        <div className="mt-2 flex items-center gap-2 pl-6">
-                          <span className="text-[10px] text-ragucci-primary-light font-extrabold uppercase shrink-0">
-                            ✏️ Nota / Detalle:
-                          </span>
-                          <input
-                            type="text"
-                            placeholder="Agregar observación o detalle de pago (ej: Pagado 15/08 transf, entrega parcial, etc.)"
-                            value={currentNoteValue}
-                            onChange={(e) => setLocalNotes({ ...localNotes, [it.key]: e.target.value })}
-                            onBlur={(e) => handleSaveNote(it, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                (e.target as HTMLInputElement).blur();
-                              }
-                            }}
-                            className="w-full text-xs p-1.5 border border-gray-200 rounded text-gray-800 bg-gray-50 focus:bg-white focus:outline-none focus:border-ragucci-gold font-medium"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
+                {displayItems.length > 0 ? (
+                  displayItems.map((it) => renderItemRow(it))
                 ) : (
                   <p className="text-xs text-gray-400 italic py-2">
-                    Sin trabajos registrados para este período.
+                    {filterPaymentStatus === 'pending'
+                      ? 'No hay trabajos pendientes de pago para este taller.'
+                      : filterPaymentStatus === 'paid'
+                      ? 'No hay trabajos pagados/liquidados en este período.'
+                      : 'Sin trabajos registrados para este período.'}
                   </p>
                 )}
               </div>
@@ -346,6 +396,103 @@ export const WorkshopPayments: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Fullscreen Workshop Modal */}
+      {selectedWorkshopModal && dataTalleres[selectedWorkshopModal] && (
+        <Modal
+          isOpen={!!selectedWorkshopModal}
+          onClose={() => {
+            setSelectedWorkshopModal(null);
+            setModalSearchTerm('');
+          }}
+          title={`📋 Boletas y Trabajos: ${selectedWorkshopModal}`}
+        >
+          {(() => {
+            const currentGroup = dataTalleres[selectedWorkshopModal];
+            
+            const modalFilteredItems = currentGroup.items.filter(it => {
+              const matchSearch = !modalSearchTerm.trim() || 
+                it.client.toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
+                it.detail.toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
+                (it.note && it.note.toLowerCase().includes(modalSearchTerm.toLowerCase()));
+
+              const matchStatus = 
+                filterPaymentStatus === 'all' ||
+                (filterPaymentStatus === 'pending' && !it.isPaid) ||
+                (filterPaymentStatus === 'paid' && it.isPaid);
+
+              return matchSearch && matchStatus;
+            });
+
+            return (
+              <div className="space-y-4">
+                {/* Summary Banner in Modal */}
+                <div className="bg-ragucci-bg p-3.5 rounded-lg border border-ragucci-gold-light flex flex-wrap justify-between items-center gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-ragucci-primary uppercase block">Resumen del Taller</span>
+                    <span className="text-xs text-gray-600 font-medium">
+                      Total Boletas: <strong>{currentGroup.items.length} trabajos</strong>
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-4 text-xs font-bold">
+                    <div className="bg-amber-100 border border-amber-300 text-amber-950 px-3 py-1.5 rounded">
+                      <span>Pendiente a Pagar: </span>
+                      <strong className="text-emerald-700 font-extrabold text-sm">${formatMoney(currentGroup.totalPending)}</strong>
+                    </div>
+                    <div className="bg-gray-100 border border-gray-300 text-gray-800 px-3 py-1.5 rounded">
+                      <span>Liquidado: </span>
+                      <strong className="font-extrabold text-sm">${formatMoney(currentGroup.totalPaid)}</strong>
+                    </div>
+                    <div className="bg-ragucci-primary text-ragucci-gold px-3 py-1.5 rounded">
+                      <span>Total Acumulado: </span>
+                      <strong className="font-extrabold text-sm">${formatMoney(currentGroup.totalAccumulated)}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar in Modal */}
+                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-gray-50 p-2.5 rounded border border-gray-200">
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por cliente o producto..."
+                      value={modalSearchTerm}
+                      onChange={(e) => setModalSearchTerm(e.target.value)}
+                      className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-ragucci-gold font-medium"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <span className="text-xs font-bold text-gray-600">Estado:</span>
+                    <select
+                      value={filterPaymentStatus}
+                      onChange={(e) => setFilterPaymentStatus(e.target.value as any)}
+                      className="p-1.5 border border-amber-300 bg-white text-gray-800 rounded text-xs font-bold focus:outline-none focus:border-ragucci-gold cursor-pointer"
+                    >
+                      <option value="all">🔍 Todos ({currentGroup.items.length})</option>
+                      <option value="pending">⏳ Pendientes ({currentGroup.items.filter(i => !i.isPaid).length})</option>
+                      <option value="paid">✅ Pagados ({currentGroup.items.filter(i => i.isPaid).length})</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Full List Container in Modal */}
+                <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
+                  {modalFilteredItems.length === 0 ? (
+                    <div className="py-8 text-center text-gray-500 font-medium italic">
+                      No se encontraron boletas con los filtros aplicados.
+                    </div>
+                  ) : (
+                    modalFilteredItems.map(it => renderItemRow(it))
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </Modal>
+      )}
     </div>
   );
 };
