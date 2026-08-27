@@ -91,10 +91,13 @@ export const OrderTable: React.FC = () => {
       order.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
       productListText.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const info = getDeliveryInfo(order);
-    const matchUpcoming = !filterUpcomingOnly || (info !== null && order.status !== '🟢 Entregado' && info.diffDays >= -2 && info.diffDays <= 7);
+    const isDelivered = order.status === '🟢 Entregado' || (order.status && order.status.toLowerCase().includes('entregado'));
+    const matchDeliverySort = sortBy !== 'delivery_asc' || !isDelivered;
 
-    return matchYear && matchMonth && matchPago && matchSearch && matchUpcoming;
+    const info = getDeliveryInfo(order);
+    const matchUpcoming = !filterUpcomingOnly || (info !== null && !isDelivered && info.diffDays >= -2 && info.diffDays <= 7);
+
+    return matchYear && matchMonth && matchPago && matchSearch && matchDeliverySort && matchUpcoming;
   });
 
   const handleStatusChange = async (order: Order, newStatus: string) => {
