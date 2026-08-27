@@ -455,7 +455,7 @@ export const OrderTable: React.FC = () => {
       />
 
       <PaymentModal
-        order={selectedPaymentOrder}
+        order={selectedPaymentOrder ? (orders.find(o => (o.firestoreId && o.firestoreId === selectedPaymentOrder.firestoreId) || o.id === selectedPaymentOrder.id) || selectedPaymentOrder) : null}
         isOpen={!!selectedPaymentOrder}
         onClose={() => setSelectedPaymentOrder(null)}
       />
