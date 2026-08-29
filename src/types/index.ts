@@ -57,8 +57,15 @@ export interface CostsBreakdown {
   otros: number;
 }
 
+export interface ClientMeasurementProfile {
+  id: string;
+  profileName: string;
+  measurements: ClientMeasurements;
+}
+
 export interface ClientMeasurements {
-  [key: string]: string | undefined;
+  [key: string]: any;
+  profiles?: ClientMeasurementProfile[];
   // SACO
   sacoLargoMangas?: string;
   sacoPecho?: string;
