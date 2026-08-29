@@ -57,15 +57,24 @@ export interface CostsBreakdown {
   otros: number;
 }
 
+export interface MeasurementRevision {
+  id: string;
+  date: string;
+  label?: string;
+  measurements: Record<string, string>;
+}
+
 export interface ClientMeasurementProfile {
   id: string;
   profileName: string;
   measurements: ClientMeasurements;
+  history?: MeasurementRevision[];
 }
 
 export interface ClientMeasurements {
   [key: string]: any;
   profiles?: ClientMeasurementProfile[];
+  history?: MeasurementRevision[];
   // SACO
   sacoLargoMangas?: string;
   sacoPecho?: string;

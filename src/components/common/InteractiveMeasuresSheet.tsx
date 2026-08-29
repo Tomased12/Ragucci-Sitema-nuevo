@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, CheckCircle, Ruler, Plus, Trash2, User, Edit2 } from 'lucide-react';
-import { ClientMeasurements, ClientMeasurementProfile } from '../../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ChevronDown, ChevronUp, CheckCircle, Ruler, Plus, Trash2, User, Edit2, History, RotateCcw, FileText } from 'lucide-react';
+import { ClientMeasurements, ClientMeasurementProfile, MeasurementRevision } from '../../types';
 
 interface InteractiveMeasuresSheetProps {
   measurements: Record<string, any> | ClientMeasurements;
@@ -30,6 +30,11 @@ export const InteractiveMeasuresSheet: React.FC<InteractiveMeasuresSheetProps> =
   const [activeProfileId, setActiveProfileId] = useState<string>(() => profilesList[0]?.id || 'p1');
   const [editingProfileNameId, setEditingProfileNameId] = useState<string | null>(null);
 
+  // History / Revision Viewing State
+  const [selectedRevisionIdMap, setSelectedRevisionIdMap] = useState<Record<string, string | null>>({});
+  const [showRectifyModal, setShowRectifyModal] = useState<boolean>(false);
+  const [rectifyNote, setRectifyNote] = useState<string>('');
+
   // Sync internal profiles list if external measurements.profiles changes
   useEffect(() => {
     if (measurements.profiles && Array.isArray(measurements.profiles) && measurements.profiles.length > 0) {
@@ -40,11 +45,26 @@ export const InteractiveMeasuresSheet: React.FC<InteractiveMeasuresSheetProps> =
     }
   }, [measurements.profiles]);
 
-  // Current Active Profile
+  // Current Active Profile Object
   const activeProfile = profilesList.find(p => p.id === activeProfileId) || profilesList[0] || { id: 'p1', profileName: 'Medidas Principales', measurements: {} };
-  const activeMeasures = activeProfile.measurements || {};
+
+  // Current Active Revision ID (null means viewing LATEST / CURRENT ACTIVE)
+  const activeRevisionId = selectedRevisionIdMap[activeProfileId] || null;
+  const isViewingHistory = !!activeRevisionId;
+
+  // Active Measures (either latest or historical)
+  const activeMeasures = useMemo(() => {
+    if (activeRevisionId && activeProfile.history) {
+      const rev = activeProfile.history.find(h => h.id === activeRevisionId);
+      if (rev) return rev.measurements;
+    }
+    return activeProfile.measurements || {};
+  }, [activeProfile, activeRevisionId]);
 
   const handleFieldChange = (key: string, value: string) => {
+    // If viewing an old historical revision, editing switches to latest
+    if (isViewingHistory) return;
+
     const updatedProfiles = profilesList.map(p => {
       if (p.id === activeProfileId) {
         return {
@@ -117,6 +137,45 @@ export const InteractiveMeasuresSheet: React.FC<InteractiveMeasuresSheetProps> =
       onChangeMeasurements({
         ...(updated[0]?.measurements || {}),
         profiles: updated
+      });
+    }
+  };
+
+  // Rectification Action: Snapshot current measurements into history, timestamp, keep as current
+  const handleRectifyConfirm = () => {
+    const todayStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const currentHist: MeasurementRevision[] = activeProfile.history || [];
+
+    const newSnapshot: MeasurementRevision = {
+      id: `rev_${Date.now()}`,
+      date: todayStr,
+      label: rectifyNote.trim() ? `${rectifyNote.trim()} (${todayStr})` : `Medidas del ${todayStr}`,
+      measurements: { ...activeProfile.measurements }
+    };
+
+    const updatedProfiles = profilesList.map(p => {
+      if (p.id === activeProfileId) {
+        return {
+          ...p,
+          history: [newSnapshot, ...currentHist]
+        };
+      }
+      return p;
+    });
+
+    setProfilesList(updatedProfiles);
+    setSelectedRevisionIdMap(prev => ({ ...prev, [activeProfileId]: null }));
+    setShowRectifyModal(false);
+    setRectifyNote('');
+
+    if (onChangeMeasurements) {
+      const primaryMeasures = updatedProfiles[0]?.measurements || {};
+      const activeUpdated = updatedProfiles.find(p => p.id === activeProfileId)?.measurements || {};
+
+      onChangeMeasurements({
+        ...primaryMeasures,
+        ...activeUpdated,
+        profiles: updatedProfiles
       });
     }
   };
@@ -227,6 +286,141 @@ export const InteractiveMeasuresSheet: React.FC<InteractiveMeasuresSheetProps> =
           </div>
         )}
       </div>
+
+      {/* HISTÓRICO Y RECTIFICACIÓN DE MEDIDAS BAR */}
+      <div className="bg-white p-3 rounded-xl border border-ragucci-gold/40 shadow-2xs space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-ragucci-gold" />
+            <span className="text-xs font-black uppercase text-ragucci-primary">
+              Versión de Medidas ({activeProfile.profileName}):
+            </span>
+            <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${
+              isViewingHistory 
+                ? 'bg-amber-100 text-amber-900 border border-amber-300' 
+                : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+            }`}>
+              {isViewingHistory ? '📜 Viendo Versión Histórica Anterior' : '📌 Medidas Actuales (Últimas)'}
+            </span>
+          </div>
+
+          {mode === 'edit' && (
+            <div className="flex items-center gap-2">
+              {isViewingHistory ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedRevisionIdMap(prev => ({ ...prev, [activeProfileId]: null }))}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-1 px-3 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Volver a Editar Medidas Actuales</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowRectifyModal(true)}
+                  className="bg-ragucci-gold hover:bg-amber-500 text-ragucci-primary text-xs font-extrabold py-1 px-3 rounded-lg flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  title="Guardar una copia de las medidas anteriores e iniciar rectificación"
+                >
+                  <Ruler className="w-3.5 h-3.5" />
+                  <span>📐 Rectificar Medidas (Guardar Copia Anterior)</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* History Revisions Timeline Pills */}
+        {activeProfile.history && activeProfile.history.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+            <span className="text-[11px] font-bold text-gray-500">Histórico de versiones ({activeProfile.history.length + 1}):</span>
+            <button
+              type="button"
+              onClick={() => setSelectedRevisionIdMap(prev => ({ ...prev, [activeProfileId]: null }))}
+              className={`text-[11px] font-extrabold px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                !isViewingHistory
+                  ? 'bg-ragucci-primary text-ragucci-gold border-ragucci-gold shadow-xs'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-300'
+              }`}
+            >
+              📌 Actuales (Últimas)
+            </button>
+
+            {activeProfile.history.map((rev) => {
+              const isThisSelected = activeRevisionId === rev.id;
+
+              return (
+                <button
+                  key={rev.id}
+                  type="button"
+                  onClick={() => setSelectedRevisionIdMap(prev => ({ ...prev, [activeProfileId]: rev.id }))}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-md border transition-all cursor-pointer flex items-center gap-1 ${
+                    isThisSelected
+                      ? 'bg-amber-800 text-amber-100 border-amber-900 shadow-xs font-black'
+                      : 'bg-amber-50/80 text-amber-900 hover:bg-amber-100 border-amber-200'
+                  }`}
+                >
+                  <span>📜</span>
+                  <span>{rev.label || rev.date}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* RECTIFICATION MODAL / CONFIRMATION */}
+      {showRectifyModal && mode === 'edit' && (
+        <div className="bg-amber-50 p-4 rounded-xl border-2 border-ragucci-gold space-y-3 animate-fadeIn">
+          <div className="flex justify-between items-center border-b border-ragucci-gold/30 pb-2">
+            <h4 className="font-extrabold text-xs uppercase text-amber-900 flex items-center gap-1.5">
+              <Ruler className="w-4 h-4 text-ragucci-gold" />
+              <span>📐 Rectificación de Medidas para {activeProfile.profileName}</span>
+            </h4>
+            <button
+              type="button"
+              onClick={() => setShowRectifyModal(false)}
+              className="text-amber-900 font-bold hover:text-red-600 text-sm"
+            >
+              ✕
+            </button>
+          </div>
+
+          <p className="text-xs text-amber-900 font-medium">
+            Se guardará una <strong>copia de seguridad del historial anterior</strong> (con fecha de hoy) y podrás modificar los números para reflejar la fluctuación de peso/calce actual. Las nuevas medidas pasarán a ser las <strong>Medidas Actuales</strong>.
+          </p>
+
+          <div>
+            <label className="block text-[11px] font-bold text-amber-900 mb-1">
+              Motivo o Detalle de la Rectificación (Opcional):
+            </label>
+            <input
+              type="text"
+              placeholder="Ej: Bajó 3kg de peso, Ajuste de sisa y cinturón..."
+              value={rectifyNote}
+              onChange={(e) => setRectifyNote(e.target.value)}
+              className="w-full text-xs p-2 border border-amber-300 rounded-lg bg-white font-medium focus:outline-none focus:border-ragucci-gold"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setShowRectifyModal(false)}
+              className="bg-white hover:bg-gray-100 text-gray-700 text-xs font-bold py-1.5 px-3 rounded-lg border border-gray-300 cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleRectifyConfirm}
+              className="bg-ragucci-primary hover:bg-ragucci-primary-light text-ragucci-gold text-xs font-extrabold py-1.5 px-4 rounded-lg shadow-sm cursor-pointer"
+            >
+              📐 Confirmar Rectificación & Guardar Copia Anterior
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Selector Cards Matrix */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
