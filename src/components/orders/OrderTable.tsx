@@ -9,7 +9,8 @@ import { Modal } from '../common/Modal';
 import { MoneyInput } from '../common/MoneyInput';
 import { UserBadge } from '../common/UserBadge';
 import { ProductCostBadges } from '../common/ProductCostBadges';
-import { Search, Eye, Edit, Plus, Trash2, MessageCircle, FileSpreadsheet, Clock, AlertTriangle } from 'lucide-react';
+import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
+import { Search, Eye, Edit, Plus, Trash2, MessageCircle, FileSpreadsheet, Clock, AlertTriangle, Ruler, User, FileText, CheckCircle2 } from 'lucide-react';
 import { exportOrdersToCSV } from '../../utils/exportCsv';
 
 export const OrderTable: React.FC = () => {
@@ -49,10 +50,94 @@ export const OrderTable: React.FC = () => {
   const [selectedPaymentOrder, setSelectedPaymentOrder] = useState<Order | null>(null);
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
 
+  // Sub-Menu Mode inside Registro: Órdenes vs Medidas
+  const [registroViewMode, setRegistroViewMode] = useState<'ordenes' | 'medidas'>('ordenes');
+  const [measuresSearchTerm, setMeasuresSearchTerm] = useState('');
+  const [measuresGarmentFilter, setMeasuresGarmentFilter] = useState<'all' | 'saco' | 'pantalon' | 'camisa' | 'chaleco'>('all');
+  const [selectedMeasuresOrder, setSelectedMeasuresOrder] = useState<Order | null>(null);
+  const [tempEditedMeasurements, setTempEditedMeasurements] = useState<any>(null);
+
   // Add Cost Modal state
   const [addCostOrder, setAddCostOrder] = useState<Order | null>(null);
   const [addCostType, setAddCostType] = useState('arreglos');
   const [addCostAmount, setAddCostAmount] = useState(0);
+
+  // Aggregating Clients with Measurements for the Medidas Sub-Menu
+  const clientMeasuresMap: Record<string, {
+    client: string;
+    phone?: string;
+    email?: string;
+    latestOrderDate: string;
+    orderCount: number;
+    latestOrder: Order;
+    measurements: any;
+    profilesCount: number;
+    profileNames: string[];
+    hasSaco: boolean;
+    hasChaleco: boolean;
+    hasPantalon: boolean;
+    hasCamisa: boolean;
+  }> = {};
+
+  orders.forEach((o) => {
+    const rawName = (o.client || '').trim();
+    if (!rawName) return;
+
+    const m = o.measurements;
+    const hasAnyM = m && (
+      (m.profiles && m.profiles.length > 0) ||
+      m.sacoPecho || m.sacoCintura || m.sacoLargoMangas ||
+      m.pantCintura || m.pantCadera || m.pantLargoConCintura ||
+      m.camisaCuello || m.camisaEspalda || m.camisaPecho ||
+      m.chalecoPecho
+    );
+
+    if (!clientMeasuresMap[rawName]) {
+      clientMeasuresMap[rawName] = {
+        client: rawName,
+        phone: o.phone,
+        email: o.email,
+        latestOrderDate: o.date,
+        orderCount: 1,
+        latestOrder: o,
+        measurements: m || {},
+        profilesCount: m?.profiles?.length || 1,
+        profileNames: m?.profiles?.map((p: any) => p.profileName) || ['Medidas Principales'],
+        hasSaco: false,
+        hasChaleco: false,
+        hasPantalon: false,
+        hasCamisa: false
+      };
+    } else {
+      clientMeasuresMap[rawName].orderCount += 1;
+      if (hasAnyM || new Date(o.date + 'T12:00:00').getTime() > new Date(clientMeasuresMap[rawName].latestOrderDate + 'T12:00:00').getTime()) {
+        clientMeasuresMap[rawName].latestOrderDate = o.date;
+        clientMeasuresMap[rawName].latestOrder = o;
+        if (hasAnyM) {
+          clientMeasuresMap[rawName].measurements = m;
+          clientMeasuresMap[rawName].profilesCount = m?.profiles?.length || 1;
+          clientMeasuresMap[rawName].profileNames = m?.profiles?.map((p: any) => p.profileName) || ['Medidas Principales'];
+        }
+      }
+    }
+
+    const activeM = clientMeasuresMap[rawName].measurements || {};
+    clientMeasuresMap[rawName].hasSaco = !!(activeM.sacoPecho || activeM.sacoCintura || activeM.sacoLargoMangas || activeM.sacoHombro || activeM.sacoLargoTotal);
+    clientMeasuresMap[rawName].hasChaleco = !!(activeM.chalecoPecho || activeM.chalecoLargoDelantero);
+    clientMeasuresMap[rawName].hasPantalon = !!(activeM.pantCintura || activeM.pantCadera || activeM.pantLargoConCintura);
+    clientMeasuresMap[rawName].hasCamisa = !!(activeM.camisaCuello || activeM.camisaPecho || activeM.camisaEspalda);
+  });
+
+  const clientsWithMeasuresList = Object.values(clientMeasuresMap).filter(c => {
+    const matchSearch = !measuresSearchTerm.trim() || c.client.toLowerCase().includes(measuresSearchTerm.toLowerCase());
+    let matchGarment = true;
+    if (measuresGarmentFilter === 'saco') matchGarment = c.hasSaco;
+    if (measuresGarmentFilter === 'pantalon') matchGarment = c.hasPantalon;
+    if (measuresGarmentFilter === 'camisa') matchGarment = c.hasCamisa;
+    if (measuresGarmentFilter === 'chaleco') matchGarment = c.hasChaleco;
+
+    return matchSearch && matchGarment;
+  });
 
   const sortedOrders = [...orders].sort((a, b) => {
     if (sortBy === 'delivery_asc') {
@@ -161,7 +246,198 @@ export const OrderTable: React.FC = () => {
         </button>
       </div>
 
-      {/* Alert Banner: Próximas Entregas de la Semana */}
+      {/* Sub-Menu Switcher inside Registro: Libro de Órdenes vs Fichas de Medidas */}
+      <div className="flex rounded-lg shadow-sm mb-5 bg-ragucci-bg p-1.5 border border-ragucci-gold-light">
+        <button
+          type="button"
+          onClick={() => setRegistroViewMode('ordenes')}
+          className={`flex-1 py-2.5 px-4 rounded text-xs font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            registroViewMode === 'ordenes'
+              ? 'bg-ragucci-primary text-ragucci-gold shadow-md'
+              : 'text-ragucci-primary hover:bg-ragucci-gold-light/20 font-bold'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>📋 Libro de Órdenes y Ventas ({filteredOrders.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setRegistroViewMode('medidas')}
+          className={`flex-1 py-2.5 px-4 rounded text-xs font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            registroViewMode === 'medidas'
+              ? 'bg-ragucci-primary text-ragucci-gold shadow-md'
+              : 'text-ragucci-primary hover:bg-ragucci-gold-light/20 font-bold'
+          }`}
+        >
+          <Ruler className="w-4 h-4 text-ragucci-gold" />
+          <span>🧵 Directorio de Medidas de Clientes ({clientsWithMeasuresList.length})</span>
+        </button>
+      </div>
+
+      {registroViewMode === 'medidas' ? (
+        <div className="space-y-4">
+          {/* Medidas Search & Garment Filters */}
+          <div className="bg-ragucci-bg p-4 rounded-lg border border-ragucci-gold-light flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar cliente por nombre..."
+                value={measuresSearchTerm}
+                onChange={(e) => setMeasuresSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold bg-white"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <span className="text-xs font-bold text-gray-600">Filtrar prenda:</span>
+              <select
+                value={measuresGarmentFilter}
+                onChange={(e: any) => setMeasuresGarmentFilter(e.target.value)}
+                className="text-xs p-1.5 border border-gray-300 rounded bg-white font-bold focus:outline-none focus:border-ragucci-gold"
+              >
+                <option value="all">Todas las prendas</option>
+                <option value="saco">🧥 Con Medidas de Saco</option>
+                <option value="pantalon">👖 Con Medidas de Pantalón</option>
+                <option value="camisa">👔 Con Medidas de Camisa</option>
+                <option value="chaleco">🦺 Con Medidas de Chaleco</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Directory Grid / Cards of Client Measurement Sheets */}
+          {clientsWithMeasuresList.length === 0 ? (
+            <div className="py-12 text-center text-gray-500 font-medium italic border border-dashed border-gray-300 rounded-lg">
+              No se encontraron fichas de medidas con los filtros aplicados.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {clientsWithMeasuresList.map((item) => {
+                const m = item.measurements || {};
+
+                return (
+                  <div
+                    key={item.client}
+                    className="bg-white p-4 rounded-xl border-2 border-ragucci-gold/30 hover:border-ragucci-gold transition-all shadow-sm flex flex-col justify-between gap-3"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2 border-b border-ragucci-gold/20 pb-2">
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedClientName(item.client)}
+                            className="font-extrabold text-sm uppercase text-ragucci-primary hover:underline flex items-center gap-1.5 cursor-pointer text-left"
+                            title="Ver historial completo del cliente"
+                          >
+                            <span>👤 {item.client}</span>
+                          </button>
+
+                          {(item.phone || item.email) && (
+                            <span className="text-[11px] text-gray-500 font-medium block mt-0.5">
+                              {item.phone && <span>📞 {item.phone}</span>}
+                              {item.phone && item.email && <span> • </span>}
+                              {item.email && <span>✉️ {item.email}</span>}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[10px] font-bold text-gray-500 block">
+                            Última Ficha: <strong>{formatDate(item.latestOrderDate)}</strong>
+                          </span>
+                          <span className="text-[10px] font-extrabold bg-ragucci-primary/10 text-ragucci-primary px-2 py-0.5 rounded-full inline-block mt-0.5">
+                            {item.orderCount} orden(es)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Profiles Badges (e.g. Matías Padre, Luca Hijo) */}
+                      {item.profileNames && item.profileNames.length > 0 && (
+                        <div className="flex flex-wrap gap-1 items-center mt-2.5">
+                          <span className="text-[10px] font-bold text-gray-500">Perfiles ({item.profilesCount}):</span>
+                          {item.profileNames.map((pName, pIdx) => (
+                            <span
+                              key={pIdx}
+                              className="bg-ragucci-primary text-ragucci-gold text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-ragucci-gold/40 shadow-2xs"
+                            >
+                              👤 {pName}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Measures Quick Breakdown Badges */}
+                      <div className="flex flex-wrap gap-1.5 items-center mt-3 text-[11px]">
+                        {item.hasSaco && (
+                          <span className="bg-amber-50 text-amber-950 font-bold px-2 py-0.5 rounded border border-amber-200">
+                            🧥 Saco: {m.sacoPecho ? `Pecho ${m.sacoPecho}` : ''} {m.sacoCintura ? `/ Cint ${m.sacoCintura}` : ''} {m.sacoLargoMangas ? `/ Manga ${m.sacoLargoMangas}` : ''}
+                          </span>
+                        )}
+
+                        {item.hasPantalon && (
+                          <span className="bg-emerald-50 text-emerald-950 font-bold px-2 py-0.5 rounded border border-emerald-200">
+                            👖 Pantalón: {m.pantCintura ? `Cint ${m.pantCintura}` : ''} {m.pantCadera ? `/ Cad ${m.pantCadera}` : ''} {m.pantLargoConCintura ? `/ Largo ${m.pantLargoConCintura}` : ''}
+                          </span>
+                        )}
+
+                        {item.hasCamisa && (
+                          <span className="bg-sky-50 text-sky-950 font-bold px-2 py-0.5 rounded border border-sky-200">
+                            👔 Camisa: {m.camisaCuello ? `Cuello ${m.camisaCuello}` : ''} {m.camisaPecho ? `/ Pecho ${m.camisaPecho}` : ''}
+                          </span>
+                        )}
+
+                        {item.hasChaleco && (
+                          <span className="bg-purple-50 text-purple-950 font-bold px-2 py-0.5 rounded border border-purple-200">
+                            🦺 Chaleco
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedMeasuresOrder(item.latestOrder);
+                          setTempEditedMeasurements(item.latestOrder.measurements || {});
+                        }}
+                        className="bg-ragucci-primary hover:bg-ragucci-primary-light text-ragucci-gold text-xs font-extrabold py-1.5 px-3 rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <Ruler className="w-4 h-4 text-ragucci-gold" />
+                        <span>👁️ Ver / Editar Ficha Completa</span>
+                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedClientName(item.client)}
+                          className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[11px] font-bold py-1.5 px-2.5 rounded-lg border border-gray-300 cursor-pointer"
+                        >
+                          📜 Historial
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingOrderId(item.latestOrder.firestoreId || null);
+                            setActiveTab('carga');
+                          }}
+                          className="bg-sky-700 hover:bg-sky-800 text-white text-[11px] font-bold py-1.5 px-2.5 rounded-lg cursor-pointer"
+                        >
+                          ✏️ Editar Orden
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Alert Banner: Próximas Entregas de la Semana */}
       {upcomingOrders.length > 0 && (
         <div 
           onClick={() => setFilterUpcomingOnly(!filterUpcomingOnly)}
@@ -446,6 +722,8 @@ export const OrderTable: React.FC = () => {
           </tbody>
         </table>
       </div>
+        </>
+      )}
 
       {/* Modals */}
       <OrderDetailModal
@@ -512,6 +790,62 @@ export const OrderTable: React.FC = () => {
           Cargar Gasto al Cliente
         </button>
       </Modal>
+
+      {/* Direct Interactive Measurement Modal for Registro -> Medidas Menu */}
+      {selectedMeasuresOrder && (
+        <Modal
+          isOpen={!!selectedMeasuresOrder}
+          onClose={() => {
+            setSelectedMeasuresOrder(null);
+            setTempEditedMeasurements(null);
+          }}
+          title={`🧵 Ficha de Medidas de Cliente: ${selectedMeasuresOrder.client}`}
+        >
+          <div className="space-y-4">
+            <InteractiveMeasuresSheet
+              measurements={tempEditedMeasurements || selectedMeasuresOrder.measurements || {}}
+              onChangeMeasurements={(newM) => setTempEditedMeasurements(newM)}
+              mode="edit"
+            />
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedMeasuresOrder(null);
+                  setTempEditedMeasurements(null);
+                }}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs py-2 px-4 rounded cursor-pointer"
+              >
+                Cerrar sin guardar
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!selectedMeasuresOrder) return;
+                  const updatedOrderPayload: Order = {
+                    ...selectedMeasuresOrder,
+                    measurements: tempEditedMeasurements || selectedMeasuresOrder.measurements
+                  };
+
+                  try {
+                    await saveOrderData(updatedOrderPayload, selectedMeasuresOrder.firestoreId);
+                    alert("✅ Ficha de medidas del cliente actualizada y guardada en la nube con éxito.");
+                    setSelectedMeasuresOrder(null);
+                    setTempEditedMeasurements(null);
+                  } catch (e) {
+                    alert("Error al guardar la ficha de medidas.");
+                  }
+                }}
+                className="bg-ragucci-gold hover:bg-ragucci-primary text-ragucci-primary hover:text-ragucci-gold font-extrabold text-xs uppercase tracking-wider py-2.5 px-5 rounded cursor-pointer shadow-sm transition-colors"
+              >
+                💾 Guardar Medidas en la Nube
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
