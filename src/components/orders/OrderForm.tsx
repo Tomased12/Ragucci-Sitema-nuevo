@@ -309,11 +309,15 @@ export const OrderForm: React.FC = () => {
     const paidTalleresMap = existing ? (existing.paidTalleresMap || {}) : {};
     const paymentHistory = existing?.paymentHistory || (sena > 0 ? [{ date, amount: sena, method }] : []);
 
-    const cleanMeasurements: Record<string, string> = {};
+    const cleanMeasurements: Record<string, any> = {};
     if (measurements) {
       Object.entries(measurements).forEach(([k, v]) => {
-        if (v && v.trim()) {
+        if (k === 'profiles' && Array.isArray(v)) {
+          cleanMeasurements.profiles = v;
+        } else if (typeof v === 'string' && v.trim()) {
           cleanMeasurements[k] = v.trim();
+        } else if (v !== undefined && v !== null && typeof v !== 'string') {
+          cleanMeasurements[k] = v;
         }
       });
     }
