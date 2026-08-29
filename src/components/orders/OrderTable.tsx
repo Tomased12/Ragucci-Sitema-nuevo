@@ -62,6 +62,22 @@ export const OrderTable: React.FC = () => {
   const [addCostType, setAddCostType] = useState('arreglos');
   const [addCostAmount, setAddCostAmount] = useState(0);
 
+  // Helper to verify if a measurement object has any non-empty measurement values
+  const hasAnyMeasurements = (m: any): boolean => {
+    if (!m) return false;
+    if (m.profiles && Array.isArray(m.profiles) && m.profiles.length > 0) {
+      const profilesHaveData = m.profiles.some((p: any) => {
+        if (!p.measurements) return false;
+        return Object.values(p.measurements).some(val => typeof val === 'string' && val.trim().length > 0);
+      });
+      if (profilesHaveData) return true;
+    }
+    return Object.entries(m).some(([key, val]) => {
+      if (key === 'profiles' || key === 'history') return false;
+      return typeof val === 'string' && val.trim().length > 0;
+    });
+  };
+
   // Aggregating Clients with Measurements for the Medidas Sub-Menu
   const clientMeasuresMap: Record<string, {
     client: string;
@@ -84,13 +100,7 @@ export const OrderTable: React.FC = () => {
     if (!rawName) return;
 
     const m = o.measurements;
-    const hasAnyM = m && (
-      (m.profiles && m.profiles.length > 0) ||
-      m.sacoPecho || m.sacoCintura || m.sacoLargoMangas ||
-      m.pantCintura || m.pantCadera || m.pantLargoConCintura ||
-      m.camisaCuello || m.camisaEspalda || m.camisaPecho ||
-      m.chalecoPecho
-    );
+    const hasData = hasAnyMeasurements(m);
 
     if (!clientMeasuresMap[rawName]) {
       clientMeasuresMap[rawName] = {
@@ -110,10 +120,10 @@ export const OrderTable: React.FC = () => {
       };
     } else {
       clientMeasuresMap[rawName].orderCount += 1;
-      if (hasAnyM || new Date(o.date + 'T12:00:00').getTime() > new Date(clientMeasuresMap[rawName].latestOrderDate + 'T12:00:00').getTime()) {
+      if (hasData || new Date(o.date + 'T12:00:00').getTime() > new Date(clientMeasuresMap[rawName].latestOrderDate + 'T12:00:00').getTime()) {
         clientMeasuresMap[rawName].latestOrderDate = o.date;
         clientMeasuresMap[rawName].latestOrder = o;
-        if (hasAnyM) {
+        if (hasData) {
           clientMeasuresMap[rawName].measurements = m;
           clientMeasuresMap[rawName].profilesCount = m?.profiles?.length || 1;
           clientMeasuresMap[rawName].profileNames = m?.profiles?.map((p: any) => p.profileName) || ['Medidas Principales'];
@@ -129,6 +139,9 @@ export const OrderTable: React.FC = () => {
   });
 
   const clientsWithMeasuresList = Object.values(clientMeasuresMap).filter(c => {
+    // Strictly require that the client actually has filled measurement data
+    if (!hasAnyMeasurements(c.measurements)) return false;
+
     const matchSearch = !measuresSearchTerm.trim() || c.client.toLowerCase().includes(measuresSearchTerm.toLowerCase());
     let matchGarment = true;
     if (measuresGarmentFilter === 'saco') matchGarment = c.hasSaco;
