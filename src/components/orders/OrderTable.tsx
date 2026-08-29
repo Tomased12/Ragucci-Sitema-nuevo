@@ -169,8 +169,18 @@ export const OrderTable: React.FC = () => {
 
   const filteredOrders = sortedOrders.filter((order) => {
     const d = new Date(order.date + 'T12:00:00');
-    const matchYear = filterUpcomingOnly ? true : (filterYear === 'all' || d.getFullYear().toString() === filterYear);
     const matchMonth = filterUpcomingOnly ? true : (filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth);
+
+    let matchStatus = true;
+    if (!filterUpcomingOnly && filterStatus !== 'all') {
+      const orderSt = (order.status || '').toLowerCase();
+      const targetSt = filterStatus.toLowerCase();
+      if (targetSt.includes('pendiente')) matchStatus = orderSt.includes('pendiente');
+      else if (targetSt.includes('taller')) matchStatus = orderSt.includes('taller');
+      else if (targetSt.includes('prueba')) matchStatus = orderSt.includes('prueba');
+      else if (targetSt.includes('entregado')) matchStatus = orderSt.includes('entregado');
+      else matchStatus = order.status === filterStatus;
+    }
 
     const saldoVal = order.saldo || 0;
     let matchPago = true;
@@ -195,7 +205,7 @@ export const OrderTable: React.FC = () => {
     const info = getDeliveryInfo(order);
     const matchUpcoming = !filterUpcomingOnly || (info !== null && !isDelivered && info.diffDays >= -2 && info.diffDays <= 7);
 
-    return matchYear && matchMonth && matchPago && matchSearch && matchDeliverySort && matchUpcoming;
+    return matchMonth && matchStatus && matchPago && matchSearch && matchDeliverySort && matchUpcoming;
   });
 
   const handleStatusChange = async (order: Order, newStatus: string) => {
@@ -251,7 +261,7 @@ export const OrderTable: React.FC = () => {
           Libro de Órdenes y Flujo de Trabajo
         </h2>
         <button
-          onClick={() => exportOrdersToCSV(filteredOrders, `ragucci_ordenes_${filterYear}_${filterMonth}.csv`)}
+          onClick={() => exportOrdersToCSV(filteredOrders, `ragucci_ordenes_${filterMonth}.csv`)}
           className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold py-1.5 px-3.5 rounded transition-all cursor-pointer shadow-sm"
         >
           <FileSpreadsheet className="w-4 h-4" />
@@ -508,17 +518,18 @@ export const OrderTable: React.FC = () => {
 
           <div>
             <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
-              Filtrar por Año
+              Filtrar por Estado
             </label>
             <select
-              value={filterYear}
-              onChange={(e) => setFilterYear(e.target.value)}
-              className="w-full p-1.5 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full p-1.5 border border-gray-300 rounded text-xs font-bold focus:outline-none focus:border-ragucci-gold bg-white cursor-pointer"
             >
-              <option value="all">Todos los años</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-              <option value="2027">2027</option>
+              <option value="all">Todos los estados</option>
+              <option value="🔴 Pendiente">🔴 Pendiente</option>
+              <option value="🟡 En Taller">🟡 En Taller</option>
+              <option value="🔵 Prueba">🔵 Prueba</option>
+              <option value="🟢 Entregado">🟢 Entregado</option>
             </select>
           </div>
 
