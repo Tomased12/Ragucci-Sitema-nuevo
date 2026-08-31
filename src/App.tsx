@@ -9,6 +9,7 @@ import { OrderForm } from './components/orders/OrderForm';
 import { OrderTable } from './components/orders/OrderTable';
 import { WorkshopPayments } from './components/workshops/WorkshopPayments';
 import { BalanceDashboard } from './components/balance/BalanceDashboard';
+import { SaldosDashboard } from './components/saldos/SaldosDashboard';
 import { CalendarView } from './components/calendar/CalendarView';
 import { StockDashboard } from './components/stock/StockDashboard';
 import { CapitalesDashboard } from './components/capitales/CapitalesDashboard';
@@ -33,7 +34,9 @@ export const AppContent: React.FC = () => {
         {activeTab === 'carga' && <OrderForm />}
         {activeTab === 'registro' && <OrderTable />}
         {activeTab === 'talleres' && <WorkshopPayments />}
+        {/* activeTab === 'balance' && <BalanceDashboard /> */}
         {activeTab === 'balance' && <BalanceDashboard />}
+        {activeTab === 'saldos' && <SaldosDashboard />}
         {activeTab === 'agenda' && <CalendarView />}
         {activeTab === 'stock' && <StockDashboard />}
         {activeTab === 'capitales' && <CapitalesDashboard />}

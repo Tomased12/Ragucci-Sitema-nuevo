@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Order, AppConfig, TabType, CashMovement, ProspectAppointment, StockItem, UserInitial } from '../types';
+import { Order, AppConfig, TabType, CashMovement, ProspectAppointment, StockItem, FinancialCommitment, UserInitial } from '../types';
 import { DEFAULT_CONFIG } from '../utils/constants';
 import { 
   subscribeOrders, 
   subscribeCashMovements, 
   subscribeProspectAppointments,
   subscribeStockItems,
+  subscribeFinancialCommitments,
   fetchConfig, 
   saveOrder, 
   deleteOrder, 
@@ -15,7 +16,9 @@ import {
   saveProspectAppointment,
   deleteProspectAppointment,
   saveStockItem,
-  deleteStockItem
+  deleteStockItem,
+  saveFinancialCommitment,
+  deleteFinancialCommitment
 } from '../services/firebase';
 import { fetchDolarBlue } from '../services/dolar';
 
@@ -31,6 +34,7 @@ interface AppContextType {
   cashMovements: CashMovement[];
   prospectAppointments: ProspectAppointment[];
   stockItems: StockItem[];
+  financialCommitments: FinancialCommitment[];
   dolarBlueVenta: number;
   activeTab: TabType;
   editingOrderId: string | null;
@@ -54,6 +58,8 @@ interface AppContextType {
   removeProspectAppointmentData: (firestoreId: string) => Promise<void>;
   saveStockItemData: (item: StockItem, firestoreId?: string) => Promise<void>;
   removeStockItemData: (firestoreId: string) => Promise<void>;
+  saveFinancialCommitmentData: (item: FinancialCommitment, firestoreId?: string) => Promise<void>;
+  removeFinancialCommitmentData: (firestoreId: string) => Promise<void>;
 }
 
 const USER_PROFILES: Record<UserInitial, AppUserProfile> = {
@@ -111,6 +117,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [cashMovements, setCashMovements] = useState<CashMovement[]>([]);
   const [prospectAppointments, setProspectAppointments] = useState<ProspectAppointment[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [financialCommitments, setFinancialCommitments] = useState<FinancialCommitment[]>([]);
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [dolarBlueVenta, setDolarBlueVenta] = useState<number>(1500);
   const [activeTab, setActiveTab] = useState<TabType>('carga');
@@ -209,11 +216,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
      setStockItems(fetchedStock);
    });
 
+   const unsubscribeCommitments = subscribeFinancialCommitments((fetchedCommitments) => {
+     setFinancialCommitments(fetchedCommitments);
+   });
+
    return () => {
      unsubscribeOrders();
      unsubscribeCash();
      unsubscribeProspects();
      unsubscribeStock();
+     unsubscribeCommitments();
    };
   }, []);
 
@@ -257,46 +269,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const saveStockItemData = async (item: StockItem, firestoreId?: string) => {
-   await saveStockItem(withAuditFields(item), firestoreId);
+    await saveStockItem(withAuditFields(item), firestoreId);
   };
 
   const removeStockItemData = async (firestoreId: string) => {
-   await deleteStockItem(firestoreId);
+    await deleteStockItem(firestoreId);
+  };
+
+  const saveFinancialCommitmentData = async (item: FinancialCommitment, firestoreId?: string) => {
+    await saveFinancialCommitment(withAuditFields(item), firestoreId);
+  };
+
+  const removeFinancialCommitmentData = async (firestoreId: string) => {
+    await deleteFinancialCommitment(firestoreId);
   };
 
   return (
-   <AppContext.Provider
-     value={{
-       orders,
-       config,
-       cashMovements,
-       prospectAppointments,
-       stockItems,
-       dolarBlueVenta,
-       activeTab,
-       editingOrderId,
-       loading,
-       darkMode,
-       currentUser,
-       isAuthenticated: Boolean(currentUser),
-       availableUsers: Object.values(USER_PROFILES),
-       toggleDarkMode,
-       setActiveTab,
-       setEditingOrderId,
-       loginUser,
-       logoutUser,
-       saveOrderData,
-       removeOrderData,
-       saveConfigData,
-       reloadConfig,
-       saveCashMovementData,
-       removeCashMovementData,
-       saveProspectAppointmentData,
-       removeProspectAppointmentData,
-       saveStockItemData,
-       removeStockItemData
-     }}
-   >
+    <AppContext.Provider
+      value={{
+        orders,
+        config,
+        cashMovements,
+        prospectAppointments,
+        stockItems,
+        financialCommitments,
+        dolarBlueVenta,
+        activeTab,
+        editingOrderId,
+        loading,
+        darkMode,
+        currentUser,
+        isAuthenticated: Boolean(currentUser),
+        availableUsers: Object.values(USER_PROFILES),
+        toggleDarkMode,
+        setActiveTab,
+        setEditingOrderId,
+        loginUser,
+        logoutUser,
+        saveOrderData,
+        removeOrderData,
+        saveConfigData,
+        reloadConfig,
+        saveCashMovementData,
+        removeCashMovementData,
+        saveProspectAppointmentData,
+        removeProspectAppointmentData,
+        saveStockItemData,
+        removeStockItemData,
+        saveFinancialCommitmentData,
+        removeFinancialCommitmentData
+      }}
+    >
      {children}
    </AppContext.Provider>
   );

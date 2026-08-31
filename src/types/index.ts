@@ -248,4 +248,33 @@ export interface StockItem {
   updatedBy?: UserInitial;
 }
 
-export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'agenda' | 'stock' | 'crm' | 'capitales' | 'configuracion' | 'backup';
+export interface FinancialCommitmentInstallment {
+  installmentNumber: number;
+  dueDate: string; // YYYY-MM-DD
+  amount: number;
+  status: 'PENDIENTE' | 'DEBITADO' | 'VENCIDO';
+  paidDate?: string;
+  cashMovementId?: string;
+}
+
+export interface FinancialCommitment {
+  id: string;
+  firestoreId?: string;
+  title: string;
+  type: 'CHEQUE_DIFERIDO' | 'PRESTAMO' | 'FINANCIACION' | 'OTRO';
+  entity?: string;
+  totalAmount: number;
+  totalInstallments: number;
+  startMonth: string; // YYYY-MM
+  endMonth: string; // YYYY-MM
+  dueDayOfMonth: number;
+  monthlyAmount: number;
+  installments: FinancialCommitmentInstallment[];
+  status: 'ACTIVO' | 'SALDADO';
+  notes?: string;
+  createdAt: string;
+  createdBy?: UserInitial;
+  updatedBy?: UserInitial;
+}
+
+export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'saldos' | 'agenda' | 'stock' | 'crm' | 'capitales' | 'configuracion' | 'backup';

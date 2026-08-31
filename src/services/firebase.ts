@@ -10,7 +10,7 @@ import {
   getDoc,
   onSnapshot
 } from "firebase/firestore";
-import { Order, AppConfig, CashMovement, ProspectAppointment, StockItem } from "../types";
+import { Order, AppConfig, CashMovement, ProspectAppointment, StockItem, FinancialCommitment } from "../types";
 import { DEFAULT_CONFIG } from "../utils/constants";
 
 const firebaseConfig = {
@@ -244,6 +244,48 @@ export const deleteStockItem = async (firestoreId: string): Promise<void> => {
     await deleteDoc(doc(db, "ragucci_stock_items", firestoreId));
   } catch (error) {
     console.error("Error al eliminar item de stock:", error);
+    throw error;
+  }
+};
+
+// Financial Commitments (Saldos / Cheques / Préstamos) Firestore Services
+const commitmentsColRef = collection(db, "ragucci_commitments");
+
+export const subscribeFinancialCommitments = (callback: (items: FinancialCommitment[]) => void) => {
+  return onSnapshot(commitmentsColRef, (snapshot) => {
+    const list: FinancialCommitment[] = snapshot.docs.map((docSnap) => ({
+      ...(docSnap.data() as FinancialCommitment),
+      firestoreId: docSnap.id,
+    }));
+    callback(list);
+  }, (error) => {
+    console.error("Error al escuchar compromisos financieros en tiempo real:", error);
+  });
+};
+
+export const saveFinancialCommitment = async (itemData: FinancialCommitment, firestoreId?: string): Promise<string> => {
+  try {
+    const { firestoreId: _, ...dataToSave } = itemData;
+    const cleanData = JSON.parse(JSON.stringify(dataToSave));
+
+    if (firestoreId) {
+      await setDoc(doc(db, "ragucci_commitments", firestoreId), cleanData);
+      return firestoreId;
+    } else {
+      const docRef = await addDoc(commitmentsColRef, cleanData);
+      return docRef.id;
+    }
+  } catch (error) {
+    console.error("Error al guardar compromiso financiero en Firestore:", error);
+    throw error;
+  }
+};
+
+export const deleteFinancialCommitment = async (firestoreId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, "ragucci_commitments", firestoreId));
+  } catch (error) {
+    console.error("Error al eliminar compromiso financiero:", error);
     throw error;
   }
 };
