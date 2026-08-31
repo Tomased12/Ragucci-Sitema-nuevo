@@ -4,10 +4,20 @@ import { FinancialCommitment, FinancialCommitmentInstallment } from '../../types
 import { formatMoney, formatDate } from '../../utils/formatters';
 import { Modal } from '../common/Modal';
 import { MoneyInput } from '../common/MoneyInput';
-import { CreditCard, Plus, CheckCircle, Clock, Trash2, Calendar, ChevronDown, ChevronUp, Wallet, ShieldCheck } from 'lucide-react';
+import { CreditCard, Plus, CheckCircle, Clock, Trash2, Calendar, ChevronDown, ChevronUp, Wallet, ShieldCheck, Crown, DollarSign, Edit3 } from 'lucide-react';
 
 export const SaldosDashboard: React.FC = () => {
-  const { financialCommitments, saveFinancialCommitmentData, removeFinancialCommitmentData, saveCashMovementData, removeCashMovementData } = useApp();
+  const { 
+    orders, 
+    config, 
+    cashMovements, 
+    saveConfigData, 
+    financialCommitments, 
+    saveFinancialCommitmentData, 
+    removeFinancialCommitmentData, 
+    saveCashMovementData, 
+    removeCashMovementData 
+  } = useApp();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCommitment, setEditingCommitment] = useState<FinancialCommitment | null>(null);
@@ -43,6 +53,16 @@ export const SaldosDashboard: React.FC = () => {
   const [debitAccount, setDebitAccount] = useState<'banco' | 'efectivo'>('banco');
   const [debitDate, setDebitDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [debitAmountPay, setDebitAmountPay] = useState<number>(0);
+
+  // Tomy Commission State & Modals
+  const [showPagoTomyModal, setShowPagoTomyModal] = useState(false);
+  const [showEditSaldoAnteriorTomyModal, setShowEditSaldoAnteriorTomyModal] = useState(false);
+  const [pagoTomyAmount, setPagoTomyAmount] = useState<number>(0);
+  const [pagoTomyDate, setPagoTomyDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [pagoTomyAccount, setPagoTomyAccount] = useState<'banco' | 'efectivo'>('banco');
+  const [pagoTomyNotes, setPagoTomyNotes] = useState('');
+  const [saldoAnteriorTomyInput, setSaldoAnteriorTomyInput] = useState<number>(config.saldo_anterior_comision_tomy || 0);
+  const [showTomyMonthlyBreakdown, setShowTomyMonthlyBreakdown] = useState(false);
 
   // Calculate number of months between startMonth and endMonth (inclusive)
   const calculateMonthsCount = (start: string, end: string): number => {
@@ -279,6 +299,100 @@ export const SaldosDashboard: React.FC = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   })();
 
+  // --- CALCULOS DE COMISIÓN DE TOMY ---
+  const saldoAnteriorTomy = config.saldo_anterior_comision_tomy || 0;
+
+  // Comisiones generadas en todas las ventas
+  const totalComisionesVentasTomy = orders.reduce((acc, o) => acc + (o.costs?.comision || 0), 0);
+
+  // Pagos / Adelantos realizados a Tomy
+  const pagosTomyMovements = cashMovements.filter(m => 
+    m.type === 'egreso' && (
+      m.category === 'Pago Comisión Tomy' ||
+      m.category === 'Adelanto Tomy' ||
+      m.description.toLowerCase().includes('comision tomy') ||
+      m.description.toLowerCase().includes('comisión tomy') ||
+      m.description.toLowerCase().includes('pago tomy')
+    )
+  );
+
+  const totalPagosTomy = pagosTomyMovements.reduce((acc, m) => acc + m.amount, 0);
+
+  // Saldo Neto Pendiente a Pagar a Tomy
+  const saldoPendienteTomy = Math.max(0, (saldoAnteriorTomy + totalComisionesVentasTomy) - totalPagosTomy);
+
+  // Desglose Mensual de Comisiones de Tomy
+  const monthlyCommissionsMap: Record<string, { monthKey: string; monthLabel: string; generated: number; paid: number; orderCount: number }> = {};
+
+  orders.forEach(o => {
+    const comision = o.costs?.comision || 0;
+    if (comision > 0 && o.date) {
+      const monthKey = o.date.substring(0, 7); // YYYY-MM
+      if (!monthlyCommissionsMap[monthKey]) {
+        const [y, m] = monthKey.split('-');
+        const monthLabel = `${formatDate(`${monthKey}-01`).split(' ')[1] || m} ${y}`;
+        monthlyCommissionsMap[monthKey] = { monthKey, monthLabel, generated: 0, paid: 0, orderCount: 0 };
+      }
+      monthlyCommissionsMap[monthKey].generated += comision;
+      monthlyCommissionsMap[monthKey].orderCount += 1;
+    }
+  });
+
+  pagosTomyMovements.forEach(m => {
+    if (m.date) {
+      const monthKey = m.date.substring(0, 7);
+      if (monthlyCommissionsMap[monthKey]) {
+        monthlyCommissionsMap[monthKey].paid += m.amount;
+      }
+    }
+  });
+
+  const sortedMonthlyCommissions = Object.values(monthlyCommissionsMap).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+
+  // Handler para guardar Pago a Tomy
+  const handleSavePagoTomy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pagoTomyAmount <= 0) {
+      alert('Ingresa un monto válido mayor a 0.');
+      return;
+    }
+
+    try {
+      await saveCashMovementData({
+        id: `cm_${Date.now()}`,
+        date: pagoTomyDate,
+        type: 'egreso',
+        amount: pagoTomyAmount,
+        account: pagoTomyAccount,
+        category: 'Pago Comisión Tomy',
+        description: pagoTomyNotes.trim() || 'Pago de Comisión / Adelanto Tomy',
+        clientOrRef: 'Tomy'
+      });
+
+      alert(`✅ Pago de $${formatMoney(pagoTomyAmount)} a Tomy registrado y descontado de la Caja de ${pagoTomyAccount.toUpperCase()}.`);
+      setShowPagoTomyModal(false);
+      setPagoTomyAmount(0);
+      setPagoTomyNotes('');
+    } catch (err) {
+      alert('Error al registrar el pago a Tomy.');
+    }
+  };
+
+  // Handler para guardar Saldo Anterior
+  const handleSaveSaldoAnteriorTomy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await saveConfigData({
+        ...config,
+        saldo_anterior_comision_tomy: saldoAnteriorTomyInput
+      });
+      alert('✅ Saldo anterior pendiente de Tomy actualizado.');
+      setShowEditSaldoAnteriorTomyModal(false);
+    } catch (err) {
+      alert('Error al actualizar el saldo anterior.');
+    }
+  };
+
   let totalPendingDebt = 0;
   let currentMonthObligations = 0;
   let currentMonthDebited = 0;
@@ -304,6 +418,8 @@ export const SaldosDashboard: React.FC = () => {
       }
     });
   });
+
+  const totalPendingDebtCombined = totalPendingDebt + saldoPendienteTomy;
 
   // Filter commitments list
   const filteredCommitments = financialCommitments.filter(c => {
@@ -351,10 +467,10 @@ export const SaldosDashboard: React.FC = () => {
               💳 Total Deuda Pendiente
             </span>
             <span className="text-lg md:text-xl font-black text-amber-950">
-              ${formatMoney(totalPendingDebt)}
+              ${formatMoney(totalPendingDebtCombined)}
             </span>
             <span className="text-[10px] text-amber-800 font-medium block mt-0.5">
-              En cheques y préstamos activos
+              Cheques, préstamos + Saldo Tomy
             </span>
           </div>
           <Wallet className="w-8 h-8 text-amber-500 opacity-80" />
@@ -404,6 +520,172 @@ export const SaldosDashboard: React.FC = () => {
           </div>
           <ShieldCheck className="w-8 h-8 text-ragucci-gold opacity-90" />
         </div>
+      </div>
+
+      {/* SECCIÓN DESTACADA: CUENTA CORRIENTE & COMISIÓN DE TOMY */}
+      <div className="bg-gradient-to-r from-ragucci-primary via-ragucci-primary-light to-ragucci-primary border-2 border-ragucci-gold p-5 rounded-2xl text-white shadow-md space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ragucci-gold/30 pb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-ragucci-gold text-ragucci-primary rounded-xl font-black text-2xl shadow-xs">
+              👑
+            </div>
+            <div>
+              <h3 className="text-base md:text-lg font-black uppercase text-ragucci-gold tracking-wide flex items-center gap-2">
+                <span>Cuenta Corriente & Comisión de Tomy</span>
+                <span className="text-[10px] bg-ragucci-gold text-ragucci-primary font-black px-2 py-0.5 rounded-full uppercase">
+                  Saldo Automático
+                </span>
+              </h3>
+              <p className="text-xs text-gray-300 font-medium">
+                Cálculo acumulativo automático por comisiones de ventas de órdenes, saldo anterior y egresos registrados.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSaldoAnteriorTomyInput(config.saldo_anterior_comision_tomy || 0);
+                setShowEditSaldoAnteriorTomyModal(true);
+              }}
+              className="bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs px-3 py-2 rounded-lg border border-white/20 flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-ragucci-gold" />
+              <span>Saldo Anterior: ${formatMoney(saldoAnteriorTomy)}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setPagoTomyAmount(0);
+                setPagoTomyNotes('');
+                setShowPagoTomyModal(true);
+              }}
+              className="bg-ragucci-gold hover:bg-white text-ragucci-primary font-black text-xs uppercase px-4 py-2 rounded-lg shadow-md flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <DollarSign className="w-4 h-4" />
+              <span>🟢 Registrar Pago / Adelanto a Tomy</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Breakdown Banner Cards for Tomy */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
+            <span className="text-[10px] font-extrabold uppercase text-gray-300 block">
+              📌 Saldo Anterior Arrastre
+            </span>
+            <span className="text-base font-black text-white mt-0.5 block">
+              ${formatMoney(saldoAnteriorTomy)}
+            </span>
+            <span className="text-[10px] text-gray-400 font-medium block">
+              Configurable manualmente
+            </span>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
+            <span className="text-[10px] font-extrabold uppercase text-gray-300 block">
+              📈 Comisiones x Ventas (Total)
+            </span>
+            <span className="text-base font-black text-emerald-400 mt-0.5 block">
+              +${formatMoney(totalComisionesVentasTomy)}
+            </span>
+            <span className="text-[10px] text-emerald-300 font-medium block">
+              Generadas de órdenes
+            </span>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
+            <span className="text-[10px] font-extrabold uppercase text-gray-300 block">
+              💵 Pagos / Adelantos Retirados
+            </span>
+            <span className="text-base font-black text-sky-300 mt-0.5 block">
+              -${formatMoney(totalPagosTomy)}
+            </span>
+            <span className="text-[10px] text-sky-200 font-medium block">
+              Egresos de caja registrados
+            </span>
+          </div>
+
+          <div className="bg-ragucci-gold text-ragucci-primary p-3 rounded-xl font-extrabold shadow-sm border border-yellow-200">
+            <span className="text-[10px] uppercase font-black tracking-wider block opacity-90">
+              🔴 Saldo Pendiente a Tomy
+            </span>
+            <span className="text-lg font-black mt-0.5 block">
+              ${formatMoney(saldoPendienteTomy)}
+            </span>
+            <span className="text-[10px] font-bold block opacity-80">
+              {saldoPendienteTomy === 0 ? '🟢 Al día (0 Pendiente)' : 'Pendiente acumulado'}
+            </span>
+          </div>
+        </div>
+
+        {/* Toggle Monthly Breakdown button */}
+        <div className="flex items-center justify-between pt-1">
+          <button
+            type="button"
+            onClick={() => setShowTomyMonthlyBreakdown(!showTomyMonthlyBreakdown)}
+            className="text-xs font-bold text-ragucci-gold hover:text-white flex items-center gap-1.5 cursor-pointer underline underline-offset-4"
+          >
+            <span>{showTomyMonthlyBreakdown ? 'Ocultar desglose por meses' : 'Ver desglose de comisiones mes a mes'}</span>
+            {showTomyMonthlyBreakdown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
+          <span className="text-[11px] text-gray-300 font-medium italic">
+            El saldo se acumula automáticamente mes a mes al ingresar órdenes con comisión.
+          </span>
+        </div>
+
+        {/* Monthly Breakdown Table */}
+        {showTomyMonthlyBreakdown && (
+          <div className="bg-white text-ragucci-primary p-3.5 rounded-xl border border-ragucci-gold/50 space-y-2 animate-fadeIn">
+            <h4 className="text-xs font-black uppercase text-ragucci-primary tracking-wider flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-ragucci-gold" />
+              <span>Desglose Histórico de Comisiones por Mes</span>
+            </h4>
+
+            {sortedMonthlyCommissions.length === 0 ? (
+              <p className="text-xs text-gray-500 italic py-2">No hay comisiones de Tomy registradas en órdenes aún.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-ragucci-primary text-ragucci-gold font-extrabold uppercase text-[10px]">
+                    <tr>
+                      <th className="py-2 px-3">Mes / Período</th>
+                      <th className="py-2 px-3">Ventas c/ Comisión</th>
+                      <th className="py-2 px-3">Comisión Generada</th>
+                      <th className="py-2 px-3">Pagos en el Mes</th>
+                      <th className="py-2 px-3">Estado Mes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {sortedMonthlyCommissions.map(item => {
+                      const netMonth = item.generated - item.paid;
+                      return (
+                        <tr key={item.monthKey} className="hover:bg-amber-50/50">
+                          <td className="py-2 px-3 font-extrabold uppercase">{item.monthLabel}</td>
+                          <td className="py-2 px-3">{item.orderCount} órdenes</td>
+                          <td className="py-2 px-3 font-black text-emerald-700">+${formatMoney(item.generated)}</td>
+                          <td className="py-2 px-3 font-black text-sky-700">-${formatMoney(item.paid)}</td>
+                          <td className="py-2 px-3 font-bold">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                              netMonth <= 0 
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                : 'bg-amber-100 text-amber-900 border-amber-300'
+                            }`}>
+                              {netMonth <= 0 ? '🟢 Cubierto' : `🔴 Saldo $${formatMoney(netMonth)}`}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Filter and Search Bar */}
@@ -903,6 +1185,126 @@ export const SaldosDashboard: React.FC = () => {
               </button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* MODAL: REGISTRAR PAGO O ADELANTO A TOMY */}
+      {showPagoTomyModal && (
+        <Modal
+          isOpen={showPagoTomyModal}
+          onClose={() => setShowPagoTomyModal(false)}
+          title="🟢 Registrar Pago / Adelanto de Comisión a Tomy"
+        >
+          <form onSubmit={handleSavePagoTomy} className="space-y-4">
+            <p className="text-xs text-gray-600 font-medium">
+              Este pago descontará del Saldo Pendiente de Tomy y se registrará automáticamente como un egreso de dinero en la Caja/Balance.
+            </p>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">
+                Monto del Pago / Adelanto ($) *
+              </label>
+              <MoneyInput
+                value={pagoTomyAmount}
+                onValueChange={val => setPagoTomyAmount(val)}
+                placeholder="Ej: 100.000"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Fecha del Pago</label>
+                <input
+                  type="date"
+                  value={pagoTomyDate}
+                  onChange={e => setPagoTomyDate(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded text-xs font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Cuenta de Salida</label>
+                <select
+                  value={pagoTomyAccount}
+                  onChange={e => setPagoTomyAccount(e.target.value as any)}
+                  className="w-full p-2 border border-gray-300 rounded text-xs font-bold bg-white"
+                >
+                  <option value="banco">🏦 Cuenta Bancaria (Transferencia)</option>
+                  <option value="efectivo">💵 Caja Efectivo</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Observaciones / Nota (Opcional)</label>
+              <input
+                type="text"
+                placeholder="Ej: Transferencia Banco Galicia o Adelanto comisión"
+                value={pagoTomyNotes}
+                onChange={e => setPagoTomyNotes(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded text-xs font-bold"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowPagoTomyModal(false)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold py-2 px-4 rounded-lg cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="bg-ragucci-gold hover:bg-ragucci-primary text-ragucci-primary hover:text-ragucci-gold font-extrabold text-xs uppercase py-2 px-5 rounded-lg shadow-sm cursor-pointer"
+              >
+                🟢 Registrar Pago & Descontar de Caja
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* MODAL: EDITAR SALDO ANTERIOR PENDIENTE DE TOMY */}
+      {showEditSaldoAnteriorTomyModal && (
+        <Modal
+          isOpen={showEditSaldoAnteriorTomyModal}
+          onClose={() => setShowEditSaldoAnteriorTomyModal(false)}
+          title="✏️ Modificar Saldo Anterior Pendiente de Tomy"
+        >
+          <form onSubmit={handleSaveSaldoAnteriorTomy} className="space-y-4">
+            <p className="text-xs text-gray-600 font-medium">
+              Modifica el saldo arrastrado de comisiones de meses o períodos anteriores antes del seguimiento automático de órdenes.
+            </p>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">
+                Saldo Anterior Pendiente ($) *
+              </label>
+              <MoneyInput
+                value={saldoAnteriorTomyInput}
+                onValueChange={val => setSaldoAnteriorTomyInput(val)}
+                placeholder="Ej: 150.000"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowEditSaldoAnteriorTomyModal(false)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold py-2 px-4 rounded-lg cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="bg-ragucci-primary text-ragucci-gold font-extrabold text-xs uppercase py-2 px-5 rounded-lg shadow-sm cursor-pointer"
+              >
+                💾 Guardar Saldo Anterior
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

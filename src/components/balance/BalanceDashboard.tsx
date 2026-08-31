@@ -37,7 +37,7 @@ interface ExplanationModalData {
 }
 
 export const BalanceDashboard: React.FC = () => {
-  const { orders, config, dolarBlueVenta, saveConfigData, setEditingOrderId, setActiveTab, financialCommitments } = useApp();
+  const { orders, config, cashMovements, dolarBlueVenta, saveConfigData, setEditingOrderId, setActiveTab, financialCommitments } = useApp();
 
   const [filterMonth, setFilterMonth] = useState('all');
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
@@ -133,10 +133,26 @@ export const BalanceDashboard: React.FC = () => {
   // Total a Pagar Mensual (Talleres/Confección + Gastos Fijos + Avíos/Envíos) - SIN RTW
   const totalAPagarMesSinRTW = costoTalleresYConfeccion + totalGastosFijosPeriodo + costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros;
 
-  // Financial Commitments (Cheques & Préstamos) Metrics
+  // Financial Commitments (Cheques & Préstamos & Comisión Tomy) Metrics
   let totalPendingCommitmentsDebt = 0;
   let periodCommitmentsObligations = 0;
   let periodCommitmentsDebited = 0;
+
+  // Tomy's net commission pending debt
+  const saldoAnteriorTomy = config.saldo_anterior_comision_tomy || 0;
+  const totalComisionesVentasTomy = orders.reduce((acc, o) => acc + (o.costs?.comision || 0), 0);
+  const totalPagosTomy = cashMovements
+    .filter(m => m.type === 'egreso' && (
+      m.category === 'Pago Comisión Tomy' ||
+      m.category === 'Adelanto Tomy' ||
+      m.description.toLowerCase().includes('comision tomy') ||
+      m.description.toLowerCase().includes('comisión tomy') ||
+      m.description.toLowerCase().includes('pago tomy')
+    ))
+    .reduce((acc, m) => acc + m.amount, 0);
+
+  const saldoPendienteTomy = Math.max(0, (saldoAnteriorTomy + totalComisionesVentasTomy) - totalPagosTomy);
+  totalPendingCommitmentsDebt += saldoPendienteTomy;
 
   financialCommitments.forEach((c) => {
     c.installments?.forEach((inst) => {

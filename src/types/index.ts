@@ -190,6 +190,7 @@ export interface AppConfig {
   gasto_redes?: number;
   gasto_publicidad?: number;
   gasto_alquiler_usd?: number;
+  saldo_anterior_comision_tomy?: number;
 }
 
 export interface CashMovement {

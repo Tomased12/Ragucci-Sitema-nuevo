@@ -106,5 +106,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   gasto_internet: 0,
   gasto_servicios: 0,
   gasto_redes: 0,
-  gasto_publicidad: 0
+  gasto_publicidad: 0,
+  saldo_anterior_comision_tomy: 0
 };
