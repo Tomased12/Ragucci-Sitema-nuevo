@@ -4,12 +4,13 @@ import { FinancialCommitment, FinancialCommitmentInstallment } from '../../types
 import { formatMoney, formatDate } from '../../utils/formatters';
 import { Modal } from '../common/Modal';
 import { MoneyInput } from '../common/MoneyInput';
-import { CreditCard, Plus, CheckCircle, Clock, Trash2, Calendar, ChevronDown, ChevronUp, Wallet, ShieldCheck, Crown, DollarSign, Edit3 } from 'lucide-react';
+import { CreditCard, Plus, CheckCircle, Clock, Trash2, Calendar, ChevronDown, ChevronUp, Wallet, ShieldCheck, Crown, DollarSign, Edit3, TrendingUp, BarChart3 } from 'lucide-react';
 
 export const SaldosDashboard: React.FC = () => {
   const { 
     orders, 
     config, 
+    dolarBlueVenta,
     cashMovements, 
     saveConfigData, 
     financialCommitments, 
@@ -18,6 +19,11 @@ export const SaldosDashboard: React.FC = () => {
     saveCashMovementData, 
     removeCashMovementData 
   } = useApp();
+
+  // Projection Horizon State
+  const [projectionHorizon, setProjectionHorizon] = useState<6 | 12>(6);
+  const [includeFixedCostsInProjection, setIncludeFixedCostsInProjection] = useState<boolean>(true);
+  const [selectedProjectionMonth, setSelectedProjectionMonth] = useState<string | null>(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCommitment, setEditingCommitment] = useState<FinancialCommitment | null>(null);
@@ -393,6 +399,77 @@ export const SaldosDashboard: React.FC = () => {
     }
   };
 
+  // --- PROYECCIÓN DE FLUJO DE CAJA PASIVO A 6 / 12 MESES ---
+  const alquilerPesos = (config.gasto_alquiler_usd || 1500) * dolarBlueVenta;
+  const otrosGastosFijos = (config.gasto_expensas || 0) + (config.gasto_internet || 0) + (config.gasto_servicios || 0) + (config.gasto_redes || 0) + (config.gasto_publicidad || 0);
+  const gastosFijosMensualesBase = alquilerPesos + otrosGastosFijos;
+
+  const projectedMonthsList = React.useMemo(() => {
+    const months: {
+      monthKey: string;
+      monthLabel: string;
+      chequesAndLoansAmount: number;
+      fixedCostsAmount: number;
+      totalOutflow: number;
+      trajesRequired: string;
+      dueItems: { title: string; entity?: string; installmentNumber: number; totalInstallments: number; amount: number; dueDate: string; type: string }[];
+    }[] = [];
+
+    const today = new Date();
+    const startYear = today.getFullYear();
+    const startMonthIndex = today.getMonth(); // 0-based
+
+    for (let i = 0; i < projectionHorizon; i++) {
+      const targetDate = new Date(startYear, startMonthIndex + i, 1);
+      const yStr = targetDate.getFullYear();
+      const mStr = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const monthKey = `${yStr}-${mStr}`;
+      
+      const monthLabel = `${formatDate(`${monthKey}-01`).split(' ')[1] || mStr} ${yStr}`;
+
+      const dueItems: { title: string; entity?: string; installmentNumber: number; totalInstallments: number; amount: number; dueDate: string; type: string }[] = [];
+      let chequesAndLoansAmount = 0;
+
+      financialCommitments.forEach(c => {
+        c.installments?.forEach(inst => {
+          if (inst.status === 'PENDIENTE' && inst.dueDate && inst.dueDate.substring(0, 7) === monthKey) {
+            chequesAndLoansAmount += inst.amount;
+            dueItems.push({
+              title: c.title,
+              entity: c.entity,
+              installmentNumber: inst.installmentNumber,
+              totalInstallments: c.totalInstallments,
+              amount: inst.amount,
+              dueDate: inst.dueDate,
+              type: c.type
+            });
+          }
+        });
+      });
+
+      const fixedCostsAmount = includeFixedCostsInProjection ? Math.round(gastosFijosMensualesBase) : 0;
+      const totalOutflow = chequesAndLoansAmount + fixedCostsAmount;
+
+      const TICKET_TRAJE = 2000000;
+      const trajesRequired = (totalOutflow / TICKET_TRAJE).toFixed(1);
+
+      months.push({
+        monthKey,
+        monthLabel,
+        chequesAndLoansAmount,
+        fixedCostsAmount,
+        totalOutflow,
+        trajesRequired,
+        dueItems
+      });
+    }
+
+    return months;
+  }, [projectionHorizon, includeFixedCostsInProjection, financialCommitments, gastosFijosMensualesBase]);
+
+  const maxProjectedOutflow = Math.max(...projectedMonthsList.map(m => m.totalOutflow), 1);
+  const totalProjectedOutflowPeriod = projectedMonthsList.reduce((acc, m) => acc + m.totalOutflow, 0);
+
   let totalPendingDebt = 0;
   let currentMonthObligations = 0;
   let currentMonthDebited = 0;
@@ -686,6 +763,165 @@ export const SaldosDashboard: React.FC = () => {
             )}
           </div>
         )}
+      </div>
+
+      {/* SECCIÓN NUEVA: PROYECCIÓN DE FLUJO DE CAJA PASIVO A 6-12 MESES */}
+      <div className="bg-white p-5 rounded-2xl border-2 border-ragucci-gold/50 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-3 gap-2">
+          <div>
+            <h3 className="text-base md:text-lg font-black uppercase text-ragucci-primary flex items-center gap-2 tracking-wide">
+              <TrendingUp className="w-5 h-5 text-ragucci-gold" />
+              <span>Proyección de Flujo de Caja Pasivo & Salidas Futuras</span>
+            </h3>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              Planificación de vencimientos futuros de cheques, préstamos y costos fijos para prever la liquidez mensual requerida.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setProjectionHorizon(6)}
+                className={`px-3 py-1 text-xs font-extrabold rounded-md cursor-pointer transition-all ${
+                  projectionHorizon === 6
+                    ? 'bg-ragucci-primary text-ragucci-gold shadow-xs'
+                    : 'text-gray-600 hover:text-ragucci-primary'
+                }`}
+              >
+                Ver 6 Meses
+              </button>
+              <button
+                type="button"
+                onClick={() => setProjectionHorizon(12)}
+                className={`px-3 py-1 text-xs font-extrabold rounded-md cursor-pointer transition-all ${
+                  projectionHorizon === 12
+                    ? 'bg-ragucci-primary text-ragucci-gold shadow-xs'
+                    : 'text-gray-600 hover:text-ragucci-primary'
+                }`}
+              >
+                Ver 12 Meses
+              </button>
+            </div>
+
+            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5 cursor-pointer bg-amber-50 p-1.5 px-3 rounded-lg border border-amber-200">
+              <input
+                type="checkbox"
+                checked={includeFixedCostsInProjection}
+                onChange={e => setIncludeFixedCostsInProjection(e.target.checked)}
+                className="w-3.5 h-3.5 rounded text-ragucci-gold focus:ring-ragucci-gold"
+              />
+              <span>Sumar Gastos Fijos (≈ ${formatMoney(Math.round(gastosFijosMensualesBase))}/mes)</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Projection Summary Header */}
+        <div className="bg-ragucci-bg p-3 rounded-xl border border-ragucci-gold-light flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-ragucci-primary">
+          <span>📅 Período de Proyección: <strong>{projectedMonthsList[0]?.monthLabel} a {projectedMonthsList[projectedMonthsList.length - 1]?.monthLabel} ({projectionHorizon} meses)</strong></span>
+          <span>💼 Compromiso Pasivo Acumulado en el Período: <strong className="text-red-700 text-sm font-black">${formatMoney(totalProjectedOutflowPeriod)}</strong></span>
+        </div>
+
+        {/* Projected Months Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+          {projectedMonthsList.map(m => {
+            const isExpanded = selectedProjectionMonth === m.monthKey;
+            const barWidthPct = Math.max(8, Math.round((m.totalOutflow / maxProjectedOutflow) * 100));
+
+            return (
+              <div
+                key={m.monthKey}
+                className={`p-3.5 rounded-xl border-2 transition-all bg-white flex flex-col justify-between ${
+                  isExpanded
+                    ? 'border-ragucci-gold ring-2 ring-ragucci-gold/30 shadow-md'
+                    : 'border-gray-200 hover:border-ragucci-gold/60 shadow-xs'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-black text-xs uppercase text-ragucci-primary">
+                      {m.monthLabel}
+                    </span>
+                    {m.dueItems.length > 0 ? (
+                      <span className="text-[10px] bg-red-100 text-red-800 font-extrabold px-2 py-0.5 rounded-full border border-red-300">
+                        {m.dueItems.length} Vencimiento(s)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full border border-emerald-300">
+                        Sin Cheques
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-lg font-black text-ragucci-primary mb-1">
+                    ${formatMoney(m.totalOutflow)}
+                  </div>
+
+                  {/* Outflow Progress Bar */}
+                  <div className="w-full h-2 bg-gray-100 rounded-full mb-2 overflow-hidden border border-gray-200">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        m.dueItems.length > 0 ? 'bg-ragucci-gold' : 'bg-sky-400'
+                      }`}
+                      style={{ width: `${barWidthPct}%` }}
+                    />
+                  </div>
+
+                  <div className="space-y-1 text-[11px] text-gray-600 font-medium">
+                    <div className="flex justify-between">
+                      <span>Cheques / Préstamos:</span>
+                      <strong className="text-gray-900">${formatMoney(m.chequesAndLoansAmount)}</strong>
+                    </div>
+                    {includeFixedCostsInProjection && (
+                      <div className="flex justify-between">
+                        <span>Gastos Fijos Est.:</span>
+                        <strong className="text-gray-900">${formatMoney(m.fixedCostsAmount)}</strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2 mt-2 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-[10px] bg-amber-50 text-amber-900 px-1.5 py-0.5 rounded font-black border border-amber-200">
+                    👔 {m.trajesRequired} Trajes Mín.
+                  </span>
+
+                  {m.dueItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProjectionMonth(isExpanded ? null : m.monthKey)}
+                      className="text-[11px] font-extrabold text-ragucci-primary hover:text-ragucci-gold flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <span>{isExpanded ? 'Ocultar' : 'Ver Detalle'}</span>
+                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  )}
+                </div>
+
+                {/* Expanded Month Due Items List */}
+                {isExpanded && m.dueItems.length > 0 && (
+                  <div className="mt-2.5 pt-2 border-t border-ragucci-gold/30 bg-ragucci-bg p-2 rounded-lg space-y-1.5 animate-fadeIn">
+                    <span className="text-[10px] font-black uppercase text-ragucci-primary block">
+                      Vencimientos de {m.monthLabel}:
+                    </span>
+                    {m.dueItems.map((item, idx) => (
+                      <div key={idx} className="bg-white p-1.5 rounded border border-gray-200 text-[10px] space-y-0.5">
+                        <div className="flex justify-between font-bold text-gray-900">
+                          <span className="truncate max-w-[120px]">{item.title}</span>
+                          <span className="text-red-700 font-black">${formatMoney(item.amount)}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-500 font-medium">
+                          <span>Cuota {item.installmentNumber}/{item.totalInstallments}</span>
+                          <span>Vence: {formatDate(item.dueDate)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
