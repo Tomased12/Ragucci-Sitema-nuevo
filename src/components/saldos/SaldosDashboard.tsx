@@ -14,7 +14,8 @@ export const SaldosDashboard: React.FC = () => {
 
   // Form State
   const [title, setTitle] = useState('');
-  const [type, setType] = useState<'CHEQUE_DIFERIDO' | 'PRESTAMO' | 'FINANCIACION' | 'OTRO'>('CHEQUE_DIFERIDO');
+  const [type, setType] = useState<'CHEQUE_DIFERIDO' | 'PRESTAMO' | 'FINANCIACION' | 'DEUDA_PENDIENTE' | 'OTRO'>('CHEQUE_DIFERIDO');
+  const [isOpenDebt, setIsOpenDebt] = useState(false);
   const [entity, setEntity] = useState('');
   const [startMonth, setStartMonth] = useState(() => {
     const d = new Date();
@@ -41,6 +42,7 @@ export const SaldosDashboard: React.FC = () => {
   const [debitInstallmentTarget, setDebitInstallmentTarget] = useState<{ commitment: FinancialCommitment; installment: FinancialCommitmentInstallment } | null>(null);
   const [debitAccount, setDebitAccount] = useState<'banco' | 'efectivo'>('banco');
   const [debitDate, setDebitDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [debitAmountPay, setDebitAmountPay] = useState<number>(0);
 
   // Calculate number of months between startMonth and endMonth (inclusive)
   const calculateMonthsCount = (start: string, end: string): number => {
@@ -57,40 +59,60 @@ export const SaldosDashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      alert('Por favor ingresa un título o concepto para el cheque / préstamo.');
+      alert('Por favor ingresa un título o concepto para la deuda / préstamo.');
       return;
     }
 
-    const calculatedMonthlyAmount = calcMode === 'monthly' ? monthlyAmount : Math.round(totalAmountInput / currentMonthsCount);
-    const calculatedTotalAmount = calcMode === 'monthly' ? monthlyAmount * currentMonthsCount : totalAmountInput;
+    const isSingleOpenDebt = type === 'DEUDA_PENDIENTE' || isOpenDebt;
+    const monthsCount = isSingleOpenDebt ? 1 : currentMonthsCount;
 
-    if (calculatedMonthlyAmount <= 0) {
+    const calculatedMonthlyAmount = isSingleOpenDebt
+      ? (calcMode === 'monthly' ? monthlyAmount : totalAmountInput)
+      : (calcMode === 'monthly' ? monthlyAmount : Math.round(totalAmountInput / monthsCount));
+
+    const calculatedTotalAmount = isSingleOpenDebt
+      ? (calcMode === 'monthly' ? monthlyAmount : totalAmountInput)
+      : (calcMode === 'monthly' ? monthlyAmount * monthsCount : totalAmountInput);
+
+    if (calculatedTotalAmount <= 0) {
       alert('Por favor ingresa un monto válido mayor a 0.');
       return;
     }
 
     // Generate Installments
-    const [startYear, startM] = startMonth.split('-').map(Number);
     const generatedInstallments: FinancialCommitmentInstallment[] = [];
 
-    for (let i = 0; i < currentMonthsCount; i++) {
-      const targetDateObj = new Date(startYear, startM - 1 + i, Math.min(dueDayOfMonth, 28));
-      const yearStr = targetDateObj.getFullYear();
-      const monthStr = String(targetDateObj.getMonth() + 1).padStart(2, '0');
-      const dayStr = String(targetDateObj.getDate()).padStart(2, '0');
-      const dueDateStr = `${yearStr}-${monthStr}-${dayStr}`;
-
-      // Check if preserving existing paid status when editing
-      const existingInst = editingCommitment?.installments?.[i];
-
+    if (isSingleOpenDebt) {
+      const existingInst = editingCommitment?.installments?.[0];
       generatedInstallments.push({
-        installmentNumber: i + 1,
-        dueDate: dueDateStr,
-        amount: calculatedMonthlyAmount,
+        installmentNumber: 1,
+        dueDate: 'Sin fecha fija',
+        amount: calculatedTotalAmount,
         status: existingInst?.status || 'PENDIENTE',
         paidDate: existingInst?.paidDate,
         cashMovementId: existingInst?.cashMovementId
       });
+    } else {
+      const [startYear, startM] = startMonth.split('-').map(Number);
+
+      for (let i = 0; i < monthsCount; i++) {
+        const targetDateObj = new Date(startYear, startM - 1 + i, Math.min(dueDayOfMonth, 28));
+        const yearStr = targetDateObj.getFullYear();
+        const monthStr = String(targetDateObj.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(targetDateObj.getDate()).padStart(2, '0');
+        const dueDateStr = `${yearStr}-${monthStr}-${dayStr}`;
+
+        const existingInst = editingCommitment?.installments?.[i];
+
+        generatedInstallments.push({
+          installmentNumber: i + 1,
+          dueDate: dueDateStr,
+          amount: calculatedMonthlyAmount,
+          status: existingInst?.status || 'PENDIENTE',
+          paidDate: existingInst?.paidDate,
+          cashMovementId: existingInst?.cashMovementId
+        });
+      }
     }
 
     const allPaid = generatedInstallments.every(inst => inst.status === 'DEBITADO');
@@ -101,10 +123,10 @@ export const SaldosDashboard: React.FC = () => {
       type,
       entity: entity.trim() || undefined,
       totalAmount: calculatedTotalAmount,
-      totalInstallments: currentMonthsCount,
-      startMonth,
-      endMonth,
-      dueDayOfMonth,
+      totalInstallments: monthsCount,
+      startMonth: isSingleOpenDebt ? 'Abierto' : startMonth,
+      endMonth: isSingleOpenDebt ? 'Sin fecha' : endMonth,
+      dueDayOfMonth: isSingleOpenDebt ? 0 : dueDayOfMonth,
       monthlyAmount: calculatedMonthlyAmount,
       installments: generatedInstallments,
       status: allPaid ? 'SALDADO' : 'ACTIVO',
@@ -114,7 +136,7 @@ export const SaldosDashboard: React.FC = () => {
 
     try {
       await saveFinancialCommitmentData(payload, editingCommitment?.firestoreId);
-      alert(editingCommitment ? 'Compromiso financiero actualizado.' : 'Cheque / Préstamo cargado con éxito con sus cuotas mensuales.');
+      alert(editingCommitment ? 'Compromiso financiero actualizado.' : 'Deuda / Compromiso guardado con éxito.');
       resetForm();
     } catch (err) {
       alert('Error al guardar el compromiso financiero.');
@@ -124,6 +146,7 @@ export const SaldosDashboard: React.FC = () => {
   const resetForm = () => {
     setTitle('');
     setType('CHEQUE_DIFERIDO');
+    setIsOpenDebt(false);
     setEntity('');
     setMonthlyAmount(0);
     setTotalAmountInput(0);
@@ -137,10 +160,11 @@ export const SaldosDashboard: React.FC = () => {
     setEditingCommitment(c);
     setTitle(c.title);
     setType(c.type);
+    setIsOpenDebt(c.type === 'DEUDA_PENDIENTE' || c.startMonth === 'Abierto');
     setEntity(c.entity || '');
-    setStartMonth(c.startMonth);
-    setEndMonth(c.endMonth);
-    setDueDayOfMonth(c.dueDayOfMonth);
+    setStartMonth(c.startMonth !== 'Abierto' ? c.startMonth : startMonth);
+    setEndMonth(c.endMonth !== 'Sin fecha' ? c.endMonth : endMonth);
+    setDueDayOfMonth(c.dueDayOfMonth || 10);
     setMonthlyAmount(c.monthlyAmount);
     setTotalAmountInput(c.totalAmount);
     setNotes(c.notes || '');
@@ -160,29 +184,38 @@ export const SaldosDashboard: React.FC = () => {
     if (!debitInstallmentTarget) return;
 
     const { commitment, installment } = debitInstallmentTarget;
+    const amountToPay = debitAmountPay > 0 ? Math.min(debitAmountPay, installment.amount) : installment.amount;
+
+    if (amountToPay <= 0) {
+      alert('Por favor ingresa un monto a abonar válido.');
+      return;
+    }
 
     try {
-      // 1. Create Cash Expense Movement in Caja/Balance
       const cashMovementId = `cm_${Date.now()}`;
       await saveCashMovementData({
         id: cashMovementId,
         date: debitDate,
         type: 'egreso',
-        amount: installment.amount,
+        amount: amountToPay,
         account: debitAccount,
-        category: commitment.type === 'CHEQUE_DIFERIDO' ? 'Cheque Diferido' : 'Préstamo / Cuota Financiación',
-        description: `Pago Cuota ${installment.installmentNumber}/${commitment.totalInstallments} (${commitment.title})`,
+        category: commitment.type === 'CHEQUE_DIFERIDO' ? 'Cheque Diferido' : commitment.type === 'DEUDA_PENDIENTE' ? 'Pago Deuda Pendiente' : 'Préstamo / Cuota Financiación',
+        description: `Pago ${commitment.totalInstallments === 1 ? 'Deuda' : `Cuota ${installment.installmentNumber}/${commitment.totalInstallments}`} (${commitment.title})`,
         clientOrRef: commitment.entity || commitment.title
       });
 
-      // 2. Update Installment Status in Commitment
-      const updatedInstallments = commitment.installments.map(inst => {
+      const isFullPayment = amountToPay >= installment.amount;
+      const remainingAmount = Math.max(0, installment.amount - amountToPay);
+      const nextStatus: 'DEBITADO' | 'PENDIENTE' = isFullPayment ? 'DEBITADO' : 'PENDIENTE';
+
+      const updatedInstallments: FinancialCommitmentInstallment[] = commitment.installments.map(inst => {
         if (inst.installmentNumber === installment.installmentNumber) {
           return {
             ...inst,
-            status: 'DEBITADO' as const,
+            amount: isFullPayment ? inst.amount : remainingAmount,
+            status: nextStatus,
             paidDate: debitDate,
-            cashMovementId
+            cashMovementId: isFullPayment ? cashMovementId : inst.cashMovementId
           };
         }
         return inst;
@@ -192,12 +225,13 @@ export const SaldosDashboard: React.FC = () => {
 
       const updatedCommitment: FinancialCommitment = {
         ...commitment,
+        totalAmount: isFullPayment ? commitment.totalAmount : (commitment.totalAmount - amountToPay),
         installments: updatedInstallments,
         status: allPaid ? 'SALDADO' : 'ACTIVO'
       };
 
       await saveFinancialCommitmentData(updatedCommitment, commitment.firestoreId);
-      alert(`✅ Cuota ${installment.installmentNumber} de $${formatMoney(installment.amount)} marcada como debitada y registrada en la Caja de ${debitAccount.toUpperCase()}.`);
+      alert(`✅ Pago de $${formatMoney(amountToPay)} registrado con éxito en la Caja de ${debitAccount.toUpperCase()}.`);
       setDebitInstallmentTarget(null);
     } catch (err) {
       alert('Error al registrar el débito de la cuota.');
@@ -395,6 +429,7 @@ export const SaldosDashboard: React.FC = () => {
             <option value="CHEQUE_DIFERIDO">Cheque Diferido</option>
             <option value="PRESTAMO">Préstamo Bancario / Personal</option>
             <option value="FINANCIACION">Financiación Proveedor</option>
+            <option value="DEUDA_PENDIENTE">📌 Deuda Pendiente (Sin Fecha Fija / Sastre, etc.)</option>
             <option value="OTRO">Otro Compromiso</option>
           </select>
 
@@ -572,10 +607,13 @@ export const SaldosDashboard: React.FC = () => {
                                   {!isPaid ? (
                                     <button
                                       type="button"
-                                      onClick={() => setDebitInstallmentTarget({ commitment: c, installment: inst })}
+                                      onClick={() => {
+                                        setDebitInstallmentTarget({ commitment: c, installment: inst });
+                                        setDebitAmountPay(inst.amount);
+                                      }}
                                       className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold py-1 px-3 rounded-md shadow-xs cursor-pointer transition-colors"
                                     >
-                                      🟢 Marcar como Debitado
+                                      🟢 {c.totalInstallments === 1 ? 'Realizar Abono / Débito' : 'Marcar como Debitado'}
                                     </button>
                                   ) : (
                                     <button
@@ -633,15 +671,16 @@ export const SaldosDashboard: React.FC = () => {
                 <option value="CHEQUE_DIFERIDO">💳 Cheque Diferido a Fecha</option>
                 <option value="PRESTAMO">🏦 Préstamo Bancario / Personal</option>
                 <option value="FINANCIACION">📦 Financiación Proveedor</option>
+                <option value="DEUDA_PENDIENTE">📌 Deuda Pendiente (Sin Fecha Fija / Sastre España, etc.)</option>
                 <option value="OTRO">📌 Otro Compromiso</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Banco / Entidad (Opcional)</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Banco / Entidad / Persona (Opcional)</label>
               <input
                 type="text"
-                placeholder="Ej: Banco Galicia, BBVA, etc."
+                placeholder="Ej: Santiago (Sastre España), Banco Galicia, etc."
                 value={entity}
                 onChange={e => setEntity(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded text-xs font-bold focus:outline-none focus:border-ragucci-gold"
@@ -650,51 +689,71 @@ export const SaldosDashboard: React.FC = () => {
           </div>
 
           <div className="bg-amber-50/70 p-3 rounded-lg border border-amber-200 space-y-3">
-            <span className="text-xs font-extrabold text-amber-950 block uppercase tracking-wide">
-              🗓️ Período de Débito y Vencimientos
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
+                🗓️ Período de Débito y Vencimientos
+              </span>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Mes de Inicio</label>
+              <label className="text-xs font-extrabold text-amber-900 flex items-center gap-1.5 cursor-pointer">
                 <input
-                  type="month"
-                  value={startMonth}
-                  onChange={e => setStartMonth(e.target.value)}
-                  className="w-full p-1.5 border border-amber-300 rounded text-xs font-bold bg-white"
-                  required
+                  type="checkbox"
+                  checked={isOpenDebt || type === 'DEUDA_PENDIENTE'}
+                  onChange={e => setIsOpenDebt(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded text-ragucci-gold focus:ring-ragucci-gold"
                 />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Mes de Fin</label>
-                <input
-                  type="month"
-                  value={endMonth}
-                  onChange={e => setEndMonth(e.target.value)}
-                  className="w-full p-1.5 border border-amber-300 rounded text-xs font-bold bg-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Día del Mes</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={dueDayOfMonth}
-                  onChange={e => setDueDayOfMonth(Number(e.target.value))}
-                  className="w-full p-1.5 border border-amber-300 rounded text-xs font-bold bg-white"
-                  required
-                />
-              </div>
+                <span>📌 Deuda Abierta (Sin fecha ni cuotas fijas)</span>
+              </label>
             </div>
 
-            <div className="text-[11px] font-bold text-amber-900 flex items-center justify-between">
-              <span>Duración calculada: <strong>{currentMonthsCount} mes(es) / cuota(s)</strong></span>
-              <span>Día de cobro: <strong>Día {dueDayOfMonth} de cada mes</strong></span>
-            </div>
+            {!(isOpenDebt || type === 'DEUDA_PENDIENTE') ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Mes de Inicio</label>
+                    <input
+                      type="month"
+                      value={startMonth}
+                      onChange={e => setStartMonth(e.target.value)}
+                      className="w-full p-1.5 border border-amber-300 rounded text-xs font-bold bg-white"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Mes de Fin</label>
+                    <input
+                      type="month"
+                      value={endMonth}
+                      onChange={e => setEndMonth(e.target.value)}
+                      className="w-full p-1.5 border border-amber-300 rounded text-xs font-bold bg-white"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Día del Mes</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={dueDayOfMonth}
+                      onChange={e => setDueDayOfMonth(Number(e.target.value))}
+                      className="w-full p-1.5 border border-amber-300 rounded text-xs font-bold bg-white"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[11px] font-bold text-amber-900 flex items-center justify-between">
+                  <span>Duración calculada: <strong>{currentMonthsCount} mes(es) / cuota(s)</strong></span>
+                  <span>Día de cobro: <strong>Día {dueDayOfMonth} de cada mes</strong></span>
+                </div>
+              </>
+            ) : (
+              <div className="p-2 bg-amber-100/60 rounded text-xs text-amber-950 font-bold">
+                ℹ️ Esta deuda se registrará como un saldo pendiente abierto sin vencimiento fijo. Podrás hacer abonos o saldarla en cualquier momento.
+              </div>
+            )}
           </div>
 
           {/* Amount Calculation Mode */}
@@ -786,8 +845,24 @@ export const SaldosDashboard: React.FC = () => {
         >
           <div className="space-y-4">
             <p className="text-xs text-gray-600 font-medium">
-              Al confirmar el débito, esta cuota de <strong>${formatMoney(debitInstallmentTarget.installment.amount)}</strong> pasará a estado 🟢 <strong>DEBITADO</strong> y se registrará automáticamente como un egreso de dinero en la Caja/Balance de la Sastrería.
+              Registra el pago o saldo cancelado para <strong>{debitInstallmentTarget.commitment.title}</strong>. Se descontará automáticamente de la Caja y del Balance de la Sastrería.
             </p>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">
+                Monto a Abonar / Debitar en este Pago ($) *
+              </label>
+              <MoneyInput
+                value={debitAmountPay}
+                onValueChange={val => setDebitAmountPay(val)}
+                placeholder="Ej: 50.000"
+              />
+              {debitAmountPay < debitInstallmentTarget.installment.amount && debitAmountPay > 0 && (
+                <span className="text-[11px] text-amber-800 font-bold block mt-1">
+                  ⚠️ Se realizará un <strong>Abono Parcial</strong> de ${formatMoney(debitAmountPay)}. Quedará un saldo pendiente de <strong>${formatMoney(debitInstallmentTarget.installment.amount - debitAmountPay)}</strong>.
+                </span>
+              )}
+            </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Fecha del Débito</label>

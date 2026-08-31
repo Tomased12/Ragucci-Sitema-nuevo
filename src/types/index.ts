@@ -261,7 +261,7 @@ export interface FinancialCommitment {
   id: string;
   firestoreId?: string;
   title: string;
-  type: 'CHEQUE_DIFERIDO' | 'PRESTAMO' | 'FINANCIACION' | 'OTRO';
+  type: 'CHEQUE_DIFERIDO' | 'PRESTAMO' | 'FINANCIACION' | 'DEUDA_PENDIENTE' | 'OTRO';
   entity?: string;
   totalAmount: number;
   totalInstallments: number;
