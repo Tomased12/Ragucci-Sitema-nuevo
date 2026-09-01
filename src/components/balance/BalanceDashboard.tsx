@@ -174,14 +174,6 @@ export const BalanceDashboard: React.FC = () => {
     }
   });
 
-  // Talleres & Confección (M.O + Telas/Forrería) - Excluye Productos Terminados / RTW
-  const costoManoDeObraTalleres = costsBreakdown.sastre + costsBreakdown.camisero + costsBreakdown.arreglos;
-  const costoTelasYForreria = costsBreakdown.telas + costsBreakdown.forreria;
-  const costoTalleresYConfeccion = costoManoDeObraTalleres + costoTelasYForreria;
-  
-  // Total a Pagar Mensual (Talleres/Confección + Gastos Fijos + Avíos/Envíos) - SIN RTW
-  const totalAPagarMesSinRTW = costoTalleresYConfeccion + totalGastosFijosPeriodo + costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros;
-
   // Financial Commitments (Cheques & Préstamos & Comisión Tomy) Metrics
   let totalPendingCommitmentsDebt = 0;
   let periodCommitmentsObligations = 0;
@@ -224,6 +216,14 @@ export const BalanceDashboard: React.FC = () => {
       }
     });
   });
+
+  // Talleres & Confección (M.O + Telas/Forrería) - Excluye Productos Terminados / RTW
+  const costoManoDeObraTalleres = costsBreakdown.sastre + costsBreakdown.camisero + costsBreakdown.arreglos;
+  const costoTelasYForreria = costsBreakdown.telas + costsBreakdown.forreria;
+  const costoTalleresYConfeccion = costoManoDeObraTalleres + costoTelasYForreria;
+
+  // Total a Pagar Mensual COMPLETO (Talleres + Telas + Gastos Fijos + Cheques/Préstamos del Mes + Avíos/Envíos/Comisiones)
+  const totalAPagarMesCompleto = costoTalleresYConfeccion + totalGastosFijosPeriodo + periodCommitmentsObligations + costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros;
 
   const costoTotalConFijos = totals.costo + totalGastosFijosPeriodo;
   const gananciaNetaReal = totals.venta - costoTotalConFijos;
@@ -550,19 +550,47 @@ export const BalanceDashboard: React.FC = () => {
     });
   };
 
+  const showGastosFijosExplanation = () => {
+    setActiveExplanation({
+      title: '🏢 Gastos Fijos Mensuales del Local',
+      formula: '(Alquiler USD x Dólar Blue) + Expensas + Internet + Servicios + Redes + Publicidad',
+      explanation: 'Suma todos los costos fijos recurrentes necesarios para mantener abierto el local comercial durante el período.',
+      details: [
+        { label: 'Alquiler (USD convertido):', value: `$${formatMoney(Math.round(alquilerPesos))}` },
+        { label: 'Expensas, Servicios & Conexiones:', value: `$${formatMoney(gastosFijosPesos)}` },
+        { label: 'Total Gastos Fijos del Período:', value: `$${formatMoney(Math.round(totalGastosFijosPeriodo))}`, color: 'text-ragucci-primary font-extrabold' }
+      ]
+    });
+  };
+
+  const showChequesPrestamosExplanation = () => {
+    setActiveExplanation({
+      title: '💳 Cheques, Préstamos y Financiamientos del Mes',
+      formula: 'Suma de cuotas de cheques a fecha, préstamos y financiamientos con vencimiento en el mes seleccionado',
+      explanation: 'Muestra la suma total de cuotas y cheques diferidos que vencen durante este mes y deben ser debitados de la cuenta bancaria o caja.',
+      details: [
+        { label: 'Cuotas y Cheques con Vencimiento en el Mes:', value: `$${formatMoney(periodCommitmentsObligations)}`, color: 'text-amber-900 font-extrabold' },
+        { label: 'Cuotas ya Debitadas en el Mes:', value: `$${formatMoney(periodCommitmentsDebited)}`, color: 'text-emerald-700 font-bold' },
+        { label: 'Deuda Total Histórica a Saldar (Cheques/Préstamos + Tomy):', value: `$${formatMoney(totalPendingCommitmentsDebt)}`, color: 'text-red-700 font-black' }
+      ],
+      note: 'Estos compromisos pasivos están integrados en el cálculo del Total a Pagar en el Mes para reflejar la salida real de dinero.'
+    });
+  };
+
   const showCompromisoTotalExplanation = () => {
     setActiveExplanation({
-      title: '💼 Total a Pagar en el Mes (Compromiso Operativo)',
-      formula: 'Talleres (M.O) + Telas/Forrería + Gastos Fijos (Alquiler, Servicios) + Avíos/Envíos',
-      explanation: 'Calcula la suma exacta de dinero que necesitas desembolsar este mes para estar al día con talleres, proveedores de telas y costos fijos de local, EXCLUYENDO compras de stock de productos terminados (RTW) que son inversiones futuras.',
+      title: '💼 Total a Pagar en el Mes (Compromiso Operativo Completo)',
+      formula: 'Talleres (M.O) + Telas/Forrería + Gastos Fijos + Cheques/Préstamos del Mes + Avíos/Envíos/Comisiones',
+      explanation: 'Calcula la suma exacta de dinero que necesitas desembolsar este mes para estar 100% al día con talleres, proveedores de telas, cheques a fecha, cuotas de préstamos y gastos fijos de local (excluyendo únicamente recompra de stock RTW a futuro).',
       details: [
-        { label: 'Mano de Obra & Talleres:', value: `$${formatMoney(costoManoDeObraTalleres)}` },
-        { label: 'Telas & Forrería:', value: `$${formatMoney(costoTelasYForreria)}` },
-        { label: 'Gastos Fijos Mensuales (Alquiler + Expensas + Serv.):', value: `$${formatMoney(Math.round(totalGastosFijosPeriodo))}` },
-        { label: 'Envíos, Avíos y Comisiones:', value: `$${formatMoney(costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros)}` },
-        { label: 'Compromiso Total a Saldar en el Mes:', value: `$${formatMoney(Math.round(totalAPagarMesSinRTW))}`, color: 'text-ragucci-primary font-extrabold' }
+        { label: '1. Mano de Obra & Talleres:', value: `$${formatMoney(costoManoDeObraTalleres)}` },
+        { label: '2. Telas & Forrería:', value: `$${formatMoney(costoTelasYForreria)}` },
+        { label: '3. Gastos Fijos Mensuales (Alquiler + Expensas + Serv.):', value: `$${formatMoney(Math.round(totalGastosFijosPeriodo))}` },
+        { label: '4. Cheques, Préstamos y Cuotas del Mes:', value: `$${formatMoney(periodCommitmentsObligations)}`, color: 'text-amber-900 font-extrabold' },
+        { label: '5. Envíos, Avíos y Comisiones (Tomy):', value: `$${formatMoney(costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros)}` },
+        { label: 'TOTAL COMPLETO A PAGAR EN EL MES:', value: `$${formatMoney(Math.round(totalAPagarMesCompleto))}`, color: 'text-ragucci-primary font-black text-sm' }
       ],
-      note: 'Este número te indica exactamente cuánta liquidez necesitas tener para cubrir la operación mensual sin atrasos.'
+      note: 'Este número te indica con 100% de precisión la liquidez total que necesitas generar cada mes para cubrir todos tus compromisos sin mora.'
     });
   };
 
@@ -804,30 +832,30 @@ export const BalanceDashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* Subdivisión: Egresos Operativos Mensuales (M.O, Talleres y Telas - Sin RTW) */}
-      <div className="border border-ragucci-gold-light bg-[#fffdfa] p-5 rounded-lg mb-8 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-2 mb-3">
+      {/* Subdivisión: Egresos Operativos Mensuales (M.O, Talleres, Telas, Gastos Fijos y Cheques - Sin RTW) */}
+      <div className="border border-ragucci-gold-light bg-[#fffdfa] p-5 rounded-lg mb-8 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-2 mb-1">
           <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary tracking-wide flex items-center gap-2">
             <Scissors className="w-4 h-4 text-ragucci-gold" />
-            <span>Compromisos de Confección, Talleres y Gastos Mensuales</span>
+            <span>Compromisos de Confección, Talleres, Cheques y Gastos Mensuales</span>
           </h3>
           <span className="text-[11px] bg-ragucci-primary text-ragucci-gold px-2.5 py-0.5 rounded font-bold">
             Excluye Recompra RTW / Stock
           </span>
         </div>
 
-        <p className="text-xs text-gray-600 mb-4">
-          Calcula exactamente el dinero necesario para cubrir la <strong>mano de obra de talleres</strong> (Santiago sastre, Diego y Guillermo camiseros, modistas), <strong>telas a medida</strong> y <strong>gastos fijos</strong> del período, sin incluir la recompra futura de productos terminados (RTW).
+        <p className="text-xs text-gray-600">
+          Calcula exactamente la suma de dinero necesaria para cubrir la <strong>mano de obra de talleres</strong>, <strong>telas a medida</strong>, <strong>gastos fijos del local</strong> y los <strong>vencimientos de cheques/préstamos y comisiones</strong> del período seleccionado.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           <div 
             onClick={showTalleresExplanation}
-            className="bg-white p-4 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
+            className="bg-white p-3.5 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
           >
-            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">1. Talleres & Mano de Obra</h4>
-            <p className="text-[10px] text-gray-500">Santiago + Camiseros + Modistas</p>
-            <div className="text-xl font-extrabold text-ragucci-primary font-sans mt-1">
+            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">1. Talleres & M.O</h4>
+            <p className="text-[10px] text-gray-500">Santiago + Camiseros</p>
+            <div className="text-lg font-extrabold text-ragucci-primary font-sans mt-1">
               ${formatMoney(costoManoDeObraTalleres)}
             </div>
             <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
@@ -835,38 +863,50 @@ export const BalanceDashboard: React.FC = () => {
 
           <div 
             onClick={showTelasExplanation}
-            className="bg-white p-4 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
+            className="bg-white p-3.5 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
           >
-            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">2. Telas & Forrería (A Medida)</h4>
-            <p className="text-[10px] text-gray-500">Insumos directos de confección</p>
-            <div className="text-xl font-extrabold text-ragucci-primary font-sans mt-1">
+            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">2. Telas & Forrería</h4>
+            <p className="text-[10px] text-gray-500">Insumos confección</p>
+            <div className="text-lg font-extrabold text-ragucci-primary font-sans mt-1">
               ${formatMoney(costoTelasYForreria)}
             </div>
             <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
           </div>
 
           <div 
-            onClick={showCompromisoTotalExplanation}
-            className="bg-white p-4 border border-amber-300 bg-amber-50/50 rounded shadow-sm text-center cursor-pointer hover:border-amber-500 hover:shadow transition-all"
+            onClick={showGastosFijosExplanation}
+            className="bg-white p-3.5 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
           >
-            <h4 className="text-[11px] uppercase font-bold text-amber-900">3. Subtotal Confección & Insumos</h4>
-            <p className="text-[10px] text-amber-700">M.O. + Telas + Forrería</p>
-            <div className="text-xl font-extrabold text-amber-900 font-sans mt-1">
-              ${formatMoney(costoTalleresYConfeccion)}
+            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">3. Gastos Fijos Local</h4>
+            <p className="text-[10px] text-gray-500">Alquiler + Serv + Expensas</p>
+            <div className="text-lg font-extrabold text-ragucci-primary font-sans mt-1">
+              ${formatMoney(Math.round(totalGastosFijosPeriodo))}
+            </div>
+            <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
+          </div>
+
+          <div 
+            onClick={showChequesPrestamosExplanation}
+            className="bg-white p-3.5 border border-amber-300 bg-amber-50/50 rounded shadow-sm text-center cursor-pointer hover:border-amber-500 hover:shadow transition-all"
+          >
+            <h4 className="text-[11px] uppercase font-bold text-amber-900">4. Cheques & Préstamos</h4>
+            <p className="text-[10px] text-amber-700">Vencimientos del Mes</p>
+            <div className="text-lg font-extrabold text-amber-900 font-sans mt-1">
+              ${formatMoney(periodCommitmentsObligations)}
             </div>
             <span className="text-[9px] text-amber-800 block mt-1">Clic para detalle ➔</span>
           </div>
 
           <div 
             onClick={showCompromisoTotalExplanation}
-            className="bg-ragucci-primary text-white p-4 rounded shadow-sm text-center border-l-4 border-l-ragucci-gold cursor-pointer hover:bg-ragucci-primary-light hover:shadow transition-all"
+            className="bg-ragucci-primary text-white p-3.5 rounded shadow-md text-center border-l-4 border-l-ragucci-gold cursor-pointer hover:bg-ragucci-primary-light hover:shadow-lg transition-all"
           >
-            <h4 className="text-[11px] uppercase font-bold text-ragucci-gold tracking-wider">Total a Pagar en el Mes</h4>
-            <p className="text-[10px] text-ragucci-gold-light">Talleres + Telas + Gastos Fijos</p>
-            <div className="text-xl font-extrabold text-ragucci-gold font-sans mt-1">
-              ${formatMoney(Math.round(totalAPagarMesSinRTW))}
+            <h4 className="text-[11px] uppercase font-bold text-ragucci-gold tracking-wider">TOTAL A PAGAR EN EL MES</h4>
+            <p className="text-[9px] text-ragucci-gold-light">Talleres + Telas + Fijos + Cheques</p>
+            <div className="text-lg md:text-xl font-extrabold text-ragucci-gold font-sans mt-1">
+              ${formatMoney(Math.round(totalAPagarMesCompleto))}
             </div>
-            <span className="text-[9px] text-ragucci-gold-light/70 block mt-1">Clic para detalle ➔</span>
+            <span className="text-[9px] text-ragucci-gold-light/80 block mt-1">Ver compromiso completo ➔</span>
           </div>
         </div>
 
