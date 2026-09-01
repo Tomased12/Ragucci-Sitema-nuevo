@@ -763,84 +763,65 @@ export const BalanceDashboard: React.FC = () => {
       </div>
 
       {/* Financial Overview Cards (Clickable) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div 
           onClick={showVentaExplanation}
-          className="bg-white p-4 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all group relative"
+          className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all group relative"
         >
           <div className="absolute top-2 right-2 text-gray-300 group-hover:text-emerald-500 transition-colors">
-            <HelpCircle className="w-3.5 h-3.5" />
+            <HelpCircle className="w-4 h-4" />
           </div>
           <div className="flex justify-center text-emerald-600 mb-1">
-            <TrendingUp className="w-5 h-5" />
+            <TrendingUp className="w-6 h-6" />
           </div>
-          <h4 className="text-[11px] uppercase font-extrabold text-ragucci-primary-light tracking-wider">Venta Bruta Total</h4>
-          <div className="text-xl font-extrabold text-emerald-600 font-sans mt-1.5">${formatMoney(totals.venta)}</div>
-          <span className="text-[9px] text-gray-400 block mt-1">Ver fórmula ➔</span>
+          <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Venta Bruta Total</h4>
+          <div className="text-2xl font-extrabold text-emerald-600 font-sans mt-2">${formatMoney(totals.venta)}</div>
+          <span className="text-[10px] text-gray-400 block mt-1">Ver fórmula de cálculo ➔</span>
         </div>
 
         <div 
           onClick={showPendienteExplanation}
-          className="bg-white p-4 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-red-400 hover:shadow-md transition-all group relative"
+          className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-red-400 hover:shadow-md transition-all group relative"
         >
           <div className="absolute top-2 right-2 text-gray-300 group-hover:text-red-400 transition-colors">
-            <HelpCircle className="w-3.5 h-3.5" />
+            <HelpCircle className="w-4 h-4" />
           </div>
           <div className="flex justify-center text-red-500 mb-1">
-            <ArrowDownRight className="w-5 h-5" />
+            <ArrowDownRight className="w-6 h-6" />
           </div>
-          <h4 className="text-[11px] uppercase font-extrabold text-ragucci-primary-light tracking-wider">Pendiente a Cobrar</h4>
-          <div className="text-xl font-extrabold text-red-500 font-sans mt-1.5">${formatMoney(totals.saldoPendiente)}</div>
-          <span className="text-[9px] text-gray-400 block mt-1">Ver fórmula ➔</span>
+          <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Pendiente a Cobrar</h4>
+          <div className="text-2xl font-extrabold text-red-500 font-sans mt-2">${formatMoney(totals.saldoPendiente)}</div>
+          <span className="text-[10px] text-gray-400 block mt-1">Ver fórmula de cálculo ➔</span>
         </div>
 
         <div 
           onClick={showIngresadoExplanation}
-          className="bg-white p-4 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-sky-500 hover:shadow-md transition-all group relative"
+          className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-sky-500 hover:shadow-md transition-all group relative"
         >
           <div className="absolute top-2 right-2 text-gray-300 group-hover:text-sky-500 transition-colors">
-            <HelpCircle className="w-3.5 h-3.5" />
+            <HelpCircle className="w-4 h-4" />
           </div>
           <div className="flex justify-center text-sky-600 mb-1">
-            <Wallet className="w-5 h-5" />
+            <Wallet className="w-6 h-6" />
           </div>
-          <h4 className="text-[11px] uppercase font-extrabold text-ragucci-primary-light tracking-wider">Dinero Real Ingresado</h4>
-          <div className="text-xl font-extrabold text-sky-600 font-sans mt-1.5">${formatMoney(totalDineroRealRecaudadoEnPeriodo)}</div>
-          <span className="text-[9px] text-sky-800 font-bold block mt-1">Ver desglose cobros ➔</span>
+          <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Dinero Real Ingresado</h4>
+          <div className="text-2xl font-extrabold text-sky-600 font-sans mt-2">${formatMoney(totalDineroRealRecaudadoEnPeriodo)}</div>
+          <span className="text-[10px] text-sky-800 font-bold block mt-1">Ver desglose cobros ➔</span>
         </div>
 
         <div 
           onClick={showGananciaNetaExplanation}
-          className="bg-ragucci-primary text-ragucci-gold p-4 border-b-4 border-ragucci-gold rounded-lg shadow-md text-center cursor-pointer hover:bg-ragucci-primary-light hover:shadow-lg transition-all group relative"
+          className="bg-ragucci-primary text-ragucci-gold p-5 border-b-4 border-ragucci-gold rounded-lg shadow-md text-center cursor-pointer hover:bg-ragucci-primary-light hover:shadow-lg transition-all group relative"
         >
           <div className="absolute top-2 right-2 text-ragucci-gold/40 group-hover:text-ragucci-gold transition-colors">
-            <HelpCircle className="w-3.5 h-3.5" />
+            <HelpCircle className="w-4 h-4" />
           </div>
           <div className="flex justify-center text-ragucci-gold mb-1">
-            <Award className="w-5 h-5" />
+            <Award className="w-6 h-6" />
           </div>
-          <h4 className="text-[11px] uppercase font-extrabold text-ragucci-gold-light tracking-wider">Ganancia Neta Real</h4>
-          <div className="text-xl font-extrabold text-ragucci-gold font-sans mt-1.5">${formatMoney(Math.round(gananciaNetaReal))}</div>
-          <span className="text-[9px] text-ragucci-gold-light/60 block mt-1">Ver fórmula devengada ➔</span>
-        </div>
-
-        <div 
-          onClick={showResultadoCajaExplanation}
-          className={`p-4 rounded-lg shadow-md text-center cursor-pointer transition-all group relative border-b-4 ${
-            resultadoNetoDeCajaReal >= 0
-              ? 'bg-emerald-900 text-emerald-100 border-b-emerald-400 hover:bg-emerald-850'
-              : 'bg-red-950 text-red-100 border-b-red-500 hover:bg-red-900'
-          }`}
-        >
-          <div className="absolute top-2 right-2 opacity-50 group-hover:opacity-100 transition-opacity">
-            <HelpCircle className="w-3.5 h-3.5" />
-          </div>
-          <div className="flex justify-center mb-1">
-            <Calculator className="w-5 h-5" />
-          </div>
-          <h4 className="text-[11px] uppercase font-extrabold tracking-wider">Resultado de Caja (Efectivo)</h4>
-          <div className="text-xl font-black font-sans mt-1.5">${formatMoney(Math.round(resultadoNetoDeCajaReal))}</div>
-          <span className="text-[9px] opacity-80 block mt-1">Ver caja en mano ➔</span>
+          <h4 className="text-xs uppercase font-extrabold text-ragucci-gold-light tracking-wider">Ganancia Neta Real</h4>
+          <div className="text-2xl font-extrabold text-ragucci-gold font-sans mt-2">${formatMoney(Math.round(gananciaNetaReal))}</div>
+          <span className="text-[10px] text-ragucci-gold-light/60 block mt-1">Ver fórmula de cálculo ➔</span>
         </div>
       </div>
 
