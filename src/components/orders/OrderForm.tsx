@@ -204,24 +204,26 @@ export const OrderForm: React.FC = () => {
 
   // Client Autocomplete Logic
   const handleClientInput = (val: string) => {
-    setClient(val);
-    if (!val.trim()) {
+    const upperVal = val.toUpperCase();
+    setClient(upperVal);
+    if (!upperVal.trim()) {
       setClientAutocomplete([]);
       setShowClientList(false);
       return;
     }
-    const uniqueClients = Array.from(new Set(orders.map(o => o.client).filter(Boolean)));
-    const matches = uniqueClients.filter(cName => cName.toLowerCase().includes(val.toLowerCase()));
+    const uniqueClients = Array.from(new Set(orders.map(o => o.client?.toUpperCase()).filter(Boolean) as string[]));
+    const matches = uniqueClients.filter(cName => cName.includes(upperVal));
     setClientAutocomplete(matches);
     setShowClientList(matches.length > 0);
     setFocusedClientIdx(-1);
   };
 
   const selectClient = (clientName: string) => {
-    setClient(clientName);
+    const upperName = clientName.toUpperCase();
+    setClient(upperName);
     setShowClientList(false);
     setFocusedClientIdx(-1);
-    const lastOrder = orders.find(o => o.client === clientName && (o.phone || o.dni || o.email || o.birthday || o.measurements));
+    const lastOrder = orders.find(o => o.client?.toUpperCase() === upperName && (o.phone || o.dni || o.email || o.birthday || o.measurements));
     if (lastOrder) {
       if (lastOrder.phone) setPhone(lastOrder.phone);
       if (lastOrder.dni) setDni(lastOrder.dni);
@@ -326,7 +328,7 @@ export const OrderForm: React.FC = () => {
       id: existing?.id || Date.now(),
       date,
       deliveryDate: deliveryDate ? deliveryDate.trim() : undefined,
-      client,
+      client: client.toUpperCase().trim(),
       phone,
       dni,
       email,
@@ -569,8 +571,8 @@ export const OrderForm: React.FC = () => {
               value={client}
               onChange={(e) => handleClientInput(e.target.value)}
               onKeyDown={handleClientKeydown}
-              placeholder="Ej: Alvarez Esteban"
-              className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-ragucci-gold font-medium"
+              placeholder="EJ: SANCHEZ GALÁN BLAS MANUEL"
+              className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-ragucci-gold font-bold uppercase"
             />
             {showClientList && clientAutocomplete.length > 0 && (
               <div 
