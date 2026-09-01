@@ -137,7 +137,7 @@ export const OrderForm: React.FC = () => {
       if (order) {
         setDate(order.date || getTodayString());
         setDeliveryDate(order.deliveryDate || '');
-        setClient(order.client || '');
+        setClient((order.client || '').toUpperCase());
         setPhone(order.phone || '');
         setDni(order.dni || '');
         setEmail(order.email || '');
@@ -568,11 +568,12 @@ export const OrderForm: React.FC = () => {
             </label>
             <input
               type="text"
-              value={client}
+              value={client.toUpperCase()}
               onChange={(e) => handleClientInput(e.target.value)}
               onKeyDown={handleClientKeydown}
               placeholder="EJ: SANCHEZ GALÁN BLAS MANUEL"
               className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-ragucci-gold font-bold uppercase"
+              style={{ textTransform: 'uppercase' }}
             />
             {showClientList && clientAutocomplete.length > 0 && (
               <div 

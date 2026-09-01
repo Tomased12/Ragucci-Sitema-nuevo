@@ -631,7 +631,7 @@ export const OrderTable: React.FC = () => {
                       onClick={() => setSelectedClientName(order.client)}
                       className="text-ragucci-primary hover:text-ragucci-gold underline decoration-dashed transition-colors text-left"
                     >
-                      {order.client}
+                      {order.client?.toUpperCase()}
                     </button>
                     {cleanPhone && (
                       <a
