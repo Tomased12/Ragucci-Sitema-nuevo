@@ -46,6 +46,8 @@ export const BalanceDashboard: React.FC = () => {
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const [activeExplanation, setActiveExplanation] = useState<ExplanationModalData | null>(null);
   const [showGiftModal, setShowGiftModal] = useState(false);
+  const [balanceSubTab, setBalanceSubTab] = useState<'liquidez' | 'compromisos' | 'reportes'>('liquidez');
+  const [showGastosFijosConfig, setShowGastosFijosConfig] = useState(false);
 
   // Client Profitability Table State
   const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -670,91 +672,109 @@ export const BalanceDashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* Filter Period */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-lg border border-ragucci-gold-light mb-6 shadow-sm">
-        <div>
-          <label className="block text-xs font-bold text-ragucci-primary-light mb-1">Mes</label>
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
-          >
-            <option value="all">Todos los meses (Balance General)</option>
-            <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
-            <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
-            <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
-            <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
-          </select>
-        </div>
+      {/* Filter Period & Collapsible Fixed Costs Control */}
+      <div className="bg-white p-4 rounded-xl border border-ragucci-gold-light mb-6 shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-ragucci-primary-light mb-0.5 uppercase tracking-wide">Mes Período</label>
+              <select
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                className="p-2 border border-gray-300 rounded text-xs font-semibold focus:outline-none focus:border-ragucci-gold bg-white"
+              >
+                <option value="all">Todos los meses (Balance General)</option>
+                <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+                <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+                <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+                <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+              </select>
+            </div>
 
-        <div>
-          <label className="block text-xs font-bold text-ragucci-primary-light mb-1">Año</label>
-          <select
-            value={filterYear}
-            onChange={(e) => setFilterYear(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
-          >
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Fixed Costs Section */}
-      <div className="border border-ragucci-gold-light p-5 rounded-lg mb-6 bg-white">
-        <h3 className="text-sm font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-3 inline-block">
-          Gastos Fijos Mensuales (Editables)
-        </h3>
-
-        <div className="bg-ragucci-primary text-ragucci-gold p-3 rounded text-xs font-bold mb-4 flex items-center gap-2">
-          <RefreshCw className="w-4 h-4 text-emerald-400" />
-          <span>💱 Cotización Dólar Blue (Venta): ${formatMoney(dolarBlueVenta)}</span>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
-          <div>
-            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
-              Alquiler (USD) <span className="text-[10px] text-ragucci-primary font-normal">(≈ ${formatMoney(Math.round(alquilerPesos))} ARS)</span>
-            </label>
-            <MoneyInput value={alquilerUsd} onValueChange={(val) => setAlquilerUsd(val)} />
+            <div>
+              <label className="block text-[11px] font-bold text-ragucci-primary-light mb-0.5 uppercase tracking-wide">Año</label>
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+                className="p-2 border border-gray-300 rounded text-xs font-semibold focus:outline-none focus:border-ragucci-gold bg-white"
+              >
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">Expensas ($)</label>
-            <MoneyInput value={expensas} onValueChange={(val) => setExpensas(val)} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">Internet ($)</label>
-            <MoneyInput value={internet} onValueChange={(val) => setInternet(val)} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">Servicios (Luz/Gas) ($)</label>
-            <MoneyInput value={servicios} onValueChange={(val) => setServicios(val)} />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowGastosFijosConfig(!showGastosFijosConfig)}
+              className="flex items-center gap-1.5 bg-ragucci-primary-light/10 hover:bg-ragucci-primary-light/20 text-ragucci-primary text-xs font-bold py-2 px-3.5 rounded-lg transition-colors border border-ragucci-primary/20 cursor-pointer"
+            >
+              <span>⚙️ {showGastosFijosConfig ? 'Ocultar Gastos Fijos' : 'Editar Gastos Fijos (Alquiler/Serv.)'}</span>
+              {showGastosFijosConfig ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">Redes ($)</label>
-            <MoneyInput value={redes} onValueChange={(val) => setRedes(val)} />
-          </div>
+        {/* Collapsible Fixed Costs Form */}
+        {showGastosFijosConfig && (
+          <div className="pt-4 border-t border-gray-200 space-y-3 bg-amber-50/40 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black uppercase text-ragucci-primary">Configuración de Gastos Fijos del Local</h4>
+              <span className="text-[11px] bg-ragucci-primary text-ragucci-gold px-2 py-0.5 rounded font-bold">
+                Dólar Blue Venta: ${formatMoney(dolarBlueVenta)}
+              </span>
+            </div>
 
-          <div>
-            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">Publicidad ($)</label>
-            <MoneyInput value={publicidad} onValueChange={(val) => setPublicidad(val)} />
-          </div>
-        </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-ragucci-primary-light mb-1">
+                  Alquiler (USD) <span className="text-[10px] text-ragucci-primary font-normal">(≈ ${formatMoney(Math.round(alquilerPesos))})</span>
+                </label>
+                <MoneyInput value={alquilerUsd} onValueChange={(val) => setAlquilerUsd(val)} />
+              </div>
 
-        <button
-          onClick={handleSaveGastosFijos}
-          className="bg-ragucci-gold hover:bg-ragucci-primary text-ragucci-primary hover:text-ragucci-gold text-xs font-bold py-2 px-4 rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
-        >
-          <Save className="w-4 h-4" />
-          <span>💾 Guardar Gastos Fijos</span>
-        </button>
+              <div>
+                <label className="block text-[11px] font-bold text-ragucci-primary-light mb-1">Expensas ($)</label>
+                <MoneyInput value={expensas} onValueChange={(val) => setExpensas(val)} />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-ragucci-primary-light mb-1">Internet ($)</label>
+                <MoneyInput value={internet} onValueChange={(val) => setInternet(val)} />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-ragucci-primary-light mb-1">Servicios (Luz/Gas) ($)</label>
+                <MoneyInput value={servicios} onValueChange={(val) => setServicios(val)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-ragucci-primary-light mb-1">Redes ($)</label>
+                <MoneyInput value={redes} onValueChange={(val) => setRedes(val)} />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-ragucci-primary-light mb-1">Publicidad ($)</label>
+                <MoneyInput value={publicidad} onValueChange={(val) => setPublicidad(val)} />
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                handleSaveGastosFijos();
+                setShowGastosFijosConfig(false);
+              }}
+              className="bg-ragucci-primary hover:bg-ragucci-primary-light text-ragucci-gold text-xs font-black py-2 px-4 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Save className="w-4 h-4" />
+              <span>💾 Guardar Cambios en Gastos Fijos</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="text-xs text-gray-500 mb-3 flex items-center gap-1">
@@ -825,235 +845,292 @@ export const BalanceDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* BANNER DESTACADO: CONTROL DE LIQUIDEZ Y RESULTADO DE CAJA REAL */}
-      <div className="bg-gradient-to-r from-slate-900 via-ragucci-primary to-slate-900 text-white p-5 rounded-2xl border-2 border-ragucci-gold shadow-md space-y-3 mb-8">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ragucci-gold/30 pb-3">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-ragucci-gold text-ragucci-primary rounded-xl font-black text-2xl shadow-xs">
-              🏦
-            </div>
-            <div>
-              <h3 className="text-base md:text-lg font-black uppercase text-ragucci-gold tracking-wide flex items-center gap-2">
-                <span>Control de Liquidez & Flujo Neto de Caja Real</span>
-                <span className="text-[10px] bg-ragucci-gold text-ragucci-primary font-black px-2 py-0.5 rounded-full uppercase">
-                  Caja Efectiva
-                </span>
-              </h3>
-              <p className="text-xs text-gray-300 font-medium">
-                Compara el dinero real en efectivo/banco que ya ingresó este mes contra la totalidad de compromisos inamovibles a pagar.
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={showResultadoCajaExplanation}
-            className="bg-ragucci-gold hover:bg-white text-ragucci-primary font-black text-xs uppercase px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <HelpCircle className="w-4 h-4" />
-            <span>Explicación de Caja Real</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
-            <span className="text-[10px] font-extrabold uppercase text-gray-300 block">
-              💵 Dinero Real Ingresado (Caja / Banco)
-            </span>
-            <span className="text-base font-black text-sky-300 mt-0.5 block">
-              +${formatMoney(totalDineroRealRecaudadoEnPeriodo)}
-            </span>
-            <span className="text-[10px] text-sky-200 font-medium block">
-              Señas del mes (${formatMoney(senasVentasMesInPeriod)}) + Cobranzas anteriores (${formatMoney(cobranzasVentasAnterioresInPeriod)})
-            </span>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
-            <span className="text-[10px] font-extrabold uppercase text-gray-300 block">
-              💳 Total Compromisos Inamovibles del Mes
-            </span>
-            <span className="text-base font-black text-red-400 mt-0.5 block">
-              -${formatMoney(Math.round(totalAPagarMesCompleto))}
-            </span>
-            <span className="text-[10px] text-red-300 font-medium block">
-              Talleres + Telas + Alquiler USD + Cheques + Comisiones
-            </span>
-          </div>
-
-          <div className={`p-3 rounded-xl font-extrabold shadow-sm border ${
-            resultadoNetoDeCajaReal >= 0 
-              ? 'bg-emerald-500 text-slate-950 border-emerald-300' 
-              : 'bg-red-950 text-red-200 border-red-500'
-          }`}>
-            <span className="text-[10px] uppercase font-black tracking-wider block opacity-90">
-              {resultadoNetoDeCajaReal >= 0 ? '🟢 Superávit Neto de Caja' : '🔴 Déficit Neto de Caja (Faltante)'}
-            </span>
-            <span className="text-lg font-black mt-0.5 block">
-              ${formatMoney(Math.round(resultadoNetoDeCajaReal))}
-            </span>
-            <span className="text-[10px] font-bold block opacity-80">
-              {resultadoNetoDeCajaReal >= 0 
-                ? 'El dinero cobrado cubre el 100% de los compromisos' 
-                : 'Faltante de liquidez a recaudar o aportar este mes'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Banner / Card for Regalos & Cortesías */}
-      <div className="bg-gradient-to-r from-purple-900 via-purple-850 to-purple-900 text-white p-4.5 rounded-xl mb-8 border-2 border-purple-400 shadow-md flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-purple-400 text-purple-950 rounded-xl font-black text-xl shadow-xs">
-            🎁
-          </div>
-          <div>
-            <h4 className="text-xs font-black uppercase text-purple-200 tracking-wider flex items-center gap-2">
-              <span>Inversión en Regalos & Cortesías a Clientes</span>
-              {giftList.length > 0 && (
-                <span className="bg-purple-400 text-purple-950 text-[10px] px-2 py-0.5 rounded-full font-black uppercase">
-                  {giftList.length} Regalo(s)
-                </span>
-              )}
-            </h4>
-            <div className="flex flex-wrap items-center gap-3.5 mt-1 text-xs text-purple-100 font-bold">
-              <span>Costo Total en Telas y Mano de Obra: <strong className="text-purple-300 font-black text-sm">${formatMoney(totalGiftInversion)}</strong></span>
-              <span>•</span>
-              <span>Prendas Regaladas en el Período: <strong className="text-white font-extrabold">{giftList.length} prendas</strong></span>
-            </div>
-          </div>
-        </div>
+      {/* Sub-Navigation Tabs inside Balance */}
+      <div className="flex border-b-2 border-ragucci-gold mb-6 bg-gray-100/80 p-1.5 rounded-xl gap-1.5 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setBalanceSubTab('liquidez')}
+          className={`flex-1 py-2.5 px-4 text-xs font-black uppercase rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer ${
+            balanceSubTab === 'liquidez'
+              ? 'bg-ragucci-primary text-ragucci-gold shadow-md'
+              : 'text-gray-600 hover:text-ragucci-primary hover:bg-white/60'
+          }`}
+        >
+          <Wallet className="w-4 h-4" />
+          <span>1. Flujo de Caja & Liquidez Real</span>
+        </button>
 
         <button
           type="button"
-          onClick={() => setShowGiftModal(true)}
-          className="bg-purple-400 hover:bg-white text-purple-950 font-black text-xs uppercase px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+          onClick={() => setBalanceSubTab('compromisos')}
+          className={`flex-1 py-2.5 px-4 text-xs font-black uppercase rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer ${
+            balanceSubTab === 'compromisos'
+              ? 'bg-ragucci-primary text-ragucci-gold shadow-md'
+              : 'text-gray-600 hover:text-ragucci-primary hover:bg-white/60'
+          }`}
         >
-          <Gift className="w-4 h-4" />
-          <span>Ver Desglose de Regalos</span>
+          <Scissors className="w-4 h-4" />
+          <span>2. Compromisos de Confección & Regalos</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setBalanceSubTab('reportes')}
+          className={`flex-1 py-2.5 px-4 text-xs font-black uppercase rounded-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer ${
+            balanceSubTab === 'reportes'
+              ? 'bg-ragucci-primary text-ragucci-gold shadow-md'
+              : 'text-gray-600 hover:text-ragucci-primary hover:bg-white/60'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>3. Desglose, Rentabilidad & Gráficos</span>
         </button>
       </div>
 
-      {/* Subdivisión: Egresos Operativos Mensuales (M.O, Talleres, Telas, Gastos Fijos y Cheques - Sin RTW) */}
-      <div className="border border-ragucci-gold-light bg-[#fffdfa] p-5 rounded-lg mb-8 shadow-sm space-y-4">
-        <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-2 mb-1">
-          <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary tracking-wide flex items-center gap-2">
-            <Scissors className="w-4 h-4 text-ragucci-gold" />
-            <span>Compromisos de Confección, Talleres, Cheques y Gastos Mensuales</span>
-          </h3>
-          <span className="text-[11px] bg-ragucci-primary text-ragucci-gold px-2.5 py-0.5 rounded font-bold">
-            Excluye Recompra RTW / Stock
-          </span>
+      {/* SUB-TAB 1: CONTROL DE LIQUIDEZ Y CAJA REAL */}
+      {balanceSubTab === 'liquidez' && (
+        <div className="space-y-6">
+          {/* BANNER DESTACADO: CONTROL DE LIQUIDEZ Y RESULTADO DE CAJA REAL */}
+          <div className="bg-gradient-to-r from-slate-900 via-ragucci-primary to-slate-900 text-white p-5 rounded-2xl border-2 border-ragucci-gold shadow-md space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ragucci-gold/30 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-ragucci-gold text-ragucci-primary rounded-xl font-black text-2xl shadow-xs">
+                  🏦
+                </div>
+                <div>
+                  <h3 className="text-base md:text-lg font-black uppercase text-ragucci-gold tracking-wide flex items-center gap-2">
+                    <span>Control de Liquidez & Flujo Neto de Caja Real</span>
+                    <span className="text-[10px] bg-ragucci-gold text-ragucci-primary font-black px-2 py-0.5 rounded-full uppercase">
+                      Caja Efectiva
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-300 font-medium">
+                    Compara el dinero real en efectivo/banco que ya ingresó este mes contra la totalidad de compromisos inamovibles a pagar.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={showResultadoCajaExplanation}
+                className="bg-ragucci-gold hover:bg-white text-ragucci-primary font-black text-xs uppercase px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span>Explicación de Caja Real</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
+                <span className="text-[10px] font-extrabold uppercase text-gray-300 block">
+                  💵 Dinero Real Ingresado (Caja / Banco)
+                </span>
+                <span className="text-base font-black text-sky-300 mt-0.5 block">
+                  +${formatMoney(totalDineroRealRecaudadoEnPeriodo)}
+                </span>
+                <span className="text-[10px] text-sky-200 font-medium block">
+                  Señas del mes (${formatMoney(senasVentasMesInPeriod)}) + Cobranzas anteriores (${formatMoney(cobranzasVentasAnterioresInPeriod)})
+                </span>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
+                <span className="text-[10px] font-extrabold uppercase text-gray-300 block">
+                  💳 Total Compromisos Inamovibles del Mes
+                </span>
+                <span className="text-base font-black text-red-400 mt-0.5 block">
+                  -${formatMoney(Math.round(totalAPagarMesCompleto))}
+                </span>
+                <span className="text-[10px] text-red-300 font-medium block">
+                  Talleres + Telas + Alquiler USD + Cheques + Comisiones
+                </span>
+              </div>
+
+              <div className={`p-3 rounded-xl font-extrabold shadow-sm border ${
+                resultadoNetoDeCajaReal >= 0 
+                  ? 'bg-emerald-500 text-slate-950 border-emerald-300' 
+                  : 'bg-red-950 text-red-200 border-red-500'
+              }`}>
+                <span className="text-[10px] uppercase font-black tracking-wider block opacity-90">
+                  {resultadoNetoDeCajaReal >= 0 ? '🟢 Superávit Neto de Caja' : '🔴 Déficit Neto de Caja (Faltante)'}
+                </span>
+                <span className="text-lg font-black mt-0.5 block">
+                  ${formatMoney(Math.round(resultadoNetoDeCajaReal))}
+                </span>
+                <span className="text-[10px] font-bold block opacity-80">
+                  {resultadoNetoDeCajaReal >= 0 
+                    ? 'El dinero cobrado cubre el 100% de los compromisos' 
+                    : 'Faltante de liquidez a recaudar o aportar este mes'}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
 
-        <p className="text-xs text-gray-600">
-          Calcula exactamente la suma de dinero necesaria para cubrir la <strong>mano de obra de talleres</strong>, <strong>telas a medida</strong>, <strong>gastos fijos del local</strong> y los <strong>vencimientos de cheques/préstamos y comisiones</strong> del período seleccionado.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-          <div 
-            onClick={showTalleresExplanation}
-            className="bg-white p-3.5 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
-          >
-            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">1. Talleres & M.O</h4>
-            <p className="text-[10px] text-gray-500">Santiago + Camiseros</p>
-            <div className="text-lg font-extrabold text-ragucci-primary font-sans mt-1">
-              ${formatMoney(costoManoDeObraTalleres)}
-            </div>
-            <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
-          </div>
-
-          <div 
-            onClick={showTelasExplanation}
-            className="bg-white p-3.5 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
-          >
-            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">2. Telas & Forrería</h4>
-            <p className="text-[10px] text-gray-500">Insumos confección</p>
-            <div className="text-lg font-extrabold text-ragucci-primary font-sans mt-1">
-              ${formatMoney(costoTelasYForreria)}
-            </div>
-            <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
-          </div>
-
-          <div 
-            onClick={showGastosFijosExplanation}
-            className="bg-white p-3.5 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
-          >
-            <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">3. Gastos Fijos Local</h4>
-            <p className="text-[10px] text-gray-500">Alquiler + Serv + Expensas</p>
-            <div className="text-lg font-extrabold text-ragucci-primary font-sans mt-1">
-              ${formatMoney(Math.round(totalGastosFijosPeriodo))}
-            </div>
-            <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
-          </div>
-
-          <div 
-            onClick={showChequesPrestamosExplanation}
-            className="bg-white p-3.5 border border-amber-300 bg-amber-50/50 rounded shadow-sm text-center cursor-pointer hover:border-amber-500 hover:shadow transition-all"
-          >
-            <h4 className="text-[11px] uppercase font-bold text-amber-900">4. Cheques & Préstamos</h4>
-            <p className="text-[10px] text-amber-700">Vencimientos del Mes</p>
-            <div className="text-lg font-extrabold text-amber-900 font-sans mt-1">
-              ${formatMoney(periodCommitmentsObligations)}
-            </div>
-            <span className="text-[9px] text-amber-800 block mt-1">Clic para detalle ➔</span>
-          </div>
-
-          <div 
-            onClick={showCompromisoTotalExplanation}
-            className="bg-ragucci-primary text-white p-3.5 rounded shadow-md text-center border-l-4 border-l-ragucci-gold cursor-pointer hover:bg-ragucci-primary-light hover:shadow-lg transition-all"
-          >
-            <h4 className="text-[11px] uppercase font-bold text-ragucci-gold tracking-wider">TOTAL A PAGAR EN EL MES</h4>
-            <p className="text-[9px] text-ragucci-gold-light">Talleres + Telas + Fijos + Cheques</p>
-            <div className="text-lg md:text-xl font-extrabold text-ragucci-gold font-sans mt-1">
-              ${formatMoney(Math.round(totalAPagarMesCompleto))}
-            </div>
-            <span className="text-[9px] text-ragucci-gold-light/80 block mt-1">Ver compromiso completo ➔</span>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between bg-white p-3 border border-gray-200 rounded text-xs">
-          <div className="flex items-center gap-2 text-gray-700 font-medium">
-            <ShoppingBag className="w-4 h-4 text-ragucci-gold" />
-            <span><strong>Costo de Productos Terminados / RTW excluido del compromiso mensual:</strong> (Considerado inversión de stock a futuro)</span>
-          </div>
-          <span className="font-extrabold text-ragucci-primary font-sans text-sm mt-1 sm:mt-0">
-            ${formatMoney(costsBreakdown.pterminado)}
-          </span>
-        </div>
-      </div>
-
-      {/* Cost Breakdown Table */}
-      <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
-        Desglose de Costos del Período
-      </h3>
-
-      <div className="overflow-x-auto max-w-2xl">
-        <table className="w-full text-xs text-left border-collapse border border-ragucci-border">
-          <tbody>
-            {Object.keys(labels).map((key) => (
-              <tr key={key} className={`border-b border-gray-200 ${key === 'pterminado' ? 'bg-amber-50/40' : ''}`}>
-                <td className="p-2.5 font-medium flex items-center justify-between">
-                  <span>{labels[key]}</span>
-                  {key === 'pterminado' && (
-                    <span className="text-[10px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold">
-                      Recompra de Stock
+      {/* SUB-TAB 2: COMPROMISOS DE CONFECCION, TALLERES Y REGALOS */}
+      {balanceSubTab === 'compromisos' && (
+        <div className="space-y-6">
+          {/* Banner / Card for Regalos & Cortesías */}
+          <div className="bg-gradient-to-r from-purple-900 via-purple-850 to-purple-900 text-white p-4.5 rounded-xl border-2 border-purple-400 shadow-md flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-purple-400 text-purple-950 rounded-xl font-black text-xl shadow-xs">
+                🎁
+              </div>
+              <div>
+                <h4 className="text-xs font-black uppercase text-purple-200 tracking-wider flex items-center gap-2">
+                  <span>Inversión en Regalos & Cortesías a Clientes</span>
+                  {giftList.length > 0 && (
+                    <span className="bg-purple-400 text-purple-950 text-[10px] px-2 py-0.5 rounded-full font-black uppercase">
+                      {giftList.length} Regalo(s)
                     </span>
                   )}
-                </td>
-                <td className="p-2.5 text-right font-bold">${formatMoney(costsBreakdown[key])}</td>
-              </tr>
-            ))}
-            <tr className="bg-amber-50 font-bold text-amber-900 border-b border-amber-200">
-              <td className="p-2.5">🏠 GASTOS FIJOS ({monthsToMultiply} {monthsToMultiply === 1 ? 'mes' : 'meses activos con ventas cargadas'})</td>
-              <td className="p-2.5 text-right">${formatMoney(Math.round(totalGastosFijosPeriodo))}</td>
-            </tr>
-            <tr className="bg-ragucci-primary text-ragucci-gold font-extrabold text-sm">
-              <td className="p-3">TOTAL INVERTIDO EN COSTOS</td>
-              <td className="p-3 text-right">${formatMoney(Math.round(costoTotalConFijos))}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                </h4>
+                <div className="flex flex-wrap items-center gap-3.5 mt-1 text-xs text-purple-100 font-bold">
+                  <span>Costo Total en Telas y Mano de Obra: <strong className="text-purple-300 font-black text-sm">${formatMoney(totalGiftInversion)}</strong></span>
+                  <span>•</span>
+                  <span>Prendas Regaladas en el Período: <strong className="text-white font-extrabold">{giftList.length} prendas</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowGiftModal(true)}
+              className="bg-purple-400 hover:bg-white text-purple-950 font-black text-xs uppercase px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Gift className="w-4 h-4" />
+              <span>Ver Desglose de Regalos</span>
+            </button>
+          </div>
+
+          {/* Subdivisión: Egresos Operativos Mensuales (M.O, Talleres, Telas, Gastos Fijos y Cheques - Sin RTW) */}
+          <div className="border border-ragucci-gold-light bg-[#fffdfa] p-5 rounded-lg shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-2 mb-1">
+              <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary tracking-wide flex items-center gap-2">
+                <Scissors className="w-4 h-4 text-ragucci-gold" />
+                <span>Compromisos de Confección, Talleres, Cheques y Gastos Mensuales</span>
+              </h3>
+              <span className="text-[11px] bg-ragucci-primary text-ragucci-gold px-2.5 py-0.5 rounded font-bold">
+                Excluye Recompra RTW / Stock
+              </span>
+            </div>
+
+            <p className="text-xs text-gray-600">
+              Calcula exactamente la suma de dinero necesaria para cubrir la <strong>mano de obra de talleres</strong>, <strong>telas a medida</strong>, <strong>gastos fijos del local</strong> y los <strong>vencimientos de cheques/préstamos y comisiones</strong> del período seleccionado.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+              <div 
+                onClick={showTalleresExplanation}
+                className="bg-white p-3.5 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
+              >
+                <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">1. Talleres & M.O</h4>
+                <p className="text-[10px] text-gray-500">Santiago + Camiseros</p>
+                <div className="text-lg font-extrabold text-ragucci-primary font-sans mt-1">
+                  ${formatMoney(costoManoDeObraTalleres)}
+                </div>
+                <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
+              </div>
+
+              <div 
+                onClick={showTelasExplanation}
+                className="bg-white p-3.5 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
+              >
+                <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">2. Telas & Forrería</h4>
+                <p className="text-[10px] text-gray-500">Insumos confección</p>
+                <div className="text-lg font-extrabold text-ragucci-primary font-sans mt-1">
+                  ${formatMoney(costoTelasYForreria)}
+                </div>
+                <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
+              </div>
+
+              <div 
+                onClick={showGastosFijosExplanation}
+                className="bg-white p-3.5 border border-ragucci-gold-light rounded shadow-sm text-center cursor-pointer hover:border-ragucci-gold hover:shadow transition-all"
+              >
+                <h4 className="text-[11px] uppercase font-bold text-ragucci-primary-light">3. Gastos Fijos Local</h4>
+                <p className="text-[10px] text-gray-500">Alquiler + Serv + Expensas</p>
+                <div className="text-lg font-extrabold text-ragucci-primary font-sans mt-1">
+                  ${formatMoney(Math.round(totalGastosFijosPeriodo))}
+                </div>
+                <span className="text-[9px] text-ragucci-gold block mt-1">Clic para detalle ➔</span>
+              </div>
+
+              <div 
+                onClick={showChequesPrestamosExplanation}
+                className="bg-white p-3.5 border border-amber-300 bg-amber-50/50 rounded shadow-sm text-center cursor-pointer hover:border-amber-500 hover:shadow transition-all"
+              >
+                <h4 className="text-[11px] uppercase font-bold text-amber-900">4. Cheques & Préstamos</h4>
+                <p className="text-[10px] text-amber-700">Vencimientos del Mes</p>
+                <div className="text-lg font-extrabold text-amber-900 font-sans mt-1">
+                  ${formatMoney(periodCommitmentsObligations)}
+                </div>
+                <span className="text-[9px] text-amber-800 block mt-1">Clic para detalle ➔</span>
+              </div>
+
+              <div 
+                onClick={showCompromisoTotalExplanation}
+                className="bg-ragucci-primary text-white p-3.5 rounded shadow-md text-center border-l-4 border-l-ragucci-gold cursor-pointer hover:bg-ragucci-primary-light hover:shadow-lg transition-all"
+              >
+                <h4 className="text-[11px] uppercase font-bold text-ragucci-gold tracking-wider">TOTAL A PAGAR EN EL MES</h4>
+                <p className="text-[9px] text-ragucci-gold-light">Talleres + Telas + Fijos + Cheques</p>
+                <div className="text-lg md:text-xl font-extrabold text-ragucci-gold font-sans mt-1">
+                  ${formatMoney(Math.round(totalAPagarMesCompleto))}
+                </div>
+                <span className="text-[9px] text-ragucci-gold-light/80 block mt-1">Ver compromiso completo ➔</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between bg-white p-3 border border-gray-200 rounded text-xs">
+              <div className="flex items-center gap-2 text-gray-700 font-medium">
+                <ShoppingBag className="w-4 h-4 text-ragucci-gold" />
+                <span><strong>Costo de Productos Terminados / RTW excluido del compromiso mensual:</strong> (Considerado inversión de stock a futuro)</span>
+              </div>
+              <span className="font-extrabold text-ragucci-primary font-sans text-sm mt-1 sm:mt-0">
+                ${formatMoney(costsBreakdown.pterminado)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 3: DESGLOSE DE GASTOS, RENTABILIDAD Y GRAFICOS */}
+      {balanceSubTab === 'reportes' && (
+        <div className="space-y-8">
+          {/* Cost Breakdown Table */}
+          <div>
+            <h3 className="text-sm md:text-base font-extrabold uppercase text-ragucci-primary border-b-2 border-ragucci-gold pb-1 mb-4 inline-block tracking-wide">
+              Desglose de Costos del Período
+            </h3>
+
+            <div className="overflow-x-auto max-w-2xl">
+              <table className="w-full text-xs text-left border-collapse border border-ragucci-border">
+                <tbody>
+                  {Object.keys(labels).map((key) => (
+                    <tr key={key} className={`border-b border-gray-200 ${key === 'pterminado' ? 'bg-amber-50/40' : ''}`}>
+                      <td className="p-2.5 font-medium flex items-center justify-between">
+                        <span>{labels[key]}</span>
+                        {key === 'pterminado' && (
+                          <span className="text-[10px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold">
+                            Recompra de Stock
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-right font-bold">${formatMoney(costsBreakdown[key])}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-amber-50 font-bold text-amber-900 border-b border-amber-200">
+                    <td className="p-2.5">🏠 GASTOS FIJOS ({monthsToMultiply} {monthsToMultiply === 1 ? 'mes' : 'meses activos con ventas cargadas'})</td>
+                    <td className="p-2.5 text-right">${formatMoney(Math.round(totalGastosFijosPeriodo))}</td>
+                  </tr>
+                  <tr className="bg-ragucci-primary text-ragucci-gold font-extrabold text-sm">
+                    <td className="p-3">TOTAL INVERTIDO EN COSTOS</td>
+                    <td className="p-3 text-right">${formatMoney(Math.round(costoTotalConFijos))}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
       {/* 📊 EVOLUCIÓN MENSUAL Y GRÁFICOS VISUALES */}
       <div className="mt-10 pt-6 border-t-2 border-dashed border-ragucci-gold-light space-y-6">
@@ -1465,6 +1542,8 @@ export const BalanceDashboard: React.FC = () => {
           />
         )}
       </div>
+      </div>
+      )}
 
       {/* Explanation Modal */}
       {activeExplanation && (
