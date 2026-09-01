@@ -948,6 +948,7 @@ export const CalendarView: React.FC = () => {
                             className="p-1 border border-gray-300 rounded bg-gray-50 font-bold text-[11px] cursor-pointer focus:outline-none focus:border-ragucci-gold"
                           >
                             <option value="🔴 Pendiente">🔴 Pendiente</option>
+                            <option value="🟠 Tela en Local">🟠 Tela en Local</option>
                             <option value="🟡 En Taller">🟡 En Taller</option>
                             <option value="🔵 Prueba">🔵 Prueba</option>
                             <option value="🟢 Entregado">🟢 Entregado / Pagado</option>

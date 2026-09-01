@@ -527,6 +527,7 @@ export const OrderTable: React.FC = () => {
             >
               <option value="all">Todos los estados</option>
               <option value="🔴 Pendiente">🔴 Pendiente</option>
+              <option value="🟠 Tela en Local">🟠 Tela en Local</option>
               <option value="🟡 En Taller">🟡 En Taller</option>
               <option value="🔵 Prueba">🔵 Prueba</option>
               <option value="🟢 Entregado">🟢 Entregado</option>
@@ -694,6 +695,7 @@ export const OrderTable: React.FC = () => {
                       className="p-1 border border-gray-300 rounded bg-gray-50 font-bold text-xs focus:outline-none focus:border-ragucci-gold cursor-pointer"
                     >
                       <option value="🔴 Pendiente">🔴 Pendiente</option>
+                      <option value="🟠 Tela en Local">🟠 Tela en Local</option>
                       <option value="🟡 En Taller">🟡 En Taller</option>
                       <option value="🔵 Prueba">🔵 Prueba</option>
                       <option value="🟢 Entregado">🟢 Entregado / Pagado</option>

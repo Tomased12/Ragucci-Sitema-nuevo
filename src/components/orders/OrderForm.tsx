@@ -758,6 +758,7 @@ export const OrderForm: React.FC = () => {
               className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-ragucci-gold font-medium"
             >
               <option value="🔴 Pendiente">🔴 Pendiente de Tela</option>
+              <option value="🟠 Tela en Local">🟠 Tela en Local</option>
               <option value="🟡 En Taller">🟡 En Taller</option>
               <option value="🔵 Prueba">🔵 Prueba</option>
               <option value="🟢 Entregado">🟢 Entregado / Pagado</option>

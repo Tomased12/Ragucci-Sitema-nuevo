@@ -50,9 +50,9 @@ export const WorkshopPayments: React.FC = () => {
   };
 
   const filteredOrders = orders.filter((o) => {
-    // Las órdenes en estado "🔴 Pendiente" no ingresan a talleres hasta entrar la tela (al pasar a "En Taller", "Prueba" o "Entregado")
-    const isPendienteStatus = !o.status || o.status.includes('Pendiente');
-    if (isPendienteStatus) return false;
+    // Las órdenes en "🔴 Pendiente" o "🟠 Tela en Local" no ingresan a talleres hasta ser enviadas al taller (al pasar a "En Taller", "Prueba" o "Entregado")
+    const isNotInWorkshop = !o.status || o.status.includes('Pendiente') || o.status.includes('Tela en Local');
+    if (isNotInWorkshop) return false;
 
     const d = new Date(o.date + 'T12:00:00');
     const matchYear = d.getFullYear().toString() === filterYear;
