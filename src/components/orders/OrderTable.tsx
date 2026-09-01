@@ -187,12 +187,12 @@ export const OrderTable: React.FC = () => {
     if (filterPago === 'pendientes') matchPago = saldoVal > 0;
     if (filterPago === 'pagadas') matchPago = saldoVal === 0;
 
-    let productListText = order.products
-      ? order.products.map((p) => `${p.description}${p.modista ? ` (${p.modista})` : ''}`).join(' + ')
-      : '';
-    if (order.rtwItems && order.rtwItems.length > 0) {
-      productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc} (x${rtw.qty})${rtw.notes ? ` [${rtw.notes}]` : ''}`).join(' + ');
-    }
+      let productListText = order.products
+        ? order.products.map((p) => `${p.description}${p.isGift ? ' 🎁[REGALO]' : ''}${p.modista ? ` (${p.modista})` : ''}`).join(' + ')
+        : '';
+      if (order.rtwItems && order.rtwItems.length > 0) {
+        productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc}${rtw.isGift ? ' 🎁[REGALO]' : ''} (x${rtw.qty})${rtw.notes ? ` [${rtw.notes}]` : ''}`).join(' + ');
+      }
 
     const matchSearch =
       !searchTerm.trim() ||
@@ -585,10 +585,10 @@ export const OrderTable: React.FC = () => {
               if (cleanPhone && !cleanPhone.startsWith('549')) cleanPhone = '549' + cleanPhone;
 
               let productListText = order.products
-                ? order.products.map((p) => `${p.description}${p.modista ? ` (${p.modista})` : ''}`).join(' + ')
+                ? order.products.map((p) => `${p.description}${p.isGift ? ' 🎁[REGALO]' : ''}${p.modista ? ` (${p.modista})` : ''}`).join(' + ')
                 : '';
               if (order.rtwItems && order.rtwItems.length > 0) {
-                productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc} (x${rtw.qty})${rtw.notes ? ` [${rtw.notes}]` : ''}`).join(' + ');
+                productListText += (productListText ? ' + ' : '') + order.rtwItems.map((rtw) => `${rtw.desc}${rtw.isGift ? ' 🎁[REGALO]' : ''} (x${rtw.qty})${rtw.notes ? ` [${rtw.notes}]` : ''}`).join(' + ');
               }
 
               return (

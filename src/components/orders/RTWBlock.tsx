@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { RTWItem, StockItem } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { MoneyInput } from '../common/MoneyInput';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Gift } from 'lucide-react';
 
 interface RTWBlockProps {
   item: RTWItem;
@@ -22,7 +22,7 @@ export const RTWBlock: React.FC<RTWBlockProps> = ({ item, onChange, onRemove }) 
 
   const handleSelectStockItem = (stockItem: StockItem) => {
     const price = stockItem.retailPrice > 0 ? stockItem.retailPrice : stockItem.costPrice;
-    onChange({ ...item, desc: stockItem.name, price });
+    onChange({ ...item, desc: stockItem.name, price: item.isGift ? 0 : price });
     setShowAutocomplete(false);
     setFocusedRtwIdx(-1);
   };
@@ -45,7 +45,9 @@ export const RTWBlock: React.FC<RTWBlockProps> = ({ item, onChange, onRemove }) 
   };
 
   return (
-    <div className="bg-white p-3 border border-ragucci-border rounded shadow-sm mb-2 space-y-2">
+    <div className={`p-3 border rounded shadow-sm mb-2 space-y-2 transition-all ${
+      item.isGift ? 'bg-purple-50/40 border-purple-300' : 'bg-white border-ragucci-border'
+    }`}>
       <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
         <div className="relative flex-2 w-full sm:w-auto">
           <input
@@ -116,6 +118,20 @@ export const RTWBlock: React.FC<RTWBlockProps> = ({ item, onChange, onRemove }) 
             onValueChange={(val) => onChange({ ...item, price: val })}
           />
         </div>
+
+        <button
+          type="button"
+          onClick={() => onChange({ ...item, isGift: !item.isGift, price: !item.isGift ? 0 : item.price })}
+          className={`p-2 rounded text-xs font-bold transition-all cursor-pointer border flex items-center gap-1 ${
+            item.isGift
+              ? 'bg-purple-700 text-white border-purple-800'
+              : 'bg-purple-50 hover:bg-purple-100 text-purple-900 border-purple-300'
+          }`}
+          title="Marcar como Regalo / Cortesía"
+        >
+          <Gift className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{item.isGift ? '🎁 Regalo' : 'Regalo'}</span>
+        </button>
 
         <button
           type="button"

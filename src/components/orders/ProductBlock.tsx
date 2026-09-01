@@ -3,7 +3,8 @@ import { ProductItem, ArregloDetalleItem } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { STANDARD_PRODUCTS } from '../../utils/constants';
 import { MoneyInput } from '../common/MoneyInput';
-import { Trash2 } from 'lucide-react';
+import { formatMoney } from '../../utils/formatters';
+import { Trash2, Gift } from 'lucide-react';
 
 interface ProductBlockProps {
   index: number;
@@ -71,11 +72,13 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
       e.preventDefault();
       setFocusedProdIdx(prev => (prev > 0 ? prev - 1 : filteredProducts.length - 1));
     } else if (e.key === 'Enter') {
-      if (focusedProdIdx >= 0 && filteredProducts[focusedProdIdx]) {
-        e.preventDefault();
+      e.preventDefault();
+      if (focusedProdIdx >= 0 && focusedProdIdx < filteredProducts.length) {
         handleDescChange(filteredProducts[focusedProdIdx]);
         setShowAutocomplete(false);
       }
+    } else if (e.key === 'Escape') {
+      setShowAutocomplete(false);
     }
   };
 
@@ -179,21 +182,56 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
     });
   };
 
+  const productItemTotalCost = (product.costs.sastre || 0) + (product.costs.telas || 0) + (product.costs.forreria || 0) + (product.costs.camisero || 0) + (product.costs.arreglos || 0) + (product.costs.otros || 0);
+
   return (
-    <div className="bg-white border border-ragucci-border p-4 rounded-lg mb-4 border-l-4 border-l-ragucci-primary shadow-sm">
-      <div className="flex justify-between items-center mb-3">
-        <h4 className="font-extrabold text-sm uppercase text-ragucci-primary tracking-wide">
-          Producto {index + 1}
+    <div className={`bg-white border p-4 rounded-lg mb-4 border-l-4 shadow-sm transition-all ${
+      product.isGift ? 'border-purple-300 border-l-purple-700 bg-purple-50/20' : 'border-ragucci-border border-l-ragucci-primary'
+    }`}>
+      <div className="flex justify-between items-center mb-3 gap-2">
+        <h4 className="font-extrabold text-sm uppercase text-ragucci-primary tracking-wide flex items-center gap-2">
+          <span>Producto {index + 1}</span>
+          {product.isGift && (
+            <span className="bg-purple-700 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase flex items-center gap-1 shadow-xs animate-pulse">
+              <Gift className="w-3 h-3" />
+              <span>Regalo / Cortesía</span>
+            </span>
+          )}
         </h4>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="flex items-center gap-1 bg-ragucci-red hover:bg-red-900 text-white text-xs font-bold py-1 px-2.5 rounded transition-colors"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          <span>Eliminar Producto</span>
-        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onChange({ ...product, isGift: !product.isGift })}
+            className={`flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded transition-all cursor-pointer border ${
+              product.isGift
+                ? 'bg-purple-700 text-white border-purple-800 shadow-xs'
+                : 'bg-purple-50 hover:bg-purple-100 text-purple-900 border-purple-300'
+            }`}
+          >
+            <Gift className="w-3.5 h-3.5" />
+            <span>{product.isGift ? '🎁 Es Regalo / Cortesía' : 'Marcar como Regalo'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onRemove}
+            className="flex items-center gap-1 bg-ragucci-red hover:bg-red-900 text-white text-xs font-bold py-1 px-2.5 rounded transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Eliminar</span>
+          </button>
+        </div>
       </div>
+
+      {product.isGift && (
+        <div className="bg-purple-100/70 p-2.5 rounded-lg border border-purple-300 mb-3 flex items-center justify-between text-xs text-purple-950 font-bold">
+          <span className="flex items-center gap-1.5">
+            <span className="text-base">🎁</span>
+            <span>Prenda entregada como <strong>Regalo / Cortesía</strong> (Precio al cliente: $0). Sus costos de producción (<strong>${formatMoney(productItemTotalCost)}</strong>) se sumarán a la tarjeta de <strong>Inversión en Regalos del Balance</strong>.</span>
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
         <div className="relative">

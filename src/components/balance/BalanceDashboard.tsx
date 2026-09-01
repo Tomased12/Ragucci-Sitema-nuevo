@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { formatMoney } from '../../utils/formatters';
+import { formatMoney, formatDate } from '../../utils/formatters';
 import { MoneyInput } from '../common/MoneyInput';
 import { Modal } from '../common/Modal';
 import { 
@@ -22,7 +22,10 @@ import {
   Trophy,
   Target,
   Users,
-  Search
+  Search,
+  ChevronUp,
+  ChevronDown,
+  Gift
 } from 'lucide-react';
 import { exportBalanceToCSV, exportClientProfitabilityToCSV } from '../../utils/exportCsv';
 import { ClientHistoryModal } from '../clients/ClientHistoryModal';
@@ -42,6 +45,7 @@ export const BalanceDashboard: React.FC = () => {
   const [filterMonth, setFilterMonth] = useState('all');
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const [activeExplanation, setActiveExplanation] = useState<ExplanationModalData | null>(null);
+  const [showGiftModal, setShowGiftModal] = useState(false);
 
   // Client Profitability Table State
   const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -122,6 +126,51 @@ export const BalanceDashboard: React.FC = () => {
     totals.saldoPendiente += o.saldo || 0;
     for (const key in costsBreakdown) {
       costsBreakdown[key] += o.costs?.[key as keyof typeof o.costs] || 0;
+    }
+  });
+
+  // Regalos & Cortesías Metrics Calculation
+  const giftList: {
+    orderId: string;
+    client: string;
+    date: string;
+    garmentDesc: string;
+    costAmount: number;
+  }[] = [];
+
+  let totalGiftInversion = 0;
+
+  filteredOrders.forEach((o) => {
+    if (o.products && o.products.length > 0) {
+      o.products.forEach((p) => {
+        if (p.isGift) {
+          const itemCost = (p.costs.sastre || 0) + (p.costs.telas || 0) + (p.costs.forreria || 0) + (p.costs.camisero || 0) + (p.costs.arreglos || 0) + (p.costs.otros || 0);
+          totalGiftInversion += itemCost;
+          giftList.push({
+            orderId: o.firestoreId || o.id?.toString() || '',
+            client: o.client,
+            date: o.date,
+            garmentDesc: p.description || 'Prenda a Medida',
+            costAmount: itemCost
+          });
+        }
+      });
+    }
+
+    if (o.rtwItems && o.rtwItems.length > 0) {
+      o.rtwItems.forEach((rtw) => {
+        if (rtw.isGift) {
+          const rtwCost = (rtw.price || 0) * (rtw.qty || 1);
+          totalGiftInversion += rtwCost;
+          giftList.push({
+            orderId: o.firestoreId || o.id?.toString() || '',
+            client: o.client,
+            date: o.date,
+            garmentDesc: `${rtw.desc} (x${rtw.qty})`,
+            costAmount: rtwCost
+          });
+        }
+      });
     }
   });
 
@@ -722,6 +771,39 @@ export const BalanceDashboard: React.FC = () => {
         </button>
       </div>
 
+      {/* Banner / Card for Regalos & Cortesías */}
+      <div className="bg-gradient-to-r from-purple-900 via-purple-850 to-purple-900 text-white p-4.5 rounded-xl mb-8 border-2 border-purple-400 shadow-md flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-purple-400 text-purple-950 rounded-xl font-black text-xl shadow-xs">
+            🎁
+          </div>
+          <div>
+            <h4 className="text-xs font-black uppercase text-purple-200 tracking-wider flex items-center gap-2">
+              <span>Inversión en Regalos & Cortesías a Clientes</span>
+              {giftList.length > 0 && (
+                <span className="bg-purple-400 text-purple-950 text-[10px] px-2 py-0.5 rounded-full font-black uppercase">
+                  {giftList.length} Regalo(s)
+                </span>
+              )}
+            </h4>
+            <div className="flex flex-wrap items-center gap-3.5 mt-1 text-xs text-purple-100 font-bold">
+              <span>Costo Total en Telas y Mano de Obra: <strong className="text-purple-300 font-black text-sm">${formatMoney(totalGiftInversion)}</strong></span>
+              <span>•</span>
+              <span>Prendas Regaladas en el Período: <strong className="text-white font-extrabold">{giftList.length} prendas</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowGiftModal(true)}
+          className="bg-purple-400 hover:bg-white text-purple-950 font-black text-xs uppercase px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+        >
+          <Gift className="w-4 h-4" />
+          <span>Ver Desglose de Regalos</span>
+        </button>
+      </div>
+
       {/* Subdivisión: Egresos Operativos Mensuales (M.O, Talleres y Telas - Sin RTW) */}
       <div className="border border-ragucci-gold-light bg-[#fffdfa] p-5 rounded-lg mb-8 shadow-sm">
         <div className="flex flex-wrap items-center justify-between border-b-2 border-ragucci-gold pb-2 mb-3">
@@ -1292,6 +1374,69 @@ export const BalanceDashboard: React.FC = () => {
                 className="bg-ragucci-primary hover:bg-ragucci-primary-light text-ragucci-gold font-bold py-1.5 px-4 rounded text-xs transition-colors"
               >
                 Entendido / Cerrar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* MODAL: DESGLOSE DE REGALOS & CORTESÍAS */}
+      {showGiftModal && (
+        <Modal
+          isOpen={showGiftModal}
+          onClose={() => setShowGiftModal(false)}
+          title="🎁 Desglose de Inversión en Regalos & Cortesías a Clientes"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-gray-600 font-medium">
+              Listado de prendas entregadas como cortesía o regalo a clientes VIP en el período seleccionado. Muestra los costos reales asumidos por la sastrería (telas, talleres, camiseros, etc.).
+            </p>
+
+            <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 flex justify-between items-center text-xs">
+              <span className="font-extrabold text-purple-950">Inversión Total en Regalos ({giftList.length} prendas):</span>
+              <span className="text-base font-black text-purple-900">${formatMoney(totalGiftInversion)}</span>
+            </div>
+
+            {giftList.length === 0 ? (
+              <p className="text-xs text-gray-500 italic py-4 text-center">No hay prendas registradas como regalo o cortesía en el período seleccionado.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-purple-900 text-purple-200 font-extrabold uppercase text-[10px]">
+                    <tr>
+                      <th className="py-2.5 px-3">Fecha</th>
+                      <th className="py-2.5 px-3">Cliente</th>
+                      <th className="py-2.5 px-3">Prenda Entregada</th>
+                      <th className="py-2.5 px-3 text-right">Costo Asumido ($)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {giftList.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-purple-50/50">
+                        <td className="py-2.5 px-3 font-medium whitespace-nowrap">{formatDate(item.date)}</td>
+                        <td className="py-2.5 px-3 font-bold text-gray-900">{item.client}</td>
+                        <td className="py-2.5 px-3 font-extrabold text-purple-950">
+                          <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-900 px-2 py-0.5 rounded border border-purple-300">
+                            🎁 {item.garmentDesc}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-black text-purple-900 text-right">
+                          ${formatMoney(item.costAmount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowGiftModal(false)}
+                className="bg-ragucci-primary text-ragucci-gold font-extrabold text-xs uppercase py-2 px-5 rounded-lg shadow-sm cursor-pointer"
+              >
+                Cerrar
               </button>
             </div>
           </div>

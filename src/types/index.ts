@@ -32,6 +32,7 @@ export interface ProductItem {
   camiseroSelected?: string;
   arreglosDetalle?: ArregloDetalleItem[];
   costs: ProductCosts;
+  isGift?: boolean;
 }
 
 export interface RTWItem {
@@ -39,6 +40,7 @@ export interface RTWItem {
   qty: number;
   price: number;
   notes?: string;
+  isGift?: boolean;
 }
 
 export type AviosQuantities = Record<'percha' | 'funda' | 'bolsa' | 'bolsaplastica', number>;
