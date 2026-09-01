@@ -225,6 +225,48 @@ export const BalanceDashboard: React.FC = () => {
   // Total a Pagar Mensual COMPLETO (Talleres + Telas + Gastos Fijos + Cheques/Préstamos del Mes + Avíos/Envíos/Comisiones)
   const totalAPagarMesCompleto = costoTalleresYConfeccion + totalGastosFijosPeriodo + periodCommitmentsObligations + costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros;
 
+  // Calculation of Cash Flow Income in Selected Period (Señas + Cobranzas de órdenes anteriores)
+  let totalDineroRealRecaudadoEnPeriodo = 0;
+  let senasVentasMesInPeriod = 0;
+  let cobranzasVentasAnterioresInPeriod = 0;
+
+  orders.forEach(o => {
+    if (o.paymentHistory && o.paymentHistory.length > 0) {
+      o.paymentHistory.forEach(p => {
+        if (p.date) {
+          const d = new Date(p.date + 'T12:00:00');
+          const matchYear = d.getFullYear().toString() === filterYear;
+          const matchMonth = filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth;
+
+          if (matchYear && matchMonth) {
+            totalDineroRealRecaudadoEnPeriodo += p.amount;
+            const orderMonthStr = o.date ? o.date.substring(0, 7) : '';
+            const pMonthStr = p.date.substring(0, 7);
+            if (orderMonthStr === pMonthStr) {
+              senasVentasMesInPeriod += p.amount;
+            } else {
+              cobranzasVentasAnterioresInPeriod += p.amount;
+            }
+          }
+        }
+      });
+    } else {
+      const d = new Date(o.date + 'T12:00:00');
+      const matchYear = d.getFullYear().toString() === filterYear;
+      const matchMonth = filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth;
+      if (matchYear && matchMonth) {
+        const paidAmount = (o.sale || 0) - (o.saldo || 0);
+        if (paidAmount > 0) {
+          totalDineroRealRecaudadoEnPeriodo += paidAmount;
+          senasVentasMesInPeriod += paidAmount;
+        }
+      }
+    }
+  });
+
+  // Resultado Neto de Caja Real (Cash Flow Efectivo en Mano vs Compromisos Completo Requeridos)
+  const resultadoNetoDeCajaReal = totalDineroRealRecaudadoEnPeriodo - totalAPagarMesCompleto;
+
   const costoTotalConFijos = totalAPagarMesCompleto;
   const gananciaNetaReal = totals.venta - totalAPagarMesCompleto;
 
@@ -454,15 +496,31 @@ export const BalanceDashboard: React.FC = () => {
 
   const showIngresadoExplanation = () => {
     setActiveExplanation({
-      title: '👛 Dinero Real Ingresado (Cash Flow)',
-      formula: 'Venta Bruta Total - Pendiente a Cobrar',
-      explanation: 'Es la liquidez real o flujo de caja efectivo que ya cobraste e ingresó a tu caja/banco durante el período seleccionado (señas + saldos ya pagados).',
+      title: '👛 Dinero Real Ingresado (Caja & Banco)',
+      formula: 'Señas y Pagos de Órdenes del Mes + Cobranzas de Órdenes Anteriores',
+      explanation: 'Es la liquidez real o flujo de caja efectivo que ya ingresó a tu caja o cuenta bancaria durante este período. Incluye tanto las señas ingresadas por ventas del mes como los cobros de saldos pendientes de ventas pasadas.',
       details: [
-        { label: 'Venta Bruta Total:', value: `$${formatMoney(totals.venta)}` },
-        { label: 'Menos Pendiente de Cobro:', value: `-$${formatMoney(totals.saldoPendiente)}` },
-        { label: 'Efectivo / Transferencias Ingresadas:', value: `$${formatMoney(totals.venta - totals.saldoPendiente)}`, color: 'text-sky-600 font-extrabold' }
+        { label: 'Señas y Pagos de Órdenes del Período:', value: `$${formatMoney(senasVentasMesInPeriod)}`, color: 'text-sky-600' },
+        { label: 'Cobranzas de Saldos de Órdenes Anteriores:', value: `+$${formatMoney(cobranzasVentasAnterioresInPeriod)}`, color: 'text-emerald-600 font-bold' },
+        { label: 'TOTAL DINERO REAL INGRESADO:', value: `$${formatMoney(totalDineroRealRecaudadoEnPeriodo)}`, color: 'text-sky-700 font-extrabold text-sm' }
       ],
-      note: 'Es el dinero real disponible en tu mano para hacer frente a los compromisos de talleres y gastos del mes.'
+      note: 'Representa el dinero efectivo en mano disponible en tu caja para afrontar las obligaciones del negocio.'
+    });
+  };
+
+  const showResultadoCajaExplanation = () => {
+    setActiveExplanation({
+      title: '💸 Resultado Neto de Caja (Efectivo Real vs Compromisos)',
+      formula: 'Dinero Real Ingresado (Caja/Banco) - Total Compromiso Completo a Pagar',
+      explanation: 'Muestra el resultado real del flujo de caja en mano. Compara directamente la cantidad de dinero en efectivo que ya ingresó este mes contra los egresos inamovibles a pagar (Talleres, Telas, Alquiler USD, Cheques/Préstamos y Comisiones).',
+      details: [
+        { label: 'Dinero Real Ingresado en el Período:', value: `$${formatMoney(totalDineroRealRecaudadoEnPeriodo)}`, color: 'text-sky-600 font-bold' },
+        { label: '(-) Total Compromiso Completo del Mes:', value: `-$${formatMoney(Math.round(totalAPagarMesCompleto))}`, color: 'text-red-600 font-bold' },
+        { label: 'RESULTADO NETO REAL DE CAJA:', value: `$${formatMoney(Math.round(resultadoNetoDeCajaReal))}`, color: resultadoNetoDeCajaReal >= 0 ? 'text-emerald-600 font-black text-sm' : 'text-red-500 font-black text-sm' }
+      ],
+      note: resultadoNetoDeCajaReal >= 0
+        ? '🟢 Superávit de caja: El dinero ingresado alcanza para cubrir el 100% de los compromisos del mes.'
+        : '🔴 Déficit de caja: El dinero ingresado hasta hoy no alcanza para saldar todos los compromisos del mes. Se requiere cobrar saldos pendientes o aportar liquidez.'
     });
   };
 
@@ -705,65 +763,159 @@ export const BalanceDashboard: React.FC = () => {
       </div>
 
       {/* Financial Overview Cards (Clickable) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-8">
         <div 
           onClick={showVentaExplanation}
-          className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all group relative"
+          className="bg-white p-4 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all group relative"
         >
           <div className="absolute top-2 right-2 text-gray-300 group-hover:text-emerald-500 transition-colors">
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-3.5 h-3.5" />
           </div>
           <div className="flex justify-center text-emerald-600 mb-1">
-            <TrendingUp className="w-6 h-6" />
+            <TrendingUp className="w-5 h-5" />
           </div>
-          <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Venta Bruta Total</h4>
-          <div className="text-2xl font-extrabold text-emerald-600 font-sans mt-2">${formatMoney(totals.venta)}</div>
-          <span className="text-[10px] text-gray-400 block mt-1">Ver fórmula de cálculo ➔</span>
+          <h4 className="text-[11px] uppercase font-extrabold text-ragucci-primary-light tracking-wider">Venta Bruta Total</h4>
+          <div className="text-xl font-extrabold text-emerald-600 font-sans mt-1.5">${formatMoney(totals.venta)}</div>
+          <span className="text-[9px] text-gray-400 block mt-1">Ver fórmula ➔</span>
         </div>
 
         <div 
           onClick={showPendienteExplanation}
-          className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-red-400 hover:shadow-md transition-all group relative"
+          className="bg-white p-4 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-red-400 hover:shadow-md transition-all group relative"
         >
           <div className="absolute top-2 right-2 text-gray-300 group-hover:text-red-400 transition-colors">
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-3.5 h-3.5" />
           </div>
           <div className="flex justify-center text-red-500 mb-1">
-            <ArrowDownRight className="w-6 h-6" />
+            <ArrowDownRight className="w-5 h-5" />
           </div>
-          <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Pendiente a Cobrar</h4>
-          <div className="text-2xl font-extrabold text-red-500 font-sans mt-2">${formatMoney(totals.saldoPendiente)}</div>
-          <span className="text-[10px] text-gray-400 block mt-1">Ver fórmula de cálculo ➔</span>
+          <h4 className="text-[11px] uppercase font-extrabold text-ragucci-primary-light tracking-wider">Pendiente a Cobrar</h4>
+          <div className="text-xl font-extrabold text-red-500 font-sans mt-1.5">${formatMoney(totals.saldoPendiente)}</div>
+          <span className="text-[9px] text-gray-400 block mt-1">Ver fórmula ➔</span>
         </div>
 
         <div 
           onClick={showIngresadoExplanation}
-          className="bg-white p-5 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-sky-500 hover:shadow-md transition-all group relative"
+          className="bg-white p-4 border border-ragucci-gold-light rounded-lg shadow-sm text-center cursor-pointer hover:border-sky-500 hover:shadow-md transition-all group relative"
         >
           <div className="absolute top-2 right-2 text-gray-300 group-hover:text-sky-500 transition-colors">
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-3.5 h-3.5" />
           </div>
           <div className="flex justify-center text-sky-600 mb-1">
-            <Wallet className="w-6 h-6" />
+            <Wallet className="w-5 h-5" />
           </div>
-          <h4 className="text-xs uppercase font-extrabold text-ragucci-primary-light tracking-wider">Dinero Real Ingresado</h4>
-          <div className="text-2xl font-extrabold text-sky-600 font-sans mt-2">${formatMoney(totals.venta - totals.saldoPendiente)}</div>
-          <span className="text-[10px] text-gray-400 block mt-1">Ver fórmula de cálculo ➔</span>
+          <h4 className="text-[11px] uppercase font-extrabold text-ragucci-primary-light tracking-wider">Dinero Real Ingresado</h4>
+          <div className="text-xl font-extrabold text-sky-600 font-sans mt-1.5">${formatMoney(totalDineroRealRecaudadoEnPeriodo)}</div>
+          <span className="text-[9px] text-sky-800 font-bold block mt-1">Ver desglose cobros ➔</span>
         </div>
 
         <div 
           onClick={showGananciaNetaExplanation}
-          className="bg-ragucci-primary text-ragucci-gold p-5 border-b-4 border-ragucci-gold rounded-lg shadow-md text-center cursor-pointer hover:bg-ragucci-primary-light hover:shadow-lg transition-all group relative"
+          className="bg-ragucci-primary text-ragucci-gold p-4 border-b-4 border-ragucci-gold rounded-lg shadow-md text-center cursor-pointer hover:bg-ragucci-primary-light hover:shadow-lg transition-all group relative"
         >
           <div className="absolute top-2 right-2 text-ragucci-gold/40 group-hover:text-ragucci-gold transition-colors">
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-3.5 h-3.5" />
           </div>
           <div className="flex justify-center text-ragucci-gold mb-1">
-            <Award className="w-6 h-6" />
+            <Award className="w-5 h-5" />
           </div>
-          <h4 className="text-xs uppercase font-extrabold text-ragucci-gold-light tracking-wider">Ganancia Neta Real</h4>
-          <div className="text-2xl font-extrabold text-ragucci-gold font-sans mt-2">${formatMoney(Math.round(gananciaNetaReal))}</div>
-          <span className="text-[10px] text-ragucci-gold-light/60 block mt-1">Ver fórmula de cálculo ➔</span>
+          <h4 className="text-[11px] uppercase font-extrabold text-ragucci-gold-light tracking-wider">Ganancia Neta Real</h4>
+          <div className="text-xl font-extrabold text-ragucci-gold font-sans mt-1.5">${formatMoney(Math.round(gananciaNetaReal))}</div>
+          <span className="text-[9px] text-ragucci-gold-light/60 block mt-1">Ver fórmula devengada ➔</span>
+        </div>
+
+        <div 
+          onClick={showResultadoCajaExplanation}
+          className={`p-4 rounded-lg shadow-md text-center cursor-pointer transition-all group relative border-b-4 ${
+            resultadoNetoDeCajaReal >= 0
+              ? 'bg-emerald-900 text-emerald-100 border-b-emerald-400 hover:bg-emerald-850'
+              : 'bg-red-950 text-red-100 border-b-red-500 hover:bg-red-900'
+          }`}
+        >
+          <div className="absolute top-2 right-2 opacity-50 group-hover:opacity-100 transition-opacity">
+            <HelpCircle className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex justify-center mb-1">
+            <Calculator className="w-5 h-5" />
+          </div>
+          <h4 className="text-[11px] uppercase font-extrabold tracking-wider">Resultado de Caja (Efectivo)</h4>
+          <div className="text-xl font-black font-sans mt-1.5">${formatMoney(Math.round(resultadoNetoDeCajaReal))}</div>
+          <span className="text-[9px] opacity-80 block mt-1">Ver caja en mano ➔</span>
+        </div>
+      </div>
+
+      {/* BANNER DESTACADO: CONTROL DE LIQUIDEZ Y RESULTADO DE CAJA REAL */}
+      <div className="bg-gradient-to-r from-slate-900 via-ragucci-primary to-slate-900 text-white p-5 rounded-2xl border-2 border-ragucci-gold shadow-md space-y-3 mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ragucci-gold/30 pb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-ragucci-gold text-ragucci-primary rounded-xl font-black text-2xl shadow-xs">
+              🏦
+            </div>
+            <div>
+              <h3 className="text-base md:text-lg font-black uppercase text-ragucci-gold tracking-wide flex items-center gap-2">
+                <span>Control de Liquidez & Flujo Neto de Caja Real</span>
+                <span className="text-[10px] bg-ragucci-gold text-ragucci-primary font-black px-2 py-0.5 rounded-full uppercase">
+                  Caja Efectiva
+                </span>
+              </h3>
+              <p className="text-xs text-gray-300 font-medium">
+                Compara el dinero real en efectivo/banco que ya ingresó este mes contra la totalidad de compromisos inamovibles a pagar.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={showResultadoCajaExplanation}
+            className="bg-ragucci-gold hover:bg-white text-ragucci-primary font-black text-xs uppercase px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span>Explicación de Caja Real</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
+            <span className="text-[10px] font-extrabold uppercase text-gray-300 block">
+              💵 Dinero Real Ingresado (Caja / Banco)
+            </span>
+            <span className="text-base font-black text-sky-300 mt-0.5 block">
+              +${formatMoney(totalDineroRealRecaudadoEnPeriodo)}
+            </span>
+            <span className="text-[10px] text-sky-200 font-medium block">
+              Señas del mes (${formatMoney(senasVentasMesInPeriod)}) + Cobranzas anteriores (${formatMoney(cobranzasVentasAnterioresInPeriod)})
+            </span>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
+            <span className="text-[10px] font-extrabold uppercase text-gray-300 block">
+              💳 Total Compromisos Inamovibles del Mes
+            </span>
+            <span className="text-base font-black text-red-400 mt-0.5 block">
+              -${formatMoney(Math.round(totalAPagarMesCompleto))}
+            </span>
+            <span className="text-[10px] text-red-300 font-medium block">
+              Talleres + Telas + Alquiler USD + Cheques + Comisiones
+            </span>
+          </div>
+
+          <div className={`p-3 rounded-xl font-extrabold shadow-sm border ${
+            resultadoNetoDeCajaReal >= 0 
+              ? 'bg-emerald-500 text-slate-950 border-emerald-300' 
+              : 'bg-red-950 text-red-200 border-red-500'
+          }`}>
+            <span className="text-[10px] uppercase font-black tracking-wider block opacity-90">
+              {resultadoNetoDeCajaReal >= 0 ? '🟢 Superávit Neto de Caja' : '🔴 Déficit Neto de Caja (Faltante)'}
+            </span>
+            <span className="text-lg font-black mt-0.5 block">
+              ${formatMoney(Math.round(resultadoNetoDeCajaReal))}
+            </span>
+            <span className="text-[10px] font-bold block opacity-80">
+              {resultadoNetoDeCajaReal >= 0 
+                ? 'El dinero cobrado cubre el 100% de los compromisos' 
+                : 'Faltante de liquidez a recaudar o aportar este mes'}
+            </span>
+          </div>
         </div>
       </div>
 
