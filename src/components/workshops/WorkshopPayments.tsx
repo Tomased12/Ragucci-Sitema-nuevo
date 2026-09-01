@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Order } from '../../types';
+import { Order, ExpensePaymentDetail, CashMovement } from '../../types';
 import { formatDate, formatMoney } from '../../utils/formatters';
 import { Modal } from '../common/Modal';
+import { ExpensePaymentModal, ExpensePaymentModalItem } from '../common/ExpensePaymentModal';
 import { Maximize2, Search, Filter, Clock, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface WorkshopSubDetail {
@@ -24,6 +25,8 @@ interface WorkshopItem {
   isPaid: boolean;
   note: string;
   order: Order;
+  workshopGroup: string;
+  paymentDetails?: ExpensePaymentDetail;
 }
 
 interface WorkshopGroup {
@@ -34,7 +37,7 @@ interface WorkshopGroup {
 }
 
 export const WorkshopPayments: React.FC = () => {
-  const { orders, config, saveOrderData } = useApp();
+  const { orders, config, saveOrderData, saveCashMovementData, removeCashMovementData } = useApp();
 
   const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
@@ -44,6 +47,10 @@ export const WorkshopPayments: React.FC = () => {
   const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
   const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
+
+  // Payment Modal State
+  const [paymentModalItem, setPaymentModalItem] = useState<ExpensePaymentModalItem | null>(null);
+  const [activeWorkshopItemForPayment, setActiveWorkshopItemForPayment] = useState<WorkshopItem | null>(null);
 
   const toggleExpand = (key: string) => {
     setExpandedKeys(prev => ({ ...prev, [key]: !prev[key] }));
@@ -73,6 +80,7 @@ export const WorkshopPayments: React.FC = () => {
     const clientName = o.client || 'Cliente sin nombre';
     const paidMap = o.paidTalleresMap || {};
     const notesMap = o.tallerNotesMap || {};
+    const paymentDetailsMap = o.tallerPaymentDetailsMap || {};
     const orderDate = o.date;
 
     if (o.products && o.products.length > 0) {
@@ -86,7 +94,8 @@ export const WorkshopPayments: React.FC = () => {
           const itemKey = `${o.firestoreId}_p${pIdx}_sastre`;
           const isPaid = !!paidMap[itemKey];
           const itemNote = notesMap[itemKey] || '';
-          const group = dataTalleres['SANTIAGO (Sastre)'];
+          const groupName = 'SANTIAGO (Sastre)';
+          const group = dataTalleres[groupName];
 
           group.totalAccumulated += c.sastre;
           if (isPaid) {
@@ -105,7 +114,9 @@ export const WorkshopPayments: React.FC = () => {
             amount: c.sastre,
             isPaid,
             note: itemNote,
-            order: o
+            order: o,
+            workshopGroup: groupName,
+            paymentDetails: paymentDetailsMap[itemKey]
           });
         }
 
@@ -141,7 +152,9 @@ export const WorkshopPayments: React.FC = () => {
             amount: c.camisero,
             isPaid,
             note: itemNote,
-            order: o
+            order: o,
+            workshopGroup: targetCamisero,
+            paymentDetails: paymentDetailsMap[itemKey]
           });
         }
 
@@ -206,7 +219,9 @@ export const WorkshopPayments: React.FC = () => {
               amount: totalSub,
               isPaid,
               note: itemNote,
-              order: o
+              order: o,
+              workshopGroup: targetModistaKey,
+              paymentDetails: paymentDetailsMap[itemKey] || (subKeys.length > 0 ? paymentDetailsMap[subKeys[0]] : undefined)
             });
           }
         }
@@ -222,17 +237,131 @@ export const WorkshopPayments: React.FC = () => {
   });
 
   const handleTogglePaid = async (item: WorkshopItem, isChecked: boolean) => {
-    const updatedMap = { ...(item.order.paidTalleresMap || {}), [item.key]: isChecked };
-    if (item.subKeys && item.subKeys.length > 0) {
-      item.subKeys.forEach(sk => {
-        updatedMap[sk] = isChecked;
+    if (isChecked) {
+      // Abre el modal para solicitar fecha y medio de pago y descontar de caja
+      setPaymentModalItem({
+        title: `Pago a ${item.workshopGroup}`,
+        client: item.client,
+        detail: item.detail,
+        providerOrWorkshop: item.workshopGroup,
+        amount: item.amount,
+        categoryType: 'taller'
       });
+      setActiveWorkshopItemForPayment(item);
+    } else {
+      // Uncheck / Anular pago
+      if (confirm(`¿Deseas anular el pago de $${formatMoney(item.amount)} a ${item.workshopGroup} para ${item.client}? Se reintegrará el dinero a la caja.`)) {
+        const details = item.order.tallerPaymentDetailsMap?.[item.key];
+        if (details?.movementId) {
+          try {
+            await removeCashMovementData(details.movementId);
+          } catch (e) {
+            console.warn("No se pudo borrar el movimiento de caja:", e);
+          }
+        }
+
+        const updatedMap = { ...(item.order.paidTalleresMap || {}), [item.key]: false };
+        if (item.subKeys && item.subKeys.length > 0) {
+          item.subKeys.forEach(sk => {
+            updatedMap[sk] = false;
+          });
+        }
+
+        const updatedDetailsMap = { ...(item.order.tallerPaymentDetailsMap || {}) };
+        delete updatedDetailsMap[item.key];
+        if (item.subKeys) {
+          item.subKeys.forEach(sk => {
+            delete updatedDetailsMap[sk];
+          });
+        }
+
+        const updatedOrder: Order = {
+          ...item.order,
+          paidTalleresMap: updatedMap,
+          tallerPaymentDetailsMap: updatedDetailsMap
+        };
+
+        try {
+          await saveOrderData(updatedOrder, item.firestoreId);
+        } catch (e) {
+          alert("Error al anular el pago del taller.");
+        }
+      }
     }
-    const updatedOrder = { ...item.order, paidTalleresMap: updatedMap };
+  };
+
+  const handleConfirmWorkshopPayment = async (data: { date: string; account: 'efectivo' | 'banco' | 'dolar'; note: string }) => {
+    if (!activeWorkshopItemForPayment) return;
+    const it = activeWorkshopItemForPayment;
+    const movementId = Date.now().toString();
+
+    // 1. Crear egreso en CashMovement
+    const newMov: CashMovement = {
+      id: movementId,
+      date: data.date,
+      type: 'egreso',
+      amount: it.amount,
+      account: data.account,
+      category: `✂️ Taller: ${it.workshopGroup}`,
+      description: `Pago Taller (${it.workshopGroup}): ${it.client} - ${it.detail}${data.note ? ` [${data.note}]` : ''}`,
+      clientOrRef: it.client
+    };
+
     try {
-      await saveOrderData(updatedOrder, item.firestoreId);
+      await saveCashMovementData(newMov);
+
+      // 2. Actualizar la orden
+      const updatedMap = { ...(it.order.paidTalleresMap || {}), [it.key]: true };
+      if (it.subKeys && it.subKeys.length > 0) {
+        it.subKeys.forEach(sk => {
+          updatedMap[sk] = true;
+        });
+      }
+
+      const updatedDetailsMap = {
+        ...(it.order.tallerPaymentDetailsMap || {}),
+        [it.key]: {
+          date: data.date,
+          account: data.account,
+          movementId,
+          amount: it.amount,
+          note: data.note
+        }
+      };
+      if (it.subKeys) {
+        it.subKeys.forEach(sk => {
+          updatedDetailsMap[sk] = {
+            date: data.date,
+            account: data.account,
+            movementId,
+            amount: it.amount,
+            note: data.note
+          };
+        });
+      }
+
+      let updatedNotes = { ...(it.order.tallerNotesMap || {}) };
+      if (data.note) {
+        updatedNotes[it.key] = data.note;
+        if (it.subKeys) {
+          it.subKeys.forEach(sk => {
+            updatedNotes[sk] = data.note;
+          });
+        }
+      }
+
+      const updatedOrder: Order = {
+        ...it.order,
+        paidTalleresMap: updatedMap,
+        tallerPaymentDetailsMap: updatedDetailsMap,
+        tallerNotesMap: updatedNotes
+      };
+
+      await saveOrderData(updatedOrder, it.firestoreId);
+      setActiveWorkshopItemForPayment(null);
+      setPaymentModalItem(null);
     } catch (e) {
-      alert("Error al actualizar el estado de pago del taller.");
+      alert("Error al guardar el pago del taller.");
     }
   };
 
@@ -283,6 +412,16 @@ export const WorkshopPayments: React.FC = () => {
               <span className={it.isPaid ? 'line-through text-gray-400 font-medium' : 'text-gray-900 font-bold'}>
                 <strong>{it.client}</strong> — <em>{it.detail}</em>
               </span>
+
+              {it.isPaid && it.paymentDetails && (
+                <span className="bg-emerald-100 text-emerald-950 text-[10px] font-black px-2 py-0.5 rounded border border-emerald-300 inline-flex items-center gap-1 shrink-0">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                  <span>Pagado {formatDate(it.paymentDetails.date)}</span>
+                  <span className="opacity-80 font-bold">
+                    ({it.paymentDetails.account === 'efectivo' ? '💵 Efectivo' : it.paymentDetails.account === 'banco' ? '🏦 Banco' : '💵 USD'})
+                  </span>
+                </span>
+              )}
 
               {hasSubDetails && (
                 <button
@@ -581,6 +720,17 @@ export const WorkshopPayments: React.FC = () => {
           })()}
         </Modal>
       )}
+
+      {/* Expense Payment Confirmation Modal */}
+      <ExpensePaymentModal
+        isOpen={!!paymentModalItem}
+        onClose={() => {
+          setPaymentModalItem(null);
+          setActiveWorkshopItemForPayment(null);
+        }}
+        item={paymentModalItem}
+        onConfirm={handleConfirmWorkshopPayment}
+      />
     </div>
   );
 };

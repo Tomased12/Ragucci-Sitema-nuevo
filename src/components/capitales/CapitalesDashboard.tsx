@@ -67,21 +67,6 @@ export const CapitalesDashboard: React.FC = () => {
           efectivo += collected;
         }
       }
-
-      // Deduct paid workshop costs from cash balance
-      if (o.paidTalleresMap) {
-        Object.entries(o.paidTalleresMap).forEach(([key, isPaid]) => {
-          if (isPaid && o.costs) {
-            let costVal = 0;
-            if (key === 'sastre') costVal = o.costs.sastre || 0;
-            if (key === 'camisero') costVal = o.costs.camisero || 0;
-            if (key === 'arreglos') costVal = o.costs.arreglos || 0;
-            if (costVal > 0) {
-              efectivo -= costVal;
-            }
-          }
-        });
-      }
     });
 
     // B. Manual Cash Movements
@@ -172,34 +157,6 @@ export const CapitalesDashboard: React.FC = () => {
             createdBy: o.createdBy,
             updatedBy: o.updatedBy
           });
-        });
-      }
-
-      // Add automatic workshop payments
-      if (o.paidTalleresMap) {
-        Object.entries(o.paidTalleresMap).forEach(([key, isPaid]) => {
-          if (isPaid && o.costs) {
-            let costVal = 0;
-            let tallerName = '';
-            if (key === 'sastre') { costVal = o.costs.sastre || 0; tallerName = 'Sastre (Santiago)'; }
-            if (key === 'camisero') { costVal = o.costs.camisero || 0; tallerName = 'Camisero'; }
-            if (key === 'arreglos') { costVal = o.costs.arreglos || 0; tallerName = 'Modista (Arreglos)'; }
-
-            if (costVal > 0) {
-              list.push({
-                id: `ord-tall-${o.id}-${key}`,
-                date: o.date,
-                type: 'egreso',
-                account: 'efectivo',
-                category: '✂️ Pago a Taller',
-                description: `${tallerName} - Orden ${o.client}`,
-                amount: costVal,
-                isManual: false,
-                createdBy: o.createdBy,
-                updatedBy: o.updatedBy
-              });
-            }
-          }
         });
       }
     });

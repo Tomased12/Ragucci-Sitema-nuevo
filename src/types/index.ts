@@ -143,6 +143,14 @@ export interface ClientMeasurements {
 
 export type UserInitial = 'L' | 'C' | 'T';
 
+export interface ExpensePaymentDetail {
+  date: string;
+  account: 'efectivo' | 'banco' | 'dolar';
+  movementId?: string;
+  amount?: number;
+  note?: string;
+}
+
 export interface Order {
   firestoreId?: string;
   id?: number;
@@ -167,8 +175,10 @@ export interface Order {
   costs: CostsBreakdown;
   paidTalleresMap?: Record<string, boolean>;
   tallerNotesMap?: Record<string, string>;
+  tallerPaymentDetailsMap?: Record<string, ExpensePaymentDetail>;
   paidTelasMap?: Record<string, boolean>;
   telaNotesMap?: Record<string, string>;
+  telaPaymentDetailsMap?: Record<string, ExpensePaymentDetail>;
   measurements?: ClientMeasurements;
   totalCost: number;
   profit: number;

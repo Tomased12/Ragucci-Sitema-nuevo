@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Order } from '../../types';
+import { Order, ExpensePaymentDetail, CashMovement } from '../../types';
 import { formatDate, formatMoney } from '../../utils/formatters';
 import { Modal } from '../common/Modal';
+import { ExpensePaymentModal, ExpensePaymentModalItem } from '../common/ExpensePaymentModal';
 import { Maximize2, Search, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Layers, Scissors } from 'lucide-react';
 
 interface FabricItem {
@@ -18,6 +19,7 @@ interface FabricItem {
   isPaid: boolean;
   note: string;
   order: Order;
+  paymentDetails?: ExpensePaymentDetail;
 }
 
 interface FabricGroup {
@@ -28,7 +30,7 @@ interface FabricGroup {
 }
 
 export const TelasDashboard: React.FC = () => {
-  const { orders, saveOrderData } = useApp();
+  const { orders, saveOrderData, saveCashMovementData, removeCashMovementData } = useApp();
 
   const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
@@ -38,6 +40,10 @@ export const TelasDashboard: React.FC = () => {
   const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
   const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
+
+  // Payment Modal State
+  const [paymentModalItem, setPaymentModalItem] = useState<ExpensePaymentModalItem | null>(null);
+  const [activeFabricItemForPayment, setActiveFabricItemForPayment] = useState<FabricItem | null>(null);
 
   const toggleExpand = (key: string) => {
     setExpandedKeys(prev => ({ ...prev, [key]: !prev[key] }));
@@ -69,6 +75,7 @@ export const TelasDashboard: React.FC = () => {
     const clientName = o.client || 'Cliente sin nombre';
     const paidMap = o.paidTelasMap || {};
     const notesMap = o.telaNotesMap || {};
+    const paymentDetailsMap = o.telaPaymentDetailsMap || {};
     const orderDate = o.date;
 
     if (o.products && o.products.length > 0) {
@@ -96,7 +103,8 @@ export const TelasDashboard: React.FC = () => {
             amount,
             isPaid,
             note,
-            order: o
+            order: o,
+            paymentDetails: paymentDetailsMap[key]
           };
 
           const targetGroup = dataProveedores[provName] || dataProveedores['Otros Proveedores'];
@@ -129,7 +137,8 @@ export const TelasDashboard: React.FC = () => {
             amount,
             isPaid,
             note,
-            order: o
+            order: o,
+            paymentDetails: paymentDetailsMap[key]
           };
 
           const targetGroup = dataProveedores[provName] || dataProveedores['Otros Proveedores'];
@@ -146,19 +155,102 @@ export const TelasDashboard: React.FC = () => {
   });
 
   const togglePaymentStatus = async (item: FabricItem) => {
-    const { order, key, isPaid } = item;
-    const currentPaidMap = order.paidTelasMap || {};
-    const newPaidMap = { ...currentPaidMap, [key]: !isPaid };
+    if (!item.isPaid) {
+      // Abre el modal para solicitar fecha y medio de pago y descontar de caja
+      setPaymentModalItem({
+        title: `Pago a Proveedor: ${item.provider}`,
+        client: item.client,
+        detail: `${item.garmentDesc} - ${item.fabricCategory}`,
+        providerOrWorkshop: item.provider,
+        amount: item.amount,
+        categoryType: 'tela'
+      });
+      setActiveFabricItemForPayment(item);
+    } else {
+      // Uncheck / Anular pago
+      if (confirm(`¿Deseas anular el pago de $${formatMoney(item.amount)} de tela a ${item.provider} para ${item.client}? Se reintegrará el dinero a la caja.`)) {
+        const details = item.order.telaPaymentDetailsMap?.[item.key];
+        if (details?.movementId) {
+          try {
+            await removeCashMovementData(details.movementId);
+          } catch (e) {
+            console.warn("No se pudo borrar el movimiento de caja:", e);
+          }
+        }
 
-    const updatedOrder: Order = {
-      ...order,
-      paidTelasMap: newPaidMap
+        const currentPaidMap = item.order.paidTelasMap || {};
+        const newPaidMap = { ...currentPaidMap, [item.key]: false };
+
+        const currentDetailsMap = { ...(item.order.telaPaymentDetailsMap || {}) };
+        delete currentDetailsMap[item.key];
+
+        const updatedOrder: Order = {
+          ...item.order,
+          paidTelasMap: newPaidMap,
+          telaPaymentDetailsMap: currentDetailsMap
+        };
+
+        try {
+          await saveOrderData(updatedOrder, item.order.firestoreId);
+        } catch (e) {
+          alert("Error al anular el pago de la tela.");
+        }
+      }
+    }
+  };
+
+  const handleConfirmFabricPayment = async (data: { date: string; account: 'efectivo' | 'banco' | 'dolar'; note: string }) => {
+    if (!activeFabricItemForPayment) return;
+    const it = activeFabricItemForPayment;
+    const movementId = Date.now().toString();
+
+    // 1. Crear egreso en CashMovement
+    const newMov: CashMovement = {
+      id: movementId,
+      date: data.date,
+      type: 'egreso',
+      amount: it.amount,
+      account: data.account,
+      category: `🧵 Telas: ${it.provider}`,
+      description: `Pago Telas (${it.provider}): ${it.client} - ${it.garmentDesc}${data.note ? ` [${data.note}]` : ''}`,
+      clientOrRef: it.client
     };
 
     try {
-      await saveOrderData(updatedOrder, order.firestoreId);
+      await saveCashMovementData(newMov);
+
+      // 2. Actualizar la orden
+      const currentPaidMap = it.order.paidTelasMap || {};
+      const newPaidMap = { ...currentPaidMap, [it.key]: true };
+
+      const currentDetailsMap = {
+        ...(it.order.telaPaymentDetailsMap || {}),
+        [it.key]: {
+          date: data.date,
+          account: data.account,
+          movementId,
+          amount: it.amount,
+          note: data.note
+        }
+      };
+
+      let currentNotesMap = { ...(it.order.telaNotesMap || {}) };
+      if (data.note) {
+        currentNotesMap[it.key] = data.note;
+      }
+
+      const updatedOrder: Order = {
+        ...it.order,
+        paidTelasMap: newPaidMap,
+        telaPaymentDetailsMap: currentDetailsMap,
+        telaNotesMap: currentNotesMap
+      };
+
+      await saveOrderData(updatedOrder, it.order.firestoreId);
+      setActiveFabricItemForPayment(null);
+      setPaymentModalItem(null);
     } catch (e) {
-      alert("Error al actualizar el estado de pago de la tela.");
+      alert("Error al guardar el pago de la tela.");
     }
   };
 
@@ -461,6 +553,14 @@ export const TelasDashboard: React.FC = () => {
                                   </>
                                 )}
                               </button>
+                              {item.isPaid && item.paymentDetails && (
+                                <div className="text-[10px] text-emerald-800 font-bold mt-1 text-center">
+                                  <span>{formatDate(item.paymentDetails.date)}</span>
+                                  <span className="block text-[9px] text-gray-600 font-medium">
+                                    {item.paymentDetails.account === 'efectivo' ? '💵 Efectivo' : item.paymentDetails.account === 'banco' ? '🏦 Banco' : '💵 USD'}
+                                  </span>
+                                </div>
+                              )}
                             </td>
 
                             <td className="py-2.5 px-3">
@@ -493,6 +593,17 @@ export const TelasDashboard: React.FC = () => {
           })()}
         </Modal>
       )}
+
+      {/* Expense Payment Confirmation Modal */}
+      <ExpensePaymentModal
+        isOpen={!!paymentModalItem}
+        onClose={() => {
+          setPaymentModalItem(null);
+          setActiveFabricItemForPayment(null);
+        }}
+        item={paymentModalItem}
+        onConfirm={handleConfirmFabricPayment}
+      />
     </div>
   );
 };
