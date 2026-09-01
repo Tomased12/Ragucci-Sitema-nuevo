@@ -225,8 +225,8 @@ export const BalanceDashboard: React.FC = () => {
   // Total a Pagar Mensual COMPLETO (Talleres + Telas + Gastos Fijos + Cheques/Préstamos del Mes + Avíos/Envíos/Comisiones)
   const totalAPagarMesCompleto = costoTalleresYConfeccion + totalGastosFijosPeriodo + periodCommitmentsObligations + costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros;
 
-  const costoTotalConFijos = totals.costo + totalGastosFijosPeriodo;
-  const gananciaNetaReal = totals.venta - costoTotalConFijos;
+  const costoTotalConFijos = totalAPagarMesCompleto;
+  const gananciaNetaReal = totals.venta - totalAPagarMesCompleto;
 
   // Monthly Evolution Data for filterYear
   const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -469,15 +469,18 @@ export const BalanceDashboard: React.FC = () => {
   const showGananciaNetaExplanation = () => {
     setActiveExplanation({
       title: '🏆 Ganancia Neta Real',
-      formula: 'Venta Bruta Total - (Costos Directos de Confección/RTW + Gastos Fijos)',
-      explanation: 'Es el resultado económico neto y real de la sastrería. Muestra tu beneficio neto descontando de las ventas todos los costos de producción (Santiago sastre, camiseros, modistas, telas, forrería, RTW, envíos, avíos) y la totalidad de tus gastos fijos de estructura (Alquiler en USD convertido a Dólar Blue, expensas, luz/gas, internet, redes y publicidad).',
+      formula: 'Venta Bruta Total - Total a Pagar en el Mes (Compromiso Operativo Completo)',
+      explanation: 'Es el resultado económico neto y real de la sastrería. Descuenta de la facturación total contratada del mes la totalidad de los egresos y compromisos requeridos: talleres de confección, telas, gastos fijos del local (Alquiler USD a Blue + servicios), cuotas de cheques/préstamos con vencimiento en el mes y comisiones.',
       details: [
-        { label: 'Venta Bruta del Período:', value: `$${formatMoney(totals.venta)}`, color: 'text-emerald-600' },
-        { label: 'Menos Costos Directos de Insumos & Talleres:', value: `-$${formatMoney(totals.costo)}`, color: 'text-amber-800' },
-        { label: 'Menos Gastos Fijos Mensuales (Alquiler USD + Servicios):', value: `-$${formatMoney(Math.round(totalGastosFijosPeriodo))}`, color: 'text-red-600' },
-        { label: 'Resultado Neto Final:', value: `$${formatMoney(Math.round(gananciaNetaReal))}`, color: gananciaNetaReal >= 0 ? 'text-emerald-600 font-extrabold' : 'text-red-500 font-extrabold' }
+        { label: 'Venta Bruta Facturada del Período:', value: `$${formatMoney(totals.venta)}`, color: 'text-emerald-600 font-bold' },
+        { label: '1. Mano de Obra & Talleres:', value: `-$${formatMoney(costoManoDeObraTalleres)}`, color: 'text-gray-600' },
+        { label: '2. Telas & Forrería:', value: `-$${formatMoney(costoTelasYForreria)}`, color: 'text-gray-600' },
+        { label: '3. Gastos Fijos (Alquiler USD + Servicios):', value: `-$${formatMoney(Math.round(totalGastosFijosPeriodo))}`, color: 'text-gray-600' },
+        { label: '4. Cheques & Préstamos Vencimientos Mes:', value: `-$${formatMoney(periodCommitmentsObligations)}`, color: 'text-amber-900 font-bold' },
+        { label: '5. Envíos, Avíos & Comisiones Tomy:', value: `-$${formatMoney(costsBreakdown.envios + costsBreakdown.avios + costsBreakdown.comision + costsBreakdown.otros)}`, color: 'text-gray-600' },
+        { label: 'GANANCIA NETA REAL RESULTANTE:', value: `$${formatMoney(Math.round(gananciaNetaReal))}`, color: gananciaNetaReal >= 0 ? 'text-emerald-600 font-black text-sm' : 'text-red-500 font-black text-sm' }
       ],
-      note: 'Si el resultado figura negativo, se debe a que la facturación de las órdenes de ese mes en particular aún no supera el costo fijo de la estructura del local (por ejemplo, el alquiler de USD 1.500 al valor del Dólar Blue).'
+      note: 'Si el resultado figura en rojo (negativo), indica que la facturación de ese mes en particular no alcanza para cubrir la totalidad de gastos fijos y cheques/cuotas emitidas para ese período.'
     });
   };
 
