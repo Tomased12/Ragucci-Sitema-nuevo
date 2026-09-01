@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { Order, ExpensePaymentDetail, CashMovement } from '../../types';
 import { formatDate, formatMoney } from '../../utils/formatters';
 import { Modal } from '../common/Modal';
-import { ExpensePaymentModal, ExpensePaymentModalItem } from '../common/ExpensePaymentModal';
+import { ExpensePaymentModal, ExpensePaymentModalItem, ExpensePaymentConfirmData } from '../common/ExpensePaymentModal';
 import { Maximize2, Search, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Layers, Scissors } from 'lucide-react';
 
 interface FabricItem {
@@ -199,25 +199,27 @@ export const TelasDashboard: React.FC = () => {
     }
   };
 
-  const handleConfirmFabricPayment = async (data: { date: string; account: 'efectivo' | 'banco' | 'dolar'; note: string }) => {
+  const handleConfirmFabricPayment = async (data: ExpensePaymentConfirmData) => {
     if (!activeFabricItemForPayment) return;
     const it = activeFabricItemForPayment;
-    const movementId = Date.now().toString();
-
-    // 1. Crear egreso en CashMovement
-    const newMov: CashMovement = {
-      id: movementId,
-      date: data.date,
-      type: 'egreso',
-      amount: it.amount,
-      account: data.account,
-      category: `🧵 Telas: ${it.provider}`,
-      description: `Pago Telas (${it.provider}): ${it.client} - ${it.garmentDesc}${data.note ? ` [${data.note}]` : ''}`,
-      clientOrRef: it.client
-    };
+    let movementId: string | undefined = undefined;
 
     try {
-      await saveCashMovementData(newMov);
+      // 1. Crear egreso en CashMovement solo si descontarDeCaja es true
+      if (data.descontarDeCaja) {
+        movementId = Date.now().toString();
+        const newMov: CashMovement = {
+          id: movementId,
+          date: data.date,
+          type: 'egreso',
+          amount: it.amount,
+          account: data.account,
+          category: `🧵 Telas: ${it.provider}`,
+          description: `Pago Telas (${it.provider}): ${it.client} - ${it.garmentDesc}${data.note ? ` [${data.note}]` : ''}`,
+          clientOrRef: it.client
+        };
+        await saveCashMovementData(newMov);
+      }
 
       // 2. Actualizar la orden
       const currentPaidMap = it.order.paidTelasMap || {};
@@ -230,7 +232,8 @@ export const TelasDashboard: React.FC = () => {
           account: data.account,
           movementId,
           amount: it.amount,
-          note: data.note
+          note: data.note,
+          descontarDeCaja: data.descontarDeCaja
         }
       };
 
@@ -557,6 +560,7 @@ export const TelasDashboard: React.FC = () => {
                                 <div className="text-[10px] text-emerald-800 font-bold mt-1 text-center">
                                   <span>{formatDate(item.paymentDetails.date)}</span>
                                   <span className="block text-[9px] text-gray-600 font-medium">
+                                    {item.paymentDetails.descontarDeCaja === false ? 'Histórico · ' : ''}
                                     {item.paymentDetails.account === 'efectivo' ? '💵 Efectivo' : item.paymentDetails.account === 'banco' ? '🏦 Banco' : '💵 USD'}
                                   </span>
                                 </div>

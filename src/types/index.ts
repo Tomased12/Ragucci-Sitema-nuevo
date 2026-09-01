@@ -149,6 +149,7 @@ export interface ExpensePaymentDetail {
   movementId?: string;
   amount?: number;
   note?: string;
+  descontarDeCaja?: boolean;
 }
 
 export interface Order {

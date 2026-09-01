@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { formatMoney, getTodayString } from '../../utils/formatters';
-import { CreditCard, Calendar, Wallet, Landmark, DollarSign, CheckCircle2 } from 'lucide-react';
+import { CreditCard, Calendar, Wallet, Landmark, DollarSign, CheckCircle2, AlertCircle, ShieldAlert } from 'lucide-react';
 
 export interface ExpensePaymentModalItem {
   title: string;
@@ -12,11 +12,18 @@ export interface ExpensePaymentModalItem {
   categoryType: 'taller' | 'tela';
 }
 
+export interface ExpensePaymentConfirmData {
+  date: string;
+  account: 'efectivo' | 'banco' | 'dolar';
+  note: string;
+  descontarDeCaja: boolean;
+}
+
 interface ExpensePaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: ExpensePaymentModalItem | null;
-  onConfirm: (data: { date: string; account: 'efectivo' | 'banco' | 'dolar'; note: string }) => Promise<void>;
+  onConfirm: (data: ExpensePaymentConfirmData) => Promise<void>;
 }
 
 export const ExpensePaymentModal: React.FC<ExpensePaymentModalProps> = ({
@@ -28,16 +35,34 @@ export const ExpensePaymentModal: React.FC<ExpensePaymentModalProps> = ({
   const [date, setDate] = useState<string>(getTodayString());
   const [account, setAccount] = useState<'efectivo' | 'banco' | 'dolar'>('efectivo');
   const [note, setNote] = useState<string>('');
+  const [descontarDeCaja, setDescontarDeCaja] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
+
+  const todayStr = getTodayString();
+  const isPastDate = date < todayStr;
 
   useEffect(() => {
     if (isOpen) {
-      setDate(getTodayString());
+      const today = getTodayString();
+      setDate(today);
       setAccount('efectivo');
       setNote('');
+      setDescontarDeCaja(true);
       setLoading(false);
     }
   }, [isOpen, item]);
+
+  // Si cambia la fecha y es anterior a hoy, podemos sugerir o permitir no descontar
+  const handleDateChange = (newDate: string) => {
+    setDate(newDate);
+    if (newDate < todayStr) {
+      // Si el usuario elige una fecha del pasado, sugerimos desmarcar para no alterar la caja histórica
+      // pero manteniendo control total del usuario
+      setDescontarDeCaja(false);
+    } else {
+      setDescontarDeCaja(true);
+    }
+  };
 
   if (!isOpen || !item) return null;
 
@@ -54,11 +79,12 @@ export const ExpensePaymentModal: React.FC<ExpensePaymentModalProps> = ({
         date,
         account,
         note: note.trim(),
+        descontarDeCaja,
       });
       onClose();
     } catch (err) {
       console.error('Error al registrar pago de egreso:', err);
-      alert('Ocurrió un error al registrar el pago y descontar de la caja.');
+      alert('Ocurrió un error al registrar el pago.');
     } finally {
       setLoading(false);
     }
@@ -70,7 +96,7 @@ export const ExpensePaymentModal: React.FC<ExpensePaymentModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`💳 Registrar Pago de ${isTaller ? 'Taller' : 'Tela'} & Descontar de Caja`}
+      title={`💳 Registrar Pago de ${isTaller ? 'Taller' : 'Tela'}`}
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         {/* Item Summary Card */}
@@ -102,24 +128,79 @@ export const ExpensePaymentModal: React.FC<ExpensePaymentModalProps> = ({
 
         {/* Date Selection */}
         <div>
-          <label className="block text-xs font-black uppercase text-gray-700 tracking-wider mb-1.5 flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-ragucci-gold" />
-            <span>Fecha en que se realizó el pago:</span>
+          <label className="block text-xs font-black uppercase text-gray-700 tracking-wider mb-1.5 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-ragucci-gold" />
+              <span>Fecha en que se realizó el pago:</span>
+            </span>
+            {isPastDate && (
+              <span className="text-[10px] text-amber-800 bg-amber-100 font-black px-2 py-0.5 rounded border border-amber-300">
+                🗓️ Fecha Pasada
+              </span>
+            )}
           </label>
           <input
             type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => handleDateChange(e.target.value)}
             className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-800 focus:outline-none focus:border-ragucci-gold shadow-2xs"
             required
           />
         </div>
 
+        {/* ── OPICION: DESCONTAR O NO DE CAJA ── */}
+        <div
+          onClick={() => setDescontarDeCaja(!descontarDeCaja)}
+          className={`p-3 rounded-xl border-2 transition-all cursor-pointer select-none ${
+            descontarDeCaja
+              ? 'bg-emerald-50/70 border-emerald-400 text-emerald-950 shadow-2xs'
+              : 'bg-amber-50/90 border-amber-400 text-amber-950 ring-1 ring-amber-400'
+          }`}
+        >
+          <div className="flex items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={descontarDeCaja}
+              onChange={(e) => setDescontarDeCaja(e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
+              className="w-4 h-4 mt-0.5 rounded border-gray-300 text-ragucci-primary focus:ring-ragucci-gold cursor-pointer shrink-0"
+            />
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="font-black text-xs">
+                  {descontarDeCaja
+                    ? '💰 Descontar este monto de la Caja'
+                    : '⚡ NO descontar de caja (Gasto histórico / ya pagado)'}
+                </span>
+                <span
+                  className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                    descontarDeCaja
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-amber-700 text-white animate-pulse'
+                  }`}
+                >
+                  {descontarDeCaja ? 'Descuenta de Caja' : 'Sin impacto en Caja'}
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-600 font-medium mt-1">
+                {descontarDeCaja
+                  ? `Se registrará un egreso de $${formatMoney(item.amount)} en la cuenta seleccionada.`
+                  : 'Quedará marcado como PAGADO en el libro y balances, pero NO restará dinero de la caja actual (ideal para pagos de días/meses anteriores).'}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Account / Payment Method Selection */}
         <div>
-          <label className="block text-xs font-black uppercase text-gray-700 tracking-wider mb-1.5 flex items-center gap-1.5">
-            <Wallet className="w-3.5 h-3.5 text-ragucci-gold" />
-            <span>Medio de Pago / Cuenta a Descontar:</span>
+          <label className="block text-xs font-black uppercase text-gray-700 tracking-wider mb-1.5 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Wallet className="w-3.5 h-3.5 text-ragucci-gold" />
+              <span>Medio de Pago / Cuenta {descontarDeCaja ? 'a descontar' : 'informativo'}:</span>
+            </span>
+            {!descontarDeCaja && (
+              <span className="text-[10px] text-gray-500 font-medium">(Solo informativo)</span>
+            )}
           </label>
           <div className="grid grid-cols-3 gap-2">
             <button
@@ -133,7 +214,9 @@ export const ExpensePaymentModal: React.FC<ExpensePaymentModalProps> = ({
             >
               <span className="text-base">💵</span>
               <span className="text-[11px] uppercase">Efectivo</span>
-              <span className="text-[9px] font-medium text-gray-500">(Caja Física)</span>
+              <span className="text-[9px] font-medium text-gray-500">
+                {descontarDeCaja ? '(Caja Física)' : '(Pagado efectivo)'}
+              </span>
             </button>
 
             <button
@@ -147,7 +230,9 @@ export const ExpensePaymentModal: React.FC<ExpensePaymentModalProps> = ({
             >
               <span className="text-base">🏦</span>
               <span className="text-[11px] uppercase">Banco / MP</span>
-              <span className="text-[9px] font-medium text-gray-500">(Transferencia)</span>
+              <span className="text-[9px] font-medium text-gray-500">
+                {descontarDeCaja ? '(Transferencia)' : '(Pagado transf.)'}
+              </span>
             </button>
 
             <button
@@ -161,7 +246,9 @@ export const ExpensePaymentModal: React.FC<ExpensePaymentModalProps> = ({
             >
               <span className="text-base">💵</span>
               <span className="text-[11px] uppercase">Dólares</span>
-              <span className="text-[9px] font-medium text-gray-500">(Caja USD)</span>
+              <span className="text-[9px] font-medium text-gray-500">
+                {descontarDeCaja ? '(Caja USD)' : '(Pagado USD)'}
+              </span>
             </button>
           </div>
         </div>
@@ -194,11 +281,19 @@ export const ExpensePaymentModal: React.FC<ExpensePaymentModalProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className="px-5 py-2.5 rounded-lg bg-ragucci-primary hover:bg-ragucci-primary-light text-ragucci-gold font-extrabold text-xs uppercase tracking-wider shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className={`px-5 py-2.5 rounded-lg font-extrabold text-xs uppercase tracking-wider shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 ${
+              descontarDeCaja
+                ? 'bg-ragucci-primary hover:bg-ragucci-primary-light text-ragucci-gold'
+                : 'bg-amber-700 hover:bg-amber-800 text-white'
+            }`}
           >
-            <CheckCircle2 className="w-4 h-4 text-ragucci-gold" />
+            <CheckCircle2 className="w-4 h-4" />
             <span>
-              {loading ? 'Guardando y Descontando...' : `Confirmar & Descontar $${formatMoney(item.amount)}`}
+              {loading
+                ? 'Guardando...'
+                : descontarDeCaja
+                ? `Confirmar & Descontar $${formatMoney(item.amount)}`
+                : `Confirmar Pago Histórico (Sin descontar)`}
             </span>
           </button>
         </div>

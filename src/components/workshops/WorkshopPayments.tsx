@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { Order, ExpensePaymentDetail, CashMovement } from '../../types';
 import { formatDate, formatMoney } from '../../utils/formatters';
 import { Modal } from '../common/Modal';
-import { ExpensePaymentModal, ExpensePaymentModalItem } from '../common/ExpensePaymentModal';
+import { ExpensePaymentModal, ExpensePaymentModalItem, ExpensePaymentConfirmData } from '../common/ExpensePaymentModal';
 import { Maximize2, Search, Filter, Clock, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface WorkshopSubDetail {
@@ -290,25 +290,27 @@ export const WorkshopPayments: React.FC = () => {
     }
   };
 
-  const handleConfirmWorkshopPayment = async (data: { date: string; account: 'efectivo' | 'banco' | 'dolar'; note: string }) => {
+  const handleConfirmWorkshopPayment = async (data: ExpensePaymentConfirmData) => {
     if (!activeWorkshopItemForPayment) return;
     const it = activeWorkshopItemForPayment;
-    const movementId = Date.now().toString();
-
-    // 1. Crear egreso en CashMovement
-    const newMov: CashMovement = {
-      id: movementId,
-      date: data.date,
-      type: 'egreso',
-      amount: it.amount,
-      account: data.account,
-      category: `✂️ Taller: ${it.workshopGroup}`,
-      description: `Pago Taller (${it.workshopGroup}): ${it.client} - ${it.detail}${data.note ? ` [${data.note}]` : ''}`,
-      clientOrRef: it.client
-    };
+    let movementId: string | undefined = undefined;
 
     try {
-      await saveCashMovementData(newMov);
+      // 1. Crear egreso en CashMovement solo si descontarDeCaja es true
+      if (data.descontarDeCaja) {
+        movementId = Date.now().toString();
+        const newMov: CashMovement = {
+          id: movementId,
+          date: data.date,
+          type: 'egreso',
+          amount: it.amount,
+          account: data.account,
+          category: `✂️ Taller: ${it.workshopGroup}`,
+          description: `Pago Taller (${it.workshopGroup}): ${it.client} - ${it.detail}${data.note ? ` [${data.note}]` : ''}`,
+          clientOrRef: it.client
+        };
+        await saveCashMovementData(newMov);
+      }
 
       // 2. Actualizar la orden
       const updatedMap = { ...(it.order.paidTalleresMap || {}), [it.key]: true };
@@ -325,7 +327,8 @@ export const WorkshopPayments: React.FC = () => {
           account: data.account,
           movementId,
           amount: it.amount,
-          note: data.note
+          note: data.note,
+          descontarDeCaja: data.descontarDeCaja
         }
       };
       if (it.subKeys) {
@@ -335,7 +338,8 @@ export const WorkshopPayments: React.FC = () => {
             account: data.account,
             movementId,
             amount: it.amount,
-            note: data.note
+            note: data.note,
+            descontarDeCaja: data.descontarDeCaja
           };
         });
       }
@@ -418,7 +422,8 @@ export const WorkshopPayments: React.FC = () => {
                   <CheckCircle2 className="w-3 h-3 text-emerald-700" />
                   <span>Pagado {formatDate(it.paymentDetails.date)}</span>
                   <span className="opacity-80 font-bold">
-                    ({it.paymentDetails.account === 'efectivo' ? '💵 Efectivo' : it.paymentDetails.account === 'banco' ? '🏦 Banco' : '💵 USD'})
+                    ({it.paymentDetails.descontarDeCaja === false ? 'Histórico · ' : ''}
+                    {it.paymentDetails.account === 'efectivo' ? '💵 Efectivo' : it.paymentDetails.account === 'banco' ? '🏦 Banco' : '💵 USD'})
                   </span>
                 </span>
               )}
