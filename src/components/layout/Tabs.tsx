@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { TabType } from '../../types';
-import { PlusCircle, BookOpen, Users, DollarSign, Settings, HardDriveDownload, Crown, Wallet, Calendar, Package, CreditCard } from 'lucide-react';
+import { PlusCircle, BookOpen, Users, DollarSign, Settings, HardDriveDownload, Crown, Wallet, Calendar, Package, CreditCard, Layers } from 'lucide-react';
 
 export const Tabs: React.FC = () => {
   const { activeTab, setActiveTab } = useApp();
@@ -10,6 +10,7 @@ export const Tabs: React.FC = () => {
     { id: 'carga', label: 'Nueva Venta', icon: <PlusCircle className="w-3.5 h-3.5 shrink-0" /> },
     { id: 'registro', label: 'Registro', icon: <BookOpen className="w-3.5 h-3.5 shrink-0" /> },
     { id: 'talleres', label: 'Talleres', icon: <Users className="w-3.5 h-3.5 shrink-0" /> },
+    { id: 'telas', label: 'Telas', icon: <Layers className="w-3.5 h-3.5 shrink-0" /> },
     { id: 'balance', label: 'Balance', icon: <DollarSign className="w-3.5 h-3.5 shrink-0" /> },
     { id: 'saldos', label: 'Saldos', icon: <CreditCard className="w-3.5 h-3.5 shrink-0" /> },
     { id: 'agenda', label: 'Agenda', icon: <Calendar className="w-3.5 h-3.5 shrink-0" /> },

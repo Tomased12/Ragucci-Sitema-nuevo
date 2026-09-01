@@ -16,6 +16,7 @@ import { CapitalesDashboard } from './components/capitales/CapitalesDashboard';
 import { CrmDashboard } from './components/crm/CrmDashboard';
 import { ConfigForm } from './components/config/ConfigForm';
 import { BackupView } from './components/backup/BackupView';
+import { TelasDashboard } from './components/fabrics/TelasDashboard';
 
 export const AppContent: React.FC = () => {
   const { activeTab, currentUser, isAuthenticated } = useApp();
@@ -34,6 +35,7 @@ export const AppContent: React.FC = () => {
         {activeTab === 'carga' && <OrderForm />}
         {activeTab === 'registro' && <OrderTable />}
         {activeTab === 'talleres' && <WorkshopPayments />}
+        {activeTab === 'telas' && <TelasDashboard />}
         {/* activeTab === 'balance' && <BalanceDashboard /> */}
         {activeTab === 'balance' && <BalanceDashboard />}
         {activeTab === 'saldos' && <SaldosDashboard />}

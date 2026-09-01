@@ -30,6 +30,8 @@ export interface ProductItem {
   colorHex?: string;
   modista?: string;
   camiseroSelected?: string;
+  proveedorTela?: string;
+  proveedorForreria?: string;
   arreglosDetalle?: ArregloDetalleItem[];
   costs: ProductCosts;
   isGift?: boolean;
@@ -165,6 +167,8 @@ export interface Order {
   costs: CostsBreakdown;
   paidTalleresMap?: Record<string, boolean>;
   tallerNotesMap?: Record<string, string>;
+  paidTelasMap?: Record<string, boolean>;
+  telaNotesMap?: Record<string, string>;
   measurements?: ClientMeasurements;
   totalCost: number;
   profit: number;
@@ -280,4 +284,4 @@ export interface FinancialCommitment {
   updatedBy?: UserInitial;
 }
 
-export type TabType = 'carga' | 'registro' | 'talleres' | 'balance' | 'saldos' | 'agenda' | 'stock' | 'crm' | 'capitales' | 'configuracion' | 'backup';
+export type TabType = 'carga' | 'registro' | 'talleres' | 'telas' | 'balance' | 'saldos' | 'agenda' | 'stock' | 'crm' | 'capitales' | 'configuracion' | 'backup';

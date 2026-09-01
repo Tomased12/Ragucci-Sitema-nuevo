@@ -530,10 +530,40 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
                 🚫 NO (No lleva costo de tela)
               </div>
             ) : (
-              <MoneyInput
-                value={product.costs.telas}
-                onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, telas: val, noTelas: val > 0 ? false : product.costs.noTelas } })}
-              />
+              <>
+                <MoneyInput
+                  value={product.costs.telas}
+                  onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, telas: val, noTelas: val > 0 ? false : product.costs.noTelas } })}
+                />
+                <div className="mt-1.5">
+                  <label className="block text-[10px] font-extrabold text-gray-500 uppercase mb-0.5">
+                    Proveedor de Tela
+                  </label>
+                  <select
+                    value={product.proveedorTela || ''}
+                    onChange={(e) => onChange({ ...product, proveedorTela: e.target.value })}
+                    className="w-full p-1.5 border border-gray-300 rounded text-xs font-bold bg-white text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
+                  >
+                    <option value="">-- Seleccionar Proveedor --</option>
+                    {isCamiseria ? (
+                      <>
+                        <option value="Costa (Perú)">Costa (Perú)</option>
+                        <option value="Capetown (Albini)">Capetown (Albini)</option>
+                        <option value="Juan Martín (Canclini)">Juan Martín (Canclini)</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Capetown">Capetown</option>
+                        <option value="Juan Martín">Juan Martín</option>
+                        <option value="Tesur (Vitale)">Tesur (Vitale)</option>
+                        <option value="Scabal">Scabal</option>
+                        <option value="Costa (Dourmeuil)">Costa (Dourmeuil)</option>
+                      </>
+                    )}
+                    <option value="Otro / Sin Especificar">Otro / Sin Especificar</option>
+                  </select>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -567,10 +597,26 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
                 🚫 NO (No lleva forrería)
               </div>
             ) : (
-              <MoneyInput
-                value={product.costs.forreria}
-                onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, forreria: val, noForreria: val > 0 ? false : product.costs.noForreria } })}
-              />
+              <>
+                <MoneyInput
+                  value={product.costs.forreria}
+                  onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, forreria: val, noForreria: val > 0 ? false : product.costs.noForreria } })}
+                />
+                <div className="mt-1.5">
+                  <label className="block text-[10px] font-extrabold text-gray-500 uppercase mb-0.5">
+                    Proveedor de Forrería
+                  </label>
+                  <select
+                    value={product.proveedorForreria || ''}
+                    onChange={(e) => onChange({ ...product, proveedorForreria: e.target.value })}
+                    className="w-full p-1.5 border border-gray-300 rounded text-xs font-bold bg-white text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
+                  >
+                    <option value="">-- Seleccionar Proveedor --</option>
+                    <option value="Capetown">Capetown</option>
+                    <option value="Otro / Sin Especificar">Otro / Sin Especificar</option>
+                  </select>
+                </div>
+              </>
             )}
           </div>
         )}
