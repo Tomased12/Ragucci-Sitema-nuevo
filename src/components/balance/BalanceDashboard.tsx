@@ -919,41 +919,6 @@ export const BalanceDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Banner / Card for Cheques diferidos y Préstamos */}
-      <div className="bg-amber-50/90 border-2 border-amber-300 p-4.5 rounded-xl mb-8 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-amber-900 text-amber-100 rounded-xl font-black text-xl shadow-xs">
-            💳
-          </div>
-          <div>
-            <h4 className="text-xs font-black uppercase text-amber-950 tracking-wider flex items-center gap-2">
-              <span>Compromisos Pasivos & Cheques a Fecha</span>
-              {financialCommitments.filter(c => c.status === 'ACTIVO').length > 0 && (
-                <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-extrabold animate-pulse">
-                  {financialCommitments.filter(c => c.status === 'ACTIVO').length} Activos
-                </span>
-              )}
-            </h4>
-            <div className="flex flex-wrap items-center gap-3.5 mt-1 text-xs text-amber-900 font-bold">
-              <span>Deuda Total a Saldar: <strong className="text-red-700 font-black text-sm">${formatMoney(totalPendingCommitmentsDebt)}</strong></span>
-              <span>•</span>
-              <span>Cuotas del período seleccionado: <strong className="text-amber-950 font-extrabold">${formatMoney(periodCommitmentsObligations)}</strong></span>
-              <span>•</span>
-              <span>Cuotas debitadas: <strong className="text-emerald-800 font-bold">${formatMoney(periodCommitmentsDebited)}</strong></span>
-            </div>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('saldos')}
-          className="bg-ragucci-primary hover:bg-ragucci-primary-light text-ragucci-gold text-xs font-extrabold px-4 py-2.5 rounded-lg shadow-sm cursor-pointer transition-colors whitespace-nowrap flex items-center gap-1.5"
-        >
-          <span>💳 Gestionar Cheques & Saldos</span>
-          <span>➔</span>
-        </button>
-      </div>
-
       {/* Banner / Card for Regalos & Cortesías */}
       <div className="bg-gradient-to-r from-purple-900 via-purple-850 to-purple-900 text-white p-4.5 rounded-xl mb-8 border-2 border-purple-400 shadow-md flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
