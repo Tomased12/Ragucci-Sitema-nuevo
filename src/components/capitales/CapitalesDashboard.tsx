@@ -114,16 +114,27 @@ export const CapitalesDashboard: React.FC = () => {
       description: string;
       amount: number;
       isManual: boolean;
+      createdAt?: number;
       createdBy?: UserInitial;
       updatedBy?: UserInitial;
     }> = [];
 
     // Add manual cash movements
     cashMovements.forEach((m) => {
+      let timestamp = 0;
+      if (typeof m.createdAt === 'number') {
+        timestamp = m.createdAt;
+      } else if (typeof m.createdAt === 'string') {
+        timestamp = new Date(m.createdAt).getTime() || parseInt(m.createdAt, 10) || 0;
+      } else if (m.id && /^\d{10,15}$/.test(m.id)) {
+        timestamp = parseInt(m.id, 10);
+      }
+
       list.push({
         id: m.id || m.firestoreId || Math.random().toString(),
         firestoreId: m.firestoreId,
         date: m.date,
+        createdAt: timestamp,
         type: m.type,
         account: m.account,
         toAccount: m.toAccount,
@@ -145,9 +156,13 @@ export const CapitalesDashboard: React.FC = () => {
           if (m.includes('dólar') || m.includes('dolar') || m.includes('usd')) acc = 'dolar';
           else if (m.includes('transferencia') || m.includes('banco') || m.includes('mercadopago') || m.includes('tarjeta')) acc = 'banco';
 
+          const pDate = p.date || o.date;
+          const timestamp = new Date(pDate + 'T12:00:00').getTime();
+
           list.push({
             id: `ord-pay-${o.id}-${idx}`,
-            date: p.date || o.date,
+            date: pDate,
+            createdAt: timestamp,
             type: 'ingreso',
             account: acc,
             category: '💰 Cobro a Cliente',
@@ -161,8 +176,15 @@ export const CapitalesDashboard: React.FC = () => {
       }
     });
 
-    // Sort descending by date
-    list.sort((a, b) => new Date(b.date + 'T12:00:00').getTime() - new Date(a.date + 'T12:00:00').getTime());
+    // Sort descending by date first, then by createdAt / id (lo último cargado primero)
+    list.sort((a, b) => {
+      const dateA = new Date(a.date + 'T12:00:00').getTime();
+      const dateB = new Date(b.date + 'T12:00:00').getTime();
+      if (dateB !== dateA) {
+        return dateB - dateA;
+      }
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
     return list;
   }, [orders, cashMovements]);
 
@@ -191,6 +213,7 @@ export const CapitalesDashboard: React.FC = () => {
     const newMov: CashMovement = {
       id: Date.now().toString(),
       date: movDate,
+      createdAt: Date.now(),
       type: movType,
       amount: parsedAmt,
       account,
@@ -259,6 +282,7 @@ export const CapitalesDashboard: React.FC = () => {
     const newMov: CashMovement = {
       id: Date.now().toString(),
       date: getTodayString(),
+      createdAt: Date.now(),
       type: diff > 0 ? 'ingreso' : 'egreso',
       amount: Math.abs(diff),
       account: editingAccount,

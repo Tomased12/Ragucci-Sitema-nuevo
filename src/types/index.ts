@@ -221,6 +221,7 @@ export interface CashMovement {
   category: string;
   description: string;
   clientOrRef?: string;
+  createdAt?: number | string;
   createdBy?: UserInitial;
   updatedBy?: UserInitial;
 }

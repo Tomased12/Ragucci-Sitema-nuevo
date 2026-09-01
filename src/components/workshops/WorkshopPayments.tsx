@@ -302,6 +302,7 @@ export const WorkshopPayments: React.FC = () => {
         const newMov: CashMovement = {
           id: movementId,
           date: data.date,
+          createdAt: Date.now(),
           type: 'egreso',
           amount: it.amount,
           account: data.account,

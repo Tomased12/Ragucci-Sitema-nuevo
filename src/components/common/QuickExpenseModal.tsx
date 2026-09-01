@@ -49,6 +49,7 @@ export const QuickExpenseModal: React.FC<QuickExpenseModalProps> = ({ isOpen, on
     const newMov: CashMovement = {
       id: Date.now().toString(),
       date,
+      createdAt: Date.now(),
       type: 'egreso',
       amount: parsedAmount,
       account,
