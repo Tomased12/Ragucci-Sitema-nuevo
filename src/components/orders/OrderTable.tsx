@@ -239,10 +239,11 @@ export const OrderTable: React.FC = () => {
   const handleProductStatusChange = async (order: Order, productIndex: number, newStatus: string) => {
     try {
       const updatedProducts = (order.products || []).map((p, idx) => {
+        const currentPStatus = p.status || order.status || '🔴 Pendiente';
         if (idx === productIndex) {
           return { ...p, status: newStatus };
         }
-        return p;
+        return { ...p, status: currentPStatus };
       });
 
       const allEntregado = updatedProducts.length > 0 && updatedProducts.every(p => p.status === '🟢 Entregado');
@@ -251,7 +252,7 @@ export const OrderTable: React.FC = () => {
       const anyTelaLocal = updatedProducts.some(p => p.status === '🟠 Tela en Local');
       const anyTelaPedida = updatedProducts.some(p => p.status === '🟣 Tela Pedida');
 
-      let generalStatus = order.status;
+      let generalStatus = order.status || '🔴 Pendiente';
       if (allEntregado) {
         generalStatus = '🟢 Entregado';
       } else if (anyPrueba) {
