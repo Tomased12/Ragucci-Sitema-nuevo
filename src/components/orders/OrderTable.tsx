@@ -10,7 +10,7 @@ import { Modal } from '../common/Modal';
 import { MoneyInput } from '../common/MoneyInput';
 import { UserBadge } from '../common/UserBadge';
 import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
-import { Search, Eye, Edit, Plus, Trash2, MessageCircle, FileSpreadsheet, Clock, AlertTriangle, Ruler, User, FileText, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Search, Eye, Edit, Plus, Trash2, MessageCircle, FileSpreadsheet, Clock, AlertTriangle, Ruler, User, FileText, CheckCircle2, ChevronRight, CreditCard } from 'lucide-react';
 import { exportOrdersToCSV } from '../../utils/exportCsv';
 
 export const OrderTable: React.FC = () => {
@@ -727,6 +727,28 @@ export const OrderTable: React.FC = () => {
                     };
                     const scfg = statusCfg[order.status || '🔴 Pendiente'] ?? statusCfg['🔴 Pendiente'];
 
+                    const fullGarmentSummaryTooltip = [
+                      `👤 CLIENTE: ${order.client?.toUpperCase()}`,
+                      `📅 FECHA: ${formatDate(order.date)}${order.deliveryDate ? ` | ENTREGA: ${formatDate(order.deliveryDate)}` : ''}`,
+                      `────────────────────────────────────────`,
+                      ...(order.products || []).map((p, idx) => {
+                        const lines = [
+                          `📌 Prenda ${idx + 1}: ${p.description || 'Prenda'}${p.isGift ? ' 🎁 (Regalo / Cortesía)' : ''}`,
+                          `🎨 Color: ${p.color || 'No especificado'}`,
+                          `🧵 Proveedor Tela: ${p.proveedorTela || 'No especificado'}`,
+                          `🪡 Proveedor Forrería: ${p.proveedorForreria || 'No especificado'}`,
+                          `✂️ Taller: ${p.modista ? `Modista ${p.modista}` : p.camiseroSelected ? `Camisero ${p.camiseroSelected}` : 'Sastre Santiago'}`,
+                          `📊 Estado: ${p.status || order.status || '🔴 Pendiente'}`
+                        ];
+                        if (p.notes) lines.push(`📝 Notas: ${p.notes}`);
+                        if (p.costs) {
+                          lines.push(`💰 Costos: Tela $${formatMoney(p.costs.telas || 0)} | Forrería $${formatMoney(p.costs.forreria || 0)} | Confección $${formatMoney((p.costs.sastre || 0) + (p.costs.camisero || 0) + (p.costs.arreglos || 0))}`);
+                        }
+                        return lines.join('\n');
+                      }),
+                      ...(order.rtwItems || []).map((r, idx) => `🛍️ RTW ${idx + 1}: ${r.desc} ×${r.qty} ($${formatMoney(r.price * r.qty)})${r.notes ? ` [${r.notes}]` : ''}`)
+                    ].join('\n\n');
+
                     return (
                       <tr
                         key={order.firestoreId || order.id}
@@ -734,20 +756,20 @@ export const OrderTable: React.FC = () => {
                           setSelectedOrder(order);
                           setSidePanelOpen(true);
                         }}
-                        className={`text-[11px] cursor-pointer transition-colors group
+                        className={`text-xs md:text-[12.5px] cursor-pointer transition-all group border-b-2 border-gray-200
                           ${isSelected
-                            ? 'bg-amber-50 border-l-2 border-l-ragucci-gold'
+                            ? 'bg-amber-100/70 border-l-4 border-l-ragucci-gold font-medium shadow-2xs'
                             : isOverdue
-                            ? 'bg-red-50/50 hover:bg-red-50'
-                            : 'hover:bg-[#fdfaf5]'
+                            ? 'bg-red-50/70 hover:bg-red-100/60'
+                            : 'odd:bg-white even:bg-[#faf8f5] hover:bg-amber-50/80'
                           }`}
                       >
                         {/* Fecha */}
-                        <td className="py-1 px-2 whitespace-nowrap font-medium text-gray-500">
-                          <div>{formatDate(order.date)}</div>
+                        <td className="py-2.5 px-3 whitespace-nowrap font-medium text-gray-600">
+                          <div className="font-bold text-gray-800">{formatDate(order.date)}</div>
                           {order.deliveryDate && (
-                            <div className={`text-[10px] font-bold mt-0.5
-                              ${isOverdue ? 'text-red-600 animate-pulse' : isUrgent ? 'text-amber-700' : 'text-gray-400'}
+                            <div className={`text-[10.5px] font-black mt-0.5
+                              ${isOverdue ? 'text-red-600 animate-pulse' : isUrgent ? 'text-amber-800' : 'text-gray-500'}
                             `}>
                               {isOverdue ? '⚠️' : '→'} {formatDate(order.deliveryDate)}
                               {isUrgent && info && ` (${info.diffDays}d)`}
@@ -761,11 +783,11 @@ export const OrderTable: React.FC = () => {
                         </td>
 
                         {/* Cliente */}
-                        <td className="py-1 px-2 font-black text-ragucci-primary max-w-[110px]">
+                        <td className="py-2.5 px-3 font-black text-ragucci-primary max-w-[130px]">
                           <button
                             onClick={(e) => { e.stopPropagation(); setSelectedClientName(order.client); }}
-                            className="truncate max-w-full text-left hover:underline cursor-pointer block"
-                            title={order.client}
+                            className="truncate max-w-full text-left hover:underline cursor-pointer block text-xs md:text-[13px] font-extrabold text-ragucci-primary"
+                            title={`Ver historial de ${order.client}`}
                           >
                             {order.client?.toUpperCase()}
                           </button>
@@ -775,60 +797,93 @@ export const OrderTable: React.FC = () => {
                               target="_blank"
                               rel="noreferrer"
                               onClick={e => e.stopPropagation()}
-                              className="text-emerald-600 hover:text-emerald-800 inline-block mt-0.5"
+                              className="text-emerald-600 hover:text-emerald-800 inline-flex items-center gap-1 text-[10px] font-bold mt-0.5"
+                              title="Abrir WhatsApp"
                             >
                               <MessageCircle className="w-3 h-3" />
+                              <span>WhatsApp</span>
                             </a>
                           )}
                         </td>
 
-                        {/* Prenda */}
-                        <td className="py-1 px-2 text-gray-700 max-w-[180px]">
-                          <div className="truncate font-semibold text-ragucci-primary" title={productListText}>
+                        {/* Prenda(s) con Hover Tooltip Detallado */}
+                        <td
+                          className="py-2.5 px-3 text-gray-800 max-w-[220px]"
+                          title={fullGarmentSummaryTooltip}
+                        >
+                          <div
+                            className="font-black text-ragucci-primary truncate text-xs cursor-help hover:text-amber-800"
+                            title={fullGarmentSummaryTooltip}
+                          >
                             {productListText}
                           </div>
-                          {order.products?.some(p => p.proveedorTela) && (
-                            <div className="text-[10px] text-blue-600 font-medium mt-0.5 truncate">
-                              🧵 {order.products.find(p => p.proveedorTela)?.proveedorTela}
-                            </div>
-                          )}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            {order.products?.some(p => p.color) && (
+                              <span className="text-[10px] text-gray-700 font-bold bg-white border border-gray-200 px-1.5 py-0.5 rounded shadow-2xs">
+                                🎨 {order.products.find(p => p.color)?.color}
+                              </span>
+                            )}
+                            {order.products?.some(p => p.proveedorTela) && (
+                              <span className="text-[10px] text-blue-700 font-bold bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                                🧵 {order.products.find(p => p.proveedorTela)?.proveedorTela}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Venta */}
-                        <td className="py-1 px-2 text-right font-bold tabular-nums text-ragucci-primary whitespace-nowrap">
+                        <td className="py-2.5 px-3 text-right font-black tabular-nums text-ragucci-primary whitespace-nowrap text-xs md:text-[13px]">
                           ${formatMoney(order.sale)}
                         </td>
 
                         {/* Saldo */}
-                        <td className="py-1 px-2 text-right whitespace-nowrap">
+                        <td className="py-2.5 px-3 text-right whitespace-nowrap">
                           {saldoPendiente ? (
                             <button
                               onClick={(e) => { e.stopPropagation(); setSelectedPaymentOrder(order); }}
-                              className="text-red-700 font-black tabular-nums hover:underline cursor-pointer"
-                              title="Registrar pago"
+                              className="text-red-700 font-black tabular-nums hover:underline cursor-pointer text-xs md:text-[13px]"
+                              title="Registrar cobro / seña"
                             >
                               ${formatMoney(order.saldo)}
                             </button>
                           ) : (
-                            <span className="text-emerald-600 font-black">✓</span>
+                            <span className="text-emerald-700 font-black bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px]">✓ Saldado</span>
                           )}
                         </td>
 
                         {/* Estado — StatusPill individual por prenda o global */}
-                        <td className="py-1 px-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                        <td className="py-2.5 px-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           {order.products && order.products.length > 1 ? (
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1.5">
                               {order.products.map((p, pIdx) => {
                                 const pStatus = p.status || order.status || '🔴 Pendiente';
                                 const pscfg = statusCfg[pStatus] ?? statusCfg['🔴 Pendiente'];
-                                const shortDesc = p.description ? (p.description.length > 13 ? p.description.slice(0, 11) + '…' : p.description) : `P${pIdx + 1}`;
+                                const shortDesc = p.description ? (p.description.length > 15 ? p.description.slice(0, 13) + '…' : p.description) : `P${pIdx + 1}`;
+                                
+                                const singleGarmentTooltip = [
+                                  `📌 Prenda: ${p.description || 'Prenda'}${p.isGift ? ' 🎁' : ''}`,
+                                  `🎨 Color: ${p.color || 'No especificado'}`,
+                                  `🧵 Proveedor Tela: ${p.proveedorTela || 'No especificado'}`,
+                                  `🪡 Proveedor Forrería: ${p.proveedorForreria || 'No especificado'}`,
+                                  `✂️ Taller: ${p.modista ? `Modista ${p.modista}` : p.camiseroSelected ? `Camisero ${p.camiseroSelected}` : 'Sastre Santiago'}`,
+                                  `📊 Estado: ${pStatus}`,
+                                  p.notes ? `📝 Notas: ${p.notes}` : ''
+                                ].filter(Boolean).join('\n');
+
                                 return (
-                                  <div key={pIdx} className="flex items-center gap-1">
-                                    <span className="text-[9px] font-bold text-gray-500 uppercase max-w-[65px] truncate" title={p.description}>
+                                  <div
+                                    key={pIdx}
+                                    className="flex items-center gap-1.5"
+                                    title={singleGarmentTooltip}
+                                  >
+                                    <span
+                                      className="text-[10px] font-bold text-gray-700 uppercase max-w-[80px] truncate cursor-help hover:text-ragucci-primary hover:underline"
+                                      title={singleGarmentTooltip}
+                                    >
                                       {shortDesc}:
                                     </span>
-                                    <div className="relative inline-flex">
-                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider cursor-pointer select-none ${pscfg.bg} ${pscfg.text}`}>
+                                    <div className="relative inline-flex" title={singleGarmentTooltip}>
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer select-none shadow-2xs ${pscfg.bg} ${pscfg.text}`}>
                                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pscfg.dot}`} />
                                         {pscfg.label}
                                       </span>
@@ -849,8 +904,8 @@ export const OrderTable: React.FC = () => {
                               })}
                             </div>
                           ) : (
-                            <div className="relative inline-flex">
-                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer select-none ${scfg.bg} ${scfg.text}`}>
+                            <div className="relative inline-flex" title={fullGarmentSummaryTooltip}>
+                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider cursor-pointer select-none shadow-2xs ${scfg.bg} ${scfg.text}`}>
                                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${scfg.dot}`} />
                                 {scfg.label}
                               </span>
@@ -876,33 +931,47 @@ export const OrderTable: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Acciones — solo íconos compactos */}
-                        <td className="py-1 px-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-0.5">
+                        {/* Acciones */}
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => setSelectedDetailOrder(order)}
-                              className="p-1 text-gray-400 hover:text-ragucci-gold hover:bg-ragucci-primary rounded transition-colors cursor-pointer"
+                              className="p-1.5 text-gray-500 hover:text-ragucci-gold hover:bg-ragucci-primary rounded-md transition-colors cursor-pointer border border-gray-200 bg-white"
                               title="Ver Detalle (modal)"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => { setEditingOrderId(order.firestoreId || null); setActiveTab('carga'); }}
-                              className="p-1 text-gray-400 hover:text-white hover:bg-sky-600 rounded transition-colors cursor-pointer"
+                              className="p-1.5 text-gray-500 hover:text-white hover:bg-sky-600 rounded-md transition-colors cursor-pointer border border-gray-200 bg-white"
                               title="Editar Orden"
                             >
                               <Edit className="w-3.5 h-3.5" />
                             </button>
                             <button
+                              onClick={() => setSelectedPaymentOrder(order)}
+                              className="p-1.5 text-gray-500 hover:text-white hover:bg-emerald-600 rounded-md transition-colors cursor-pointer border border-gray-200 bg-white"
+                              title="Registrar Pago / Seña"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setSelectedMeasuresOrder(order)}
+                              className="p-1.5 text-gray-500 hover:text-white hover:bg-purple-700 rounded-md transition-colors cursor-pointer border border-gray-200 bg-white"
+                              title="Ficha de Medidas del Cliente"
+                            >
+                              <Ruler className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               onClick={() => setAddCostOrder(order)}
-                              className="p-1 text-gray-400 hover:text-ragucci-gold hover:bg-ragucci-primary-light rounded transition-colors cursor-pointer"
+                              className="p-1.5 text-gray-500 hover:text-ragucci-primary hover:bg-ragucci-gold rounded-md transition-colors cursor-pointer border border-gray-200 bg-white"
                               title="Sumar Gasto Extra"
                             >
                               <Plus className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDelete(order)}
-                              className="p-1 text-gray-400 hover:text-white hover:bg-red-700 rounded transition-colors cursor-pointer"
+                              className="p-1.5 text-gray-500 hover:text-white hover:bg-red-700 rounded-md transition-colors cursor-pointer border border-gray-200 bg-white"
                               title="Eliminar Orden"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
