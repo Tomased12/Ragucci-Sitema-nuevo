@@ -326,8 +326,26 @@ export const OrderForm: React.FC = () => {
 
     const sanitizedProducts = products.map(p => ({
       ...p,
-      status: p.status || status || '🔴 Pendiente'
+      status: p.status || '🔴 Pendiente'
     }));
+
+    const allEntregado = sanitizedProducts.length > 0 && sanitizedProducts.every(p => p.status === '🟢 Entregado');
+    const anyPrueba = sanitizedProducts.some(p => p.status === '🔵 Prueba');
+    const anyInTaller = sanitizedProducts.some(p => p.status === '🟡 En Taller');
+    const anyTela = sanitizedProducts.some(p => p.status === '🟠 Tela en Local');
+
+    let derivedStatus = '🔴 Pendiente';
+    if (allEntregado) {
+      derivedStatus = '🟢 Entregado';
+    } else if (anyPrueba) {
+      derivedStatus = '🔵 Prueba';
+    } else if (anyInTaller) {
+      derivedStatus = '🟡 En Taller';
+    } else if (anyTela) {
+      derivedStatus = '🟠 Tela en Local';
+    } else if (sanitizedProducts.length === 0 && (sale - sena <= 0)) {
+      derivedStatus = '🟢 Entregado';
+    }
 
     const orderPayload: Order = {
       id: existing?.id || Date.now(),
@@ -346,7 +364,7 @@ export const OrderForm: React.FC = () => {
       saldo: Math.max(0, sale - sena),
       paymentHistory,
       origin,
-      status: (sale - sena <= 0) ? '🟢 Entregado' : status,
+      status: derivedStatus,
       costs: aggregatedCosts,
       aviosQtys,
       paidTalleresMap,
@@ -722,7 +740,7 @@ export const OrderForm: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 mt-3 border-t border-dashed border-ragucci-gold-light">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 mt-3 border-t border-dashed border-ragucci-gold-light">
           <div>
             <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
               Seña / Pagado Acumulado ($)
@@ -750,23 +768,6 @@ export const OrderForm: React.FC = () => {
             >
               <option value="Local (A Medida)">Local (A Medida)</option>
               <option value="Tienda Nube (RTW)">Tienda Nube (RTW)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
-              Estado Inicial
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-ragucci-gold font-medium"
-            >
-              <option value="🔴 Pendiente">🔴 Pendiente de Tela</option>
-              <option value="🟠 Tela en Local">🟠 Tela en Local</option>
-              <option value="🟡 En Taller">🟡 En Taller</option>
-              <option value="🔵 Prueba">🔵 Prueba</option>
-              <option value="🟢 Entregado">🟢 Entregado / Pagado</option>
             </select>
           </div>
         </div>
