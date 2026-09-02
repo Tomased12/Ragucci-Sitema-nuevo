@@ -262,7 +262,23 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
           )}
         </h4>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Garment Status Selector */}
+          <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2 py-1 rounded-md">
+            <span className="text-[10px] font-black text-gray-500 uppercase">Estado Prenda:</span>
+            <select
+              value={product.status || '🔴 Pendiente'}
+              onChange={(e) => onChange({ ...product, status: e.target.value })}
+              className="text-xs font-black bg-white border border-gray-300 rounded px-2 py-0.5 text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
+            >
+              <option value="🔴 Pendiente">🔴 Pendiente de Tela</option>
+              <option value="🟠 Tela en Local">🟠 Tela en Local</option>
+              <option value="🟡 En Taller">🟡 En Taller</option>
+              <option value="🔵 Prueba">🔵 Prueba</option>
+              <option value="🟢 Entregado">🟢 Entregado</option>
+            </select>
+          </div>
+
           <button
             type="button"
             onClick={() => onChange({ ...product, isGift: !product.isGift })}
@@ -273,7 +289,7 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
             }`}
           >
             <Gift className="w-3.5 h-3.5" />
-            <span>{product.isGift ? '🎁 Es Regalo / Cortesía' : 'Marcar como Regalo'}</span>
+            <span>{product.isGift ? '🎁 Es Regalo' : 'Regalo'}</span>
           </button>
 
           <button

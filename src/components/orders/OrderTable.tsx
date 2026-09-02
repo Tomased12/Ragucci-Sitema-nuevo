@@ -176,13 +176,20 @@ export const OrderTable: React.FC = () => {
 
     let matchStatus = true;
     if (!filterUpcomingOnly && filterStatus !== 'all') {
-      const orderSt = (order.status || '').toLowerCase();
       const targetSt = filterStatus.toLowerCase();
-      if (targetSt.includes('pendiente')) matchStatus = orderSt.includes('pendiente');
-      else if (targetSt.includes('taller')) matchStatus = orderSt.includes('taller');
-      else if (targetSt.includes('prueba')) matchStatus = orderSt.includes('prueba');
-      else if (targetSt.includes('entregado')) matchStatus = orderSt.includes('entregado');
-      else matchStatus = order.status === filterStatus;
+      const checkStatusMatch = (st: string) => {
+        const s = (st || '').toLowerCase();
+        if (targetSt.includes('pendiente')) return s.includes('pendiente');
+        if (targetSt.includes('tela en local')) return s.includes('tela en local');
+        if (targetSt.includes('taller')) return s.includes('taller');
+        if (targetSt.includes('prueba')) return s.includes('prueba');
+        if (targetSt.includes('entregado')) return s.includes('entregado');
+        return s === targetSt;
+      };
+
+      const orderMatches = checkStatusMatch(order.status || '');
+      const productMatches = order.products?.some(p => checkStatusMatch(p.status || order.status || ''));
+      matchStatus = orderMatches || !!productMatches;
     }
 
     const saldoVal = order.saldo || 0;
@@ -213,13 +220,60 @@ export const OrderTable: React.FC = () => {
 
   const handleStatusChange = async (order: Order, newStatus: string) => {
     try {
-      await saveOrderData({ ...order, status: newStatus }, order.firestoreId);
+      const updatedProducts = (order.products || []).map(p => ({
+        ...p,
+        status: newStatus
+      }));
+      const updatedOrder = { ...order, status: newStatus, products: updatedProducts };
+      await saveOrderData(updatedOrder, order.firestoreId);
       // Sync the selected order in the side panel if it's the same order
       if (selectedOrder && (selectedOrder.firestoreId === order.firestoreId)) {
-        setSelectedOrder({ ...order, status: newStatus });
+        setSelectedOrder(updatedOrder);
       }
     } catch (e) {
       alert("Error al actualizar el estado de la orden.");
+    }
+  };
+
+  const handleProductStatusChange = async (order: Order, productIndex: number, newStatus: string) => {
+    try {
+      const updatedProducts = (order.products || []).map((p, idx) => {
+        if (idx === productIndex) {
+          return { ...p, status: newStatus };
+        }
+        return p;
+      });
+
+      const allEntregado = updatedProducts.length > 0 && updatedProducts.every(p => p.status === '🟢 Entregado');
+      const anyPrueba = updatedProducts.some(p => p.status === '🔵 Prueba');
+      const anyInTaller = updatedProducts.some(p => p.status === '🟡 En Taller');
+      const anyTela = updatedProducts.some(p => p.status === '🟠 Tela en Local');
+
+      let generalStatus = order.status;
+      if (allEntregado) {
+        generalStatus = '🟢 Entregado';
+      } else if (anyPrueba) {
+        generalStatus = '🔵 Prueba';
+      } else if (anyInTaller) {
+        generalStatus = '🟡 En Taller';
+      } else if (anyTela) {
+        generalStatus = '🟠 Tela en Local';
+      } else if (updatedProducts.every(p => p.status === '🔴 Pendiente')) {
+        generalStatus = '🔴 Pendiente';
+      }
+
+      const updatedOrder: Order = {
+        ...order,
+        products: updatedProducts,
+        status: generalStatus
+      };
+
+      await saveOrderData(updatedOrder, order.firestoreId);
+      if (selectedOrder && (selectedOrder.firestoreId === order.firestoreId)) {
+        setSelectedOrder(updatedOrder);
+      }
+    } catch (e) {
+      alert("Error al actualizar el estado de la prenda.");
     }
   };
 
@@ -760,25 +814,66 @@ export const OrderTable: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Estado — StatusPill con select nativo solapado */}
+                        {/* Estado — StatusPill individual por prenda o global */}
                         <td className="py-1 px-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                          <div className="relative inline-flex">
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer select-none ${scfg.bg} ${scfg.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${scfg.dot}`} />
-                              {scfg.label}
-                            </span>
-                            <select
-                              value={order.status || '🔴 Pendiente'}
-                              onChange={(e) => handleStatusChange(order, e.target.value)}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                            >
-                              <option value="🔴 Pendiente">🔴 Pendiente</option>
-                              <option value="🟠 Tela en Local">🟠 Tela en Local</option>
-                              <option value="🟡 En Taller">🟡 En Taller</option>
-                              <option value="🔵 Prueba">🔵 Prueba</option>
-                              <option value="🟢 Entregado">🟢 Entregado / Pagado</option>
-                            </select>
-                          </div>
+                          {order.products && order.products.length > 1 ? (
+                            <div className="flex flex-col gap-1">
+                              {order.products.map((p, pIdx) => {
+                                const pStatus = p.status || order.status || '🔴 Pendiente';
+                                const pscfg = statusCfg[pStatus] ?? statusCfg['🔴 Pendiente'];
+                                const shortDesc = p.description ? (p.description.length > 13 ? p.description.slice(0, 11) + '…' : p.description) : `P${pIdx + 1}`;
+                                return (
+                                  <div key={pIdx} className="flex items-center gap-1">
+                                    <span className="text-[9px] font-bold text-gray-500 uppercase max-w-[65px] truncate" title={p.description}>
+                                      {shortDesc}:
+                                    </span>
+                                    <div className="relative inline-flex">
+                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider cursor-pointer select-none ${pscfg.bg} ${pscfg.text}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pscfg.dot}`} />
+                                        {pscfg.label}
+                                      </span>
+                                      <select
+                                        value={pStatus}
+                                        onChange={(e) => handleProductStatusChange(order, pIdx, e.target.value)}
+                                        className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                      >
+                                        <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                        <option value="🟠 Tela en Local">🟠 Tela en Local</option>
+                                        <option value="🟡 En Taller">🟡 En Taller</option>
+                                        <option value="🔵 Prueba">🔵 Prueba</option>
+                                        <option value="🟢 Entregado">🟢 Entregado</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="relative inline-flex">
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer select-none ${scfg.bg} ${scfg.text}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${scfg.dot}`} />
+                                {scfg.label}
+                              </span>
+                              <select
+                                value={order.products?.[0]?.status || order.status || '🔴 Pendiente'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (order.products && order.products.length === 1) {
+                                    handleProductStatusChange(order, 0, val);
+                                  } else {
+                                    handleStatusChange(order, val);
+                                  }
+                                }}
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                              >
+                                <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                <option value="🟠 Tela en Local">🟠 Tela en Local</option>
+                                <option value="🟡 En Taller">🟡 En Taller</option>
+                                <option value="🔵 Prueba">🔵 Prueba</option>
+                                <option value="🟢 Entregado">🟢 Entregado</option>
+                              </select>
+                            </div>
+                          )}
                         </td>
 
                         {/* Acciones — solo íconos compactos */}
@@ -836,6 +931,7 @@ export const OrderTable: React.FC = () => {
             onOpenPayment={(o) => setSelectedPaymentOrder(o)}
             onOpenAddCost={(o) => setAddCostOrder(o)}
             onStatusChange={handleStatusChange}
+            onProductStatusChange={handleProductStatusChange}
           />
         </>
       )}

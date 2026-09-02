@@ -33,6 +33,7 @@ interface Props {
   onOpenPayment: (order: Order) => void;
   onOpenAddCost: (order: Order) => void;
   onStatusChange: (order: Order, newStatus: string) => void;
+  onProductStatusChange?: (order: Order, productIndex: number, newStatus: string) => void;
 }
 
 export const OrderSidePanel: React.FC<Props> = ({
@@ -42,6 +43,7 @@ export const OrderSidePanel: React.FC<Props> = ({
   onOpenPayment,
   onOpenAddCost,
   onStatusChange,
+  onProductStatusChange,
 }) => {
   const { setEditingOrderId, setActiveTab } = useApp();
 
@@ -130,9 +132,9 @@ export const OrderSidePanel: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Stage Timeline */}
+              {/* Stage Timeline General */}
               <div>
-                <p className="text-[9px] uppercase font-black text-gray-400 tracking-wider mb-1.5">Etapa de Confección</p>
+                <p className="text-[9px] uppercase font-black text-gray-400 tracking-wider mb-1.5">Estado General de la Orden</p>
                 <div className="flex items-center gap-0.5">
                   {STATUS_STAGES.map((stage, i) => (
                     <button
@@ -161,45 +163,88 @@ export const OrderSidePanel: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* Products & Fabrics */}
+              {/* Products & Fabrics with Individual Stages */}
               {order.products && order.products.length > 0 && (
                 <div>
-                  <p className="text-[9px] uppercase font-black text-gray-400 tracking-wider mb-1.5">Prendas & Telas</p>
-                  <div className="space-y-1.5">
-                    {order.products.map((p, i) => (
-                      <div key={i} className="bg-gray-50 border border-gray-100 rounded-lg p-2.5">
-                        <div className="flex justify-between items-start">
-                          <p className="font-black text-ragucci-primary text-[11px]">{p.description}</p>
-                          {p.costs?.telas > 0 && (
-                            <span className="text-[10px] font-bold text-gray-500 tabular-nums">${formatMoney(p.costs.telas)}</span>
+                  <p className="text-[9px] uppercase font-black text-gray-400 tracking-wider mb-1.5">Prendas & Estados Individuales</p>
+                  <div className="space-y-2">
+                    {order.products.map((p, i) => {
+                      const pStatus = p.status || order.status || '🔴 Pendiente';
+                      const pActiveIdx = STATUS_STAGES.findIndex(s => s.key === pStatus);
+
+                      return (
+                        <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 space-y-2 shadow-2xs">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-black text-ragucci-primary text-[11px]">{p.description}</p>
+                              {p.modista && (
+                                <p className="text-[10px] text-gray-500 font-bold">Modista: {p.modista}</p>
+                              )}
+                            </div>
+                            {p.costs?.telas > 0 && (
+                              <span className="text-[10px] font-bold text-gray-500 tabular-nums">${formatMoney(p.costs.telas)}</span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5">
+                            {p.color && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-white border border-gray-200 px-1.5 py-0.5 rounded">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full border border-gray-300 shrink-0"
+                                  style={{ backgroundColor: p.colorHex || detectColorHex(p.color) }}
+                                />
+                                {p.color}
+                              </span>
+                            )}
+                            {p.proveedorTela && (
+                              <span className="text-[10px] font-bold bg-blue-50 border border-blue-200 text-blue-800 px-1.5 py-0.5 rounded">
+                                🧵 {p.proveedorTela}
+                              </span>
+                            )}
+                            {p.proveedorForreria && (
+                              <span className="text-[10px] font-bold bg-purple-50 border border-purple-200 text-purple-800 px-1.5 py-0.5 rounded">
+                                🪡 {p.proveedorForreria}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Individual Garment Stage Selector */}
+                          <div className="pt-1.5 border-t border-gray-200">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[9px] font-black uppercase text-gray-400">Estado Prenda:</span>
+                              <span className="text-[9px] font-black text-ragucci-primary">{pStatus}</span>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              {STATUS_STAGES.map((stage, sIdx) => (
+                                <button
+                                  key={stage.key}
+                                  type="button"
+                                  onClick={() => {
+                                    if (onProductStatusChange) {
+                                      onProductStatusChange(order, i, stage.key);
+                                    } else {
+                                      onStatusChange(order, stage.key);
+                                    }
+                                  }}
+                                  className={`flex-1 py-0.5 text-[8px] font-black uppercase rounded transition-all cursor-pointer text-center border ${
+                                    sIdx === pActiveIdx
+                                      ? 'bg-ragucci-primary text-ragucci-gold border-ragucci-primary shadow-2xs font-extrabold'
+                                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-100'
+                                  }`}
+                                  title={stage.key}
+                                >
+                                  {stage.short}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {p.notes && (
+                            <p className="text-[10px] text-gray-400 italic mt-1">📝 {p.notes}</p>
                           )}
                         </div>
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {p.color && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-white border border-gray-200 px-1.5 py-0.5 rounded">
-                              <span
-                                className="w-2.5 h-2.5 rounded-full border border-gray-300 shrink-0"
-                                style={{ backgroundColor: p.colorHex || detectColorHex(p.color) }}
-                              />
-                              {p.color}
-                            </span>
-                          )}
-                          {p.proveedorTela && (
-                            <span className="text-[10px] font-bold bg-blue-50 border border-blue-200 text-blue-800 px-1.5 py-0.5 rounded">
-                              🧵 {p.proveedorTela}
-                            </span>
-                          )}
-                          {p.proveedorForreria && (
-                            <span className="text-[10px] font-bold bg-purple-50 border border-purple-200 text-purple-800 px-1.5 py-0.5 rounded">
-                              🪡 {p.proveedorForreria}
-                            </span>
-                          )}
-                        </div>
-                        {p.notes && (
-                          <p className="text-[10px] text-gray-400 italic mt-1">📝 {p.notes}</p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

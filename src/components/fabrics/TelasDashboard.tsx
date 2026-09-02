@@ -20,6 +20,7 @@ interface FabricItem {
   note: string;
   order: Order;
   paymentDetails?: ExpensePaymentDetail;
+  status?: string;
 }
 
 interface FabricGroup {
@@ -104,7 +105,8 @@ export const TelasDashboard: React.FC = () => {
             isPaid,
             note,
             order: o,
-            paymentDetails: paymentDetailsMap[key]
+            paymentDetails: paymentDetailsMap[key],
+            status: p.status || o.status || '🔴 Pendiente'
           };
 
           const targetGroup = dataProveedores[provName] || dataProveedores['Otros Proveedores'];
@@ -138,7 +140,8 @@ export const TelasDashboard: React.FC = () => {
             isPaid,
             note,
             order: o,
-            paymentDetails: paymentDetailsMap[key]
+            paymentDetails: paymentDetailsMap[key],
+            status: p.status || o.status || '🔴 Pendiente'
           };
 
           const targetGroup = dataProveedores[provName] || dataProveedores['Otros Proveedores'];
@@ -522,9 +525,16 @@ export const TelasDashboard: React.FC = () => {
                             </td>
 
                             <td className="py-2.5 px-3 font-bold text-gray-800">
-                              <span className="inline-flex items-center gap-1 bg-ragucci-primary/10 text-ragucci-primary px-2 py-0.5 rounded font-extrabold">
-                                {item.garmentDesc}
-                              </span>
+                              <div className="flex flex-col items-start gap-1">
+                                <span className="inline-flex items-center gap-1 bg-ragucci-primary/10 text-ragucci-primary px-2 py-0.5 rounded font-extrabold text-xs">
+                                  {item.garmentDesc}
+                                </span>
+                                {item.status && (
+                                  <span className="text-[9px] font-black text-gray-500 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded-full uppercase">
+                                    {item.status}
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             <td className="py-2.5 px-3 text-gray-700 font-medium">

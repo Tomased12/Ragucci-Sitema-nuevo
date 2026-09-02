@@ -35,6 +35,7 @@ export interface ProductItem {
   arreglosDetalle?: ArregloDetalleItem[];
   costs: ProductCosts;
   isGift?: boolean;
+  status?: string;
 }
 
 export interface RTWItem {
@@ -43,6 +44,7 @@ export interface RTWItem {
   price: number;
   notes?: string;
   isGift?: boolean;
+  status?: string;
 }
 
 export type AviosQuantities = Record<'percha' | 'funda' | 'bolsa' | 'bolsaplastica', number>;

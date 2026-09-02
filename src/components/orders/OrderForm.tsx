@@ -324,6 +324,11 @@ export const OrderForm: React.FC = () => {
       });
     }
 
+    const sanitizedProducts = products.map(p => ({
+      ...p,
+      status: p.status || status || '🔴 Pendiente'
+    }));
+
     const orderPayload: Order = {
       id: existing?.id || Date.now(),
       date,
@@ -333,7 +338,7 @@ export const OrderForm: React.FC = () => {
       dni,
       email,
       birthday,
-      products,
+      products: sanitizedProducts,
       rtwItems,
       sale,
       method,
@@ -799,7 +804,7 @@ export const OrderForm: React.FC = () => {
           onClick={() =>
             setProducts([
               ...products,
-              { description: '', costs: { telas: 0, forreria: 0, sastre: 0, camisero: 0, arreglos: 0 } }
+              { description: '', status: status || '🔴 Pendiente', costs: { telas: 0, forreria: 0, sastre: 0, camisero: 0, arreglos: 0 } }
             ])
           }
           className="w-full py-2.5 bg-ragucci-primary-light hover:bg-ragucci-primary text-ragucci-gold-light hover:text-ragucci-gold font-bold text-xs uppercase tracking-wider rounded transition-colors flex items-center justify-center gap-2"
