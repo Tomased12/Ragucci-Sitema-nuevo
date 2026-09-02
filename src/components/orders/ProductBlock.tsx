@@ -272,6 +272,7 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
               className="text-xs font-black bg-white border border-gray-300 rounded px-2 py-0.5 text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
             >
               <option value="🔴 Pendiente">🔴 Pendiente de Tela</option>
+              <option value="🟣 Tela Pedida">🟣 Tela Pedida</option>
               <option value="🟠 Tela en Local">🟠 Tela en Local</option>
               <option value="🟡 En Taller">🟡 En Taller</option>
               <option value="🔵 Prueba">🔵 Prueba</option>

@@ -180,7 +180,8 @@ export const OrderTable: React.FC = () => {
       const checkStatusMatch = (st: string) => {
         const s = (st || '').toLowerCase();
         if (targetSt.includes('pendiente')) return s.includes('pendiente');
-        if (targetSt.includes('tela en local')) return s.includes('tela en local');
+        if (targetSt.includes('pedida')) return s.includes('pedida');
+        if (targetSt.includes('local')) return s.includes('local');
         if (targetSt.includes('taller')) return s.includes('taller');
         if (targetSt.includes('prueba')) return s.includes('prueba');
         if (targetSt.includes('entregado')) return s.includes('entregado');
@@ -247,7 +248,8 @@ export const OrderTable: React.FC = () => {
       const allEntregado = updatedProducts.length > 0 && updatedProducts.every(p => p.status === '🟢 Entregado');
       const anyPrueba = updatedProducts.some(p => p.status === '🔵 Prueba');
       const anyInTaller = updatedProducts.some(p => p.status === '🟡 En Taller');
-      const anyTela = updatedProducts.some(p => p.status === '🟠 Tela en Local');
+      const anyTelaLocal = updatedProducts.some(p => p.status === '🟠 Tela en Local');
+      const anyTelaPedida = updatedProducts.some(p => p.status === '🟣 Tela Pedida');
 
       let generalStatus = order.status;
       if (allEntregado) {
@@ -256,8 +258,10 @@ export const OrderTable: React.FC = () => {
         generalStatus = '🔵 Prueba';
       } else if (anyInTaller) {
         generalStatus = '🟡 En Taller';
-      } else if (anyTela) {
+      } else if (anyTelaLocal) {
         generalStatus = '🟠 Tela en Local';
+      } else if (anyTelaPedida) {
+        generalStatus = '🟣 Tela Pedida';
       } else if (updatedProducts.every(p => p.status === '🔴 Pendiente')) {
         generalStatus = '🔴 Pendiente';
       }
@@ -284,6 +288,7 @@ export const OrderTable: React.FC = () => {
 
   const STATUS_STAGES = [
     '🔴 Pendiente',
+    '🟣 Tela Pedida',
     '🟠 Tela en Local',
     '🟡 En Taller',
     '🔵 Prueba',
@@ -609,7 +614,8 @@ export const OrderTable: React.FC = () => {
               {[
                 { val: 'all',            label: 'Todos',   dot: 'bg-gray-400' },
                 { val: '🔴 Pendiente',    label: 'Pend.',   dot: 'bg-red-500' },
-                { val: '🟠 Tela en Local',label: 'Tela',    dot: 'bg-orange-400' },
+                { val: '🟣 Tela Pedida',  label: 'Pedida',  dot: 'bg-purple-500' },
+                { val: '🟠 Tela en Local',label: 'En Local',dot: 'bg-orange-400' },
                 { val: '🟡 En Taller',    label: 'Taller',  dot: 'bg-yellow-400' },
                 { val: '🔵 Prueba',       label: 'Prueba',  dot: 'bg-blue-500' },
                 { val: '🟢 Entregado',    label: 'Listo',   dot: 'bg-emerald-500' },
@@ -719,11 +725,12 @@ export const OrderTable: React.FC = () => {
                     ].join(' · ') || '—';
 
                     const statusCfg: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-                      '🔴 Pendiente':    { label: 'PENDIENTE', bg: 'bg-red-50',     text: 'text-red-800',    dot: 'bg-red-500' },
-                      '🟠 Tela en Local':{ label: 'TELA LOCAL',bg: 'bg-orange-50',  text: 'text-orange-800', dot: 'bg-orange-400' },
-                      '🟡 En Taller':    { label: 'EN TALLER', bg: 'bg-yellow-50',  text: 'text-yellow-800', dot: 'bg-yellow-400' },
-                      '🔵 Prueba':       { label: 'PRUEBA',    bg: 'bg-blue-50',    text: 'text-blue-800',   dot: 'bg-blue-500' },
-                      '🟢 Entregado':    { label: 'ENTREGADO', bg: 'bg-emerald-50', text: 'text-emerald-800',dot: 'bg-emerald-500' },
+                      '🔴 Pendiente':    { label: 'PENDIENTE',   bg: 'bg-red-50',     text: 'text-red-800',    dot: 'bg-red-500' },
+                      '🟣 Tela Pedida':  { label: 'TELA PEDIDA', bg: 'bg-purple-50',  text: 'text-purple-800', dot: 'bg-purple-500' },
+                      '🟠 Tela en Local':{ label: 'TELA LOCAL',  bg: 'bg-orange-50',  text: 'text-orange-800', dot: 'bg-orange-400' },
+                      '🟡 En Taller':    { label: 'EN TALLER',   bg: 'bg-yellow-50',  text: 'text-yellow-800', dot: 'bg-yellow-400' },
+                      '🔵 Prueba':       { label: 'PRUEBA',      bg: 'bg-blue-50',    text: 'text-blue-800',   dot: 'bg-blue-500' },
+                      '🟢 Entregado':    { label: 'ENTREGADO',   bg: 'bg-emerald-50', text: 'text-emerald-800',dot: 'bg-emerald-500' },
                     };
                     const scfg = statusCfg[order.status || '🔴 Pendiente'] ?? statusCfg['🔴 Pendiente'];
 
@@ -893,6 +900,7 @@ export const OrderTable: React.FC = () => {
                                         className="absolute inset-0 opacity-0 cursor-pointer w-full"
                                       >
                                         <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                        <option value="🟣 Tela Pedida">🟣 Tela Pedida</option>
                                         <option value="🟠 Tela en Local">🟠 Tela en Local</option>
                                         <option value="🟡 En Taller">🟡 En Taller</option>
                                         <option value="🔵 Prueba">🔵 Prueba</option>
@@ -922,6 +930,7 @@ export const OrderTable: React.FC = () => {
                                 className="absolute inset-0 opacity-0 cursor-pointer w-full"
                               >
                                 <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                <option value="🟣 Tela Pedida">🟣 Tela Pedida</option>
                                 <option value="🟠 Tela en Local">🟠 Tela en Local</option>
                                 <option value="🟡 En Taller">🟡 En Taller</option>
                                 <option value="🔵 Prueba">🔵 Prueba</option>

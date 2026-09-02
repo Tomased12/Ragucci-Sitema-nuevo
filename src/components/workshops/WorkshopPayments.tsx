@@ -81,9 +81,9 @@ export const WorkshopPayments: React.FC = () => {
 
     if (o.products && o.products.length > 0) {
       o.products.forEach((p, pIdx) => {
-        // Verificar estado individual de la prenda (solo entra a taller si ya no está en Pendiente ni Tela en Local)
+        // Verificar estado individual de la prenda (solo entra a taller si ya no está en Pendiente, Tela Pedida ni Tela en Local)
         const pStatus = p.status || o.status || '🔴 Pendiente';
-        const isNotInWorkshop = pStatus.includes('Pendiente') || pStatus.includes('Tela en Local');
+        const isNotInWorkshop = pStatus.includes('Pendiente') || pStatus.includes('Pedida') || pStatus.includes('Tela en Local');
         if (isNotInWorkshop) return;
 
         const desc = p.description || '';

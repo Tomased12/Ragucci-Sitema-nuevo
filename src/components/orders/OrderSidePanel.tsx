@@ -7,7 +7,8 @@ import { detectColorHex } from '../orders/ProductBlock';
 
 const STATUS_STAGES = [
   { key: '🔴 Pendiente',     short: 'Pend.',   bg: 'bg-red-500'    },
-  { key: '🟠 Tela en Local', short: 'Tela',    bg: 'bg-orange-400' },
+  { key: '🟣 Tela Pedida',   short: 'Pedida',  bg: 'bg-purple-500' },
+  { key: '🟠 Tela en Local', short: 'En Local',bg: 'bg-orange-400' },
   { key: '🟡 En Taller',     short: 'Taller',  bg: 'bg-yellow-400' },
   { key: '🔵 Prueba',        short: 'Prueba',  bg: 'bg-blue-500'   },
   { key: '🟢 Entregado',     short: 'Listo',   bg: 'bg-emerald-500'},
