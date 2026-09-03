@@ -22,7 +22,7 @@ export const OrderTable: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterUpcomingOnly, setFilterUpcomingOnly] = useState(false);
   const [filterPago, setFilterPago] = useState('all');
-  const [filterTipo, setFilterTipo] = useState<'all' | 'medida' | 'rtw'>('all');
+  const [filterTipo, setFilterTipo] = useState<'all' | 'medida' | 'arreglos' | 'rtw'>('all');
   const [sortBy, setSortBy] = useState<'date_desc' | 'delivery_asc' | 'saldo_desc'>('date_desc');
 
   // Helper to calculate days until delivery
@@ -200,18 +200,32 @@ export const OrderTable: React.FC = () => {
     if (filterPago === 'pagadas') matchPago = saldoVal === 0;
 
     let matchTipo = true;
-    const hasMedida = Boolean(
+    const isArregloDesc = (desc?: string) => {
+      const d = (desc || '').toLowerCase();
+      return d.includes('arreglo') || d.includes('modista') || d.includes('entalle') || d.includes('ruedo');
+    };
+
+    const hasMedidaGarments = Boolean(
       order.products &&
       order.products.length > 0 &&
-      order.products.some(p => p.description && p.description.trim().length > 0)
+      order.products.some(p => p.description && p.description.trim().length > 0 && !isArregloDesc(p.description))
     );
-    const isOnlyRTW = !hasMedida && Boolean(
+
+    const hasAnyArreglo = Boolean(
+      order.products &&
+      order.products.length > 0 &&
+      order.products.some(p => isArregloDesc(p.description) || (p.costs?.arreglos && p.costs.arreglos > 0))
+    );
+
+    const isOnlyRTW = !hasMedidaGarments && !hasAnyArreglo && Boolean(
       (order.rtwItems && order.rtwItems.length > 0) ||
       (order.costs?.pterminado ? order.costs.pterminado > 0 : false)
     );
 
     if (filterTipo === 'medida') {
-      matchTipo = hasMedida;
+      matchTipo = hasMedidaGarments;
+    } else if (filterTipo === 'arreglos') {
+      matchTipo = hasAnyArreglo;
     } else if (filterTipo === 'rtw') {
       matchTipo = isOnlyRTW;
     }
@@ -679,20 +693,23 @@ export const OrderTable: React.FC = () => {
               <option value="pagadas">Pagadas</option>
             </select>
 
-            {/* Tipo de Trabajo: A Medida vs RTW */}
+            {/* Tipo de Trabajo: A Medida vs Arreglos vs RTW */}
             <select
               value={filterTipo}
               onChange={(e) => setFilterTipo(e.target.value as any)}
               className={`py-1.5 px-2 border rounded text-[11px] font-bold focus:outline-none cursor-pointer transition-colors ${
                 filterTipo === 'medida'
                   ? 'bg-ragucci-primary text-ragucci-gold border-ragucci-primary shadow-xs font-black'
+                  : filterTipo === 'arreglos'
+                  ? 'bg-blue-100 text-blue-900 border-blue-300 shadow-xs font-black'
                   : filterTipo === 'rtw'
                   ? 'bg-purple-100 text-purple-900 border-purple-300 shadow-xs font-black'
                   : 'bg-white text-gray-700 border-gray-200'
               }`}
             >
               <option value="all">✨ Todos los Tipos</option>
-              <option value="medida">✂️ Solo A Medida</option>
+              <option value="medida">✂️ Solo A Medida (Sastrería)</option>
+              <option value="arreglos">🪡 Solo Arreglos</option>
               <option value="rtw">🛍️ Solo Prod. Terminados (RTW)</option>
             </select>
 
