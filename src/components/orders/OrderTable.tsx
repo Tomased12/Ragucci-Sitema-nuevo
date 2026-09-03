@@ -22,6 +22,7 @@ export const OrderTable: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterUpcomingOnly, setFilterUpcomingOnly] = useState(false);
   const [filterPago, setFilterPago] = useState('all');
+  const [filterTipo, setFilterTipo] = useState<'all' | 'medida' | 'rtw'>('all');
   const [sortBy, setSortBy] = useState<'date_desc' | 'delivery_asc' | 'saldo_desc'>('date_desc');
 
   // Helper to calculate days until delivery
@@ -198,6 +199,16 @@ export const OrderTable: React.FC = () => {
     if (filterPago === 'pendientes') matchPago = saldoVal > 0;
     if (filterPago === 'pagadas') matchPago = saldoVal === 0;
 
+    let matchTipo = true;
+    const hasMedida = Boolean((order.products && order.products.length > 0) || order.origin === 'Local (A Medida)' || (order.measurements && Object.keys(order.measurements).length > 0));
+    const isOnlyRTW = Boolean((!order.products || order.products.length === 0) && ((order.rtwItems && order.rtwItems.length > 0) || (order.origin && order.origin.includes('RTW')) || (order.costs?.pterminado ? order.costs.pterminado > 0 : false)));
+
+    if (filterTipo === 'medida') {
+      matchTipo = hasMedida;
+    } else if (filterTipo === 'rtw') {
+      matchTipo = isOnlyRTW;
+    }
+
       let productListText = order.products
         ? order.products.map((p) => `${p.description}${p.isGift ? ' 🎁[REGALO]' : ''}${p.modista ? ` (${p.modista})` : ''}`).join(' + ')
         : '';
@@ -216,7 +227,7 @@ export const OrderTable: React.FC = () => {
     const info = getDeliveryInfo(order);
     const matchUpcoming = !filterUpcomingOnly || (info !== null && !isDelivered && info.diffDays >= -2 && info.diffDays <= 7);
 
-    return matchMonth && matchStatus && matchPago && matchSearch && matchDeliverySort && matchUpcoming;
+    return matchMonth && matchStatus && matchPago && matchTipo && matchSearch && matchDeliverySort && matchUpcoming;
   });
 
   const handleStatusChange = async (order: Order, newStatus: string) => {
@@ -659,6 +670,23 @@ export const OrderTable: React.FC = () => {
               <option value="all">Todos los pagos</option>
               <option value="pendientes">Con Saldo</option>
               <option value="pagadas">Pagadas</option>
+            </select>
+
+            {/* Tipo de Trabajo: A Medida vs RTW */}
+            <select
+              value={filterTipo}
+              onChange={(e) => setFilterTipo(e.target.value as any)}
+              className={`py-1.5 px-2 border rounded text-[11px] font-bold focus:outline-none cursor-pointer transition-colors ${
+                filterTipo === 'medida'
+                  ? 'bg-ragucci-primary text-ragucci-gold border-ragucci-primary shadow-xs font-black'
+                  : filterTipo === 'rtw'
+                  ? 'bg-purple-100 text-purple-900 border-purple-300 shadow-xs font-black'
+                  : 'bg-white text-gray-700 border-gray-200'
+              }`}
+            >
+              <option value="all">✨ Todos los Tipos</option>
+              <option value="medida">✂️ Solo A Medida</option>
+              <option value="rtw">🛍️ Solo Prod. Terminados (RTW)</option>
             </select>
 
             <select
