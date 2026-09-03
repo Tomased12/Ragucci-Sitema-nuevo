@@ -200,8 +200,15 @@ export const OrderTable: React.FC = () => {
     if (filterPago === 'pagadas') matchPago = saldoVal === 0;
 
     let matchTipo = true;
-    const hasMedida = Boolean((order.products && order.products.length > 0) || order.origin === 'Local (A Medida)' || (order.measurements && Object.keys(order.measurements).length > 0));
-    const isOnlyRTW = Boolean((!order.products || order.products.length === 0) && ((order.rtwItems && order.rtwItems.length > 0) || (order.origin && order.origin.includes('RTW')) || (order.costs?.pterminado ? order.costs.pterminado > 0 : false)));
+    const hasMedida = Boolean(
+      order.products &&
+      order.products.length > 0 &&
+      order.products.some(p => p.description && p.description.trim().length > 0)
+    );
+    const isOnlyRTW = !hasMedida && Boolean(
+      (order.rtwItems && order.rtwItems.length > 0) ||
+      (order.costs?.pterminado ? order.costs.pterminado > 0 : false)
+    );
 
     if (filterTipo === 'medida') {
       matchTipo = hasMedida;
