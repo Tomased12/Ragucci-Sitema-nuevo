@@ -53,9 +53,6 @@ export const TelasDashboard: React.FC = () => {
   };
 
   const filteredOrders = orders.filter((o) => {
-    const isPendienteStatus = !o.status || o.status.includes('Pendiente');
-    if (isPendienteStatus) return false;
-
     const d = new Date(o.date + 'T12:00:00');
     const matchYear = d.getFullYear().toString() === filterYear;
     const matchMonth = filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth;
@@ -486,6 +483,52 @@ export const TelasDashboard: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Special Prestige S130 Freight Banner for Juan Martín */}
+                {(() => {
+                  const ceruttiItems = group.items.filter(it => it.catalogoTela === 'Cerutti S130' || it.ceruttiCalc);
+                  if (ceruttiItems.length === 0) return null;
+
+                  const totalMetros = ceruttiItems.reduce((acc, it) => acc + (it.ceruttiCalc?.metros || 0), 0);
+                  const totalPesoKg = Number((totalMetros * 0.24).toFixed(3));
+                  const totalFleteUSD = Number((totalMetros * 9.60).toFixed(2));
+
+                  return (
+                    <div className="bg-gradient-to-r from-amber-50 to-stone-50 border-2 border-ragucci-gold rounded-xl p-3.5 shadow-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ragucci-gold/40 pb-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🇮🇹</span>
+                          <div>
+                            <h4 className="text-xs font-black uppercase text-ragucci-primary">
+                              Catálogo Cerutti Prestige Super 130'S (Juan Martín)
+                            </h4>
+                            <p className="text-[10px] text-gray-500 font-bold">
+                              Regla de Envío Internacional: 0.24 kg/mt · $40.00 USD/kg ($9.60 USD/mt)
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-black bg-ragucci-primary text-ragucci-gold px-2.5 py-1 rounded-full uppercase">
+                          {ceruttiItems.length} Corte(s) Cerutti
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="bg-white p-2 rounded-lg border border-ragucci-gold/30">
+                          <span className="text-[9.5px] font-bold text-gray-500 uppercase block">Metros Totales</span>
+                          <span className="text-sm font-black text-ragucci-primary">{totalMetros.toFixed(2)} mt</span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-ragucci-gold/30">
+                          <span className="text-[9.5px] font-bold text-gray-500 uppercase block">Peso Estimado Total</span>
+                          <span className="text-sm font-black text-ragucci-primary">{totalPesoKg.toFixed(3)} kg</span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-amber-300">
+                          <span className="text-[9.5px] font-bold text-amber-900 uppercase block">Flete Total por Peso</span>
+                          <span className="text-sm font-black text-amber-800">${totalFleteUSD.toFixed(2)} USD</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Search Bar inside Modal */}
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
@@ -511,8 +554,8 @@ export const TelasDashboard: React.FC = () => {
                           <th className="py-2.5 px-3">Fecha</th>
                           <th className="py-2.5 px-3">Cliente</th>
                           <th className="py-2.5 px-3">Prenda & Insumo</th>
-                          <th className="py-2.5 px-3">Tono / Código Tela</th>
-                          <th className="py-2.5 px-3 text-right">Costo Tela ($)</th>
+                          <th className="py-2.5 px-3">Tono / Código / Desglose</th>
+                          <th className="py-2.5 px-3 text-right">Costo Total ($)</th>
                           <th className="py-2.5 px-3 text-center">Estado de Pago</th>
                           <th className="py-2.5 px-3">Notas</th>
                         </tr>
@@ -548,9 +591,12 @@ export const TelasDashboard: React.FC = () => {
 
                             <td className="py-2.5 px-3 text-gray-700 font-medium">
                               <div>{item.colorOrCode || <span className="text-gray-400 italic">Sin código</span>}</div>
-                              {item.ceruttiCalc?.fleteUSD && (
-                                <div className="text-[10px] text-gray-500 font-bold mt-0.5">
-                                  Flete: ${item.ceruttiCalc.fleteUSD} USD ({item.ceruttiCalc.pesoKg} kg)
+                              {item.ceruttiCalc && (
+                                <div className="mt-1 p-1.5 bg-amber-50/80 rounded border border-ragucci-gold/40 text-[10px] space-y-0.5">
+                                  <div className="font-black text-ragucci-primary">📦 Desglose Oficial Prestige S130:</div>
+                                  <div>• Metros solicitados: <strong className="text-ragucci-primary">{item.ceruttiCalc.metros} mt</strong></div>
+                                  <div>• Peso estimado: <strong className="text-ragucci-primary">{item.ceruttiCalc.pesoKg || (item.ceruttiCalc.metros * 0.24).toFixed(3)} kg</strong></div>
+                                  <div>• Flete por peso ($9.60/mt): <strong className="text-amber-800">${item.ceruttiCalc.fleteUSD || (item.ceruttiCalc.metros * 9.60).toFixed(2)} USD</strong></div>
                                 </div>
                               )}
                             </td>
