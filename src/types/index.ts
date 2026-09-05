@@ -23,6 +23,18 @@ export interface ProductCosts {
   noArreglos?: boolean;
 }
 
+export interface CeruttiFreightCalculation {
+  metros?: number;
+  pesoKg?: number;
+  fleteUSD?: number;
+  precioEUR?: number;
+  cambioEURUSD?: number;
+  subtotalEUR?: number;
+  subtotalUSD?: number;
+  totalUSD?: number;
+  codigoTela?: string;
+}
+
 export interface ProductItem {
   description: string;
   notes?: string;
@@ -31,6 +43,8 @@ export interface ProductItem {
   modista?: string;
   camiseroSelected?: string;
   proveedorTela?: string;
+  catalogoTela?: string;
+  ceruttiCalc?: CeruttiFreightCalculation;
   proveedorForreria?: string;
   arreglosDetalle?: ArregloDetalleItem[];
   costs: ProductCosts;

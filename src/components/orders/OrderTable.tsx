@@ -800,6 +800,10 @@ export const OrderTable: React.FC = () => {
                           `✂️ Taller: ${p.modista ? `Modista ${p.modista}` : p.camiseroSelected ? `Camisero ${p.camiseroSelected}` : 'Sastre Santiago'}`,
                           `📊 Estado: ${p.status || order.status || '🔴 Pendiente'}`
                         ];
+                        if (p.catalogoTela) lines.push(`📖 Catálogo Tela: ${p.catalogoTela}${p.ceruttiCalc?.codigoTela ? ` (Cód: ${p.ceruttiCalc.codigoTela})` : ''}`);
+                        if (p.ceruttiCalc) {
+                          lines.push(`📦 Flete Cerutti: ${p.ceruttiCalc.metros} mt · ${p.ceruttiCalc.pesoKg} kg · $${p.ceruttiCalc.fleteUSD} USD`);
+                        }
                         if (p.notes) lines.push(`📝 Notas: ${p.notes}`);
                         if (p.costs) {
                           lines.push(`💰 Costos: Tela $${formatMoney(p.costs.telas || 0)} | Forrería $${formatMoney(p.costs.forreria || 0)} | Confección $${formatMoney((p.costs.sastre || 0) + (p.costs.camisero || 0) + (p.costs.arreglos || 0))}`);

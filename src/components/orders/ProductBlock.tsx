@@ -636,6 +636,234 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
                     <option value="Otro / Sin Especificar">Otro / Sin Especificar</option>
                   </select>
                 </div>
+
+                {/* Catálogo Juan Martín Selector */}
+                {(product.proveedorTela === 'Juan Martín' || product.proveedorTela?.includes('Juan Martín')) && !isCamiseria && (
+                  <div className="mt-2 pt-2 border-t border-dashed border-gray-200">
+                    <label className="block text-[10px] font-extrabold text-ragucci-primary uppercase mb-1">
+                      Catálogo Juan Martín
+                    </label>
+                    <select
+                      value={product.catalogoTela || ''}
+                      onChange={(e) => {
+                        const cat = e.target.value;
+                        const defaultMeters = product.ceruttiCalc?.metros || (
+                          product.description.toLowerCase().includes('pantalon') ? 1.5 :
+                          product.description.toLowerCase().includes('chaleco') ? 0.9 :
+                          product.description.toLowerCase().includes('saco') ? 2.2 : 3.5
+                        );
+                        const precioEUR = product.ceruttiCalc?.precioEUR ?? 94;
+                        const cambioEURUSD = product.ceruttiCalc?.cambioEURUSD ?? 1.16;
+                        const fleteUSD = Number((defaultMeters * 9.60).toFixed(2));
+                        const subtotalEUR = Number((defaultMeters * precioEUR).toFixed(2));
+                        const subtotalUSD = Number((subtotalEUR * cambioEURUSD).toFixed(2));
+                        const totalUSD = Number((subtotalUSD + fleteUSD).toFixed(2));
+
+                        onChange({
+                          ...product,
+                          catalogoTela: cat,
+                          ceruttiCalc: cat === 'Cerutti S130' ? {
+                            metros: defaultMeters,
+                            pesoKg: Number((defaultMeters * 0.24).toFixed(3)),
+                            fleteUSD,
+                            precioEUR,
+                            cambioEURUSD,
+                            subtotalEUR,
+                            subtotalUSD,
+                            totalUSD,
+                            codigoTela: product.ceruttiCalc?.codigoTela || ''
+                          } : undefined,
+                          costs: {
+                            ...product.costs,
+                            telas: cat === 'Cerutti S130' ? totalUSD : product.costs.telas
+                          }
+                        });
+                      }}
+                      className="w-full p-1.5 border border-ragucci-gold/60 rounded text-xs font-black bg-amber-50/50 text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
+                    >
+                      <option value="">-- Seleccionar Catálogo --</option>
+                      <option value="Cerutti S130">🇮🇹 Cerutti S130 (Prestige Super 130'S 240g/m)</option>
+                      <option value="Otro">Otro Catálogo</option>
+                    </select>
+
+                    {/* Desglose y Calculadora Cerutti Prestige S130 */}
+                    {product.catalogoTela === 'Cerutti S130' && (
+                      <div className="mt-2.5 p-3 bg-gradient-to-br from-amber-50/90 to-stone-50 border border-ragucci-gold rounded-lg shadow-xs text-xs space-y-2">
+                        <div className="flex items-center justify-between border-b border-ragucci-gold/30 pb-1.5">
+                          <span className="font-black text-ragucci-primary text-[11px] uppercase flex items-center gap-1">
+                            <span>📦 Regla Flete Cerutti Prestige S130</span>
+                          </span>
+                          <span className="text-[9px] font-black bg-ragucci-primary text-ragucci-gold px-1.5 py-0.5 rounded">
+                            240g/m · $40 USD/kg
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <div>
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                              Código Tela
+                            </label>
+                            <input
+                              type="text"
+                              value={product.ceruttiCalc?.codigoTela || ''}
+                              onChange={(e) => {
+                                const cod = e.target.value;
+                                onChange({
+                                  ...product,
+                                  ceruttiCalc: {
+                                    ...(product.ceruttiCalc || {}),
+                                    codigoTela: cod
+                                  }
+                                });
+                              }}
+                              placeholder="Ej: 26A4C2"
+                              className="w-full p-1 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                              Metros (mt)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0.1"
+                              value={product.ceruttiCalc?.metros ?? 3.5}
+                              onChange={(e) => {
+                                const m = parseFloat(e.target.value) || 0;
+                                const pEUR = product.ceruttiCalc?.precioEUR ?? 94;
+                                const cEURUSD = product.ceruttiCalc?.cambioEURUSD ?? 1.16;
+                                const fUSD = Number((m * 9.60).toFixed(2));
+                                const sEUR = Number((m * pEUR).toFixed(2));
+                                const sUSD = Number((sEUR * cEURUSD).toFixed(2));
+                                const totUSD = Number((sUSD + fUSD).toFixed(2));
+
+                                onChange({
+                                  ...product,
+                                  ceruttiCalc: {
+                                    ...(product.ceruttiCalc || {}),
+                                    metros: m,
+                                    pesoKg: Number((m * 0.24).toFixed(3)),
+                                    fleteUSD: fUSD,
+                                    precioEUR: pEUR,
+                                    cambioEURUSD: cEURUSD,
+                                    subtotalEUR: sEUR,
+                                    subtotalUSD: sUSD,
+                                    totalUSD: totUSD
+                                  },
+                                  costs: {
+                                    ...product.costs,
+                                    telas: totUSD
+                                  }
+                                });
+                              }}
+                              className="w-full p-1 border border-gray-300 rounded text-xs font-black text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold text-center"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                              Precio (€/mt)
+                            </label>
+                            <input
+                              type="number"
+                              step="1"
+                              value={product.ceruttiCalc?.precioEUR ?? 94}
+                              onChange={(e) => {
+                                const pEUR = parseFloat(e.target.value) || 0;
+                                const m = product.ceruttiCalc?.metros ?? 3.5;
+                                const cEURUSD = product.ceruttiCalc?.cambioEURUSD ?? 1.16;
+                                const fUSD = Number((m * 9.60).toFixed(2));
+                                const sEUR = Number((m * pEUR).toFixed(2));
+                                const sUSD = Number((sEUR * cEURUSD).toFixed(2));
+                                const totUSD = Number((sUSD + fUSD).toFixed(2));
+
+                                onChange({
+                                  ...product,
+                                  ceruttiCalc: {
+                                    ...(product.ceruttiCalc || {}),
+                                    precioEUR: pEUR,
+                                    subtotalEUR: sEUR,
+                                    subtotalUSD: sUSD,
+                                    totalUSD: totUSD
+                                  },
+                                  costs: {
+                                    ...product.costs,
+                                    telas: totUSD
+                                  }
+                                });
+                              }}
+                              className="w-full p-1 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold text-center"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                              Cambio EUR/USD
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={product.ceruttiCalc?.cambioEURUSD ?? 1.16}
+                              onChange={(e) => {
+                                const cEURUSD = parseFloat(e.target.value) || 0;
+                                const m = product.ceruttiCalc?.metros ?? 3.5;
+                                const pEUR = product.ceruttiCalc?.precioEUR ?? 94;
+                                const fUSD = Number((m * 9.60).toFixed(2));
+                                const sEUR = Number((m * pEUR).toFixed(2));
+                                const sUSD = Number((sEUR * cEURUSD).toFixed(2));
+                                const totUSD = Number((sUSD + fUSD).toFixed(2));
+
+                                onChange({
+                                  ...product,
+                                  ceruttiCalc: {
+                                    ...(product.ceruttiCalc || {}),
+                                    cambioEURUSD: cEURUSD,
+                                    subtotalEUR: sEUR,
+                                    subtotalUSD: sUSD,
+                                    totalUSD: totUSD
+                                  },
+                                  costs: {
+                                    ...product.costs,
+                                    telas: totUSD
+                                  }
+                                });
+                              }}
+                              className="w-full p-1 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold text-center"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Formato de Salida Obligatorio */}
+                        <div className="bg-white/95 p-2.5 rounded-md border border-ragucci-gold/40 text-[11px] font-medium space-y-1 shadow-2xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600 font-bold">Metros solicitados:</span>
+                            <span className="font-extrabold text-ragucci-primary">{product.ceruttiCalc?.metros ?? 3.5} mt</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600 font-bold">Peso estimado:</span>
+                            <span className="font-extrabold text-ragucci-primary">{((product.ceruttiCalc?.metros ?? 3.5) * 0.24).toFixed(3)} kg</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600 font-bold">Flete por peso:</span>
+                            <span className="font-black text-amber-800">${((product.ceruttiCalc?.metros ?? 3.5) * 9.60).toFixed(2)} USD</span>
+                          </div>
+                          <div className="flex justify-between border-t border-dashed border-gray-200 pt-1 text-[10px]">
+                            <span className="text-gray-500">Subtotal Tela (€{product.ceruttiCalc?.precioEUR ?? 94}/mt):</span>
+                            <span className="font-bold text-gray-700">
+                              €{((product.ceruttiCalc?.metros ?? 3.5) * (product.ceruttiCalc?.precioEUR ?? 94)).toFixed(2)} EUR (${(((product.ceruttiCalc?.metros ?? 3.5) * (product.ceruttiCalc?.precioEUR ?? 94)) * (product.ceruttiCalc?.cambioEURUSD ?? 1.16)).toFixed(2)} USD)
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-t border-gray-300 pt-1 font-black text-xs text-ragucci-primary">
+                            <span>PRECIO FINAL TELA + FLETE:</span>
+                            <span className="text-sm font-black text-emerald-800">${(product.ceruttiCalc?.totalUSD ?? ((((product.ceruttiCalc?.metros ?? 3.5) * (product.ceruttiCalc?.precioEUR ?? 94)) * (product.ceruttiCalc?.cambioEURUSD ?? 1.16)) + ((product.ceruttiCalc?.metros ?? 3.5) * 9.60))).toFixed(2)} USD</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>

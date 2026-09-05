@@ -21,6 +21,8 @@ interface FabricItem {
   order: Order;
   paymentDetails?: ExpensePaymentDetail;
   status?: string;
+  catalogoTela?: string;
+  ceruttiCalc?: any;
 }
 
 interface FabricGroup {
@@ -98,7 +100,7 @@ export const TelasDashboard: React.FC = () => {
             client: clientName,
             garmentDesc: desc,
             fabricCategory: 'Tela',
-            colorOrCode: color,
+            colorOrCode: p.ceruttiCalc?.codigoTela ? `${color ? `${color} · ` : ''}Cód: ${p.ceruttiCalc.codigoTela}` : color,
             provider: provName,
             date: orderDate,
             amount,
@@ -106,7 +108,9 @@ export const TelasDashboard: React.FC = () => {
             note,
             order: o,
             paymentDetails: paymentDetailsMap[key],
-            status: p.status || o.status || '🔴 Pendiente'
+            status: p.status || o.status || '🔴 Pendiente',
+            catalogoTela: p.catalogoTela,
+            ceruttiCalc: p.ceruttiCalc
           };
 
           const targetGroup = dataProveedores[provName] || dataProveedores['Otros Proveedores'];
@@ -529,6 +533,11 @@ export const TelasDashboard: React.FC = () => {
                                 <span className="inline-flex items-center gap-1 bg-ragucci-primary/10 text-ragucci-primary px-2 py-0.5 rounded font-extrabold text-xs">
                                   {item.garmentDesc}
                                 </span>
+                                {item.catalogoTela === 'Cerutti S130' && (
+                                  <span className="text-[9.5px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded" title={item.ceruttiCalc ? `Metros: ${item.ceruttiCalc.metros} mt · Peso: ${item.ceruttiCalc.pesoKg} kg · Flete: $${item.ceruttiCalc.fleteUSD} USD` : ''}>
+                                    🇮🇹 Cerutti S130 {item.ceruttiCalc?.metros ? `(${item.ceruttiCalc.metros} mt)` : ''}
+                                  </span>
+                                )}
                                 {item.status && (
                                   <span className="text-[9px] font-black text-gray-500 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded-full uppercase">
                                     {item.status}
@@ -538,7 +547,12 @@ export const TelasDashboard: React.FC = () => {
                             </td>
 
                             <td className="py-2.5 px-3 text-gray-700 font-medium">
-                              {item.colorOrCode || <span className="text-gray-400 italic">Sin código</span>}
+                              <div>{item.colorOrCode || <span className="text-gray-400 italic">Sin código</span>}</div>
+                              {item.ceruttiCalc?.fleteUSD && (
+                                <div className="text-[10px] text-gray-500 font-bold mt-0.5">
+                                  Flete: ${item.ceruttiCalc.fleteUSD} USD ({item.ceruttiCalc.pesoKg} kg)
+                                </div>
+                              )}
                             </td>
 
                             <td className="py-2.5 px-3 font-black text-right text-ragucci-primary text-sm whitespace-nowrap">

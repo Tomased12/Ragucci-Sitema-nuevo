@@ -202,6 +202,11 @@ export const OrderSidePanel: React.FC<Props> = ({
                                 🧵 {p.proveedorTela}
                               </span>
                             )}
+                            {p.catalogoTela === 'Cerutti S130' && (
+                              <span className="text-[10px] font-bold bg-amber-100 border border-amber-300 text-amber-900 px-1.5 py-0.5 rounded" title={p.ceruttiCalc ? `Metros: ${p.ceruttiCalc.metros} mt · Peso: ${p.ceruttiCalc.pesoKg} kg · Flete: $${p.ceruttiCalc.fleteUSD} USD` : ''}>
+                                🇮🇹 Cerutti S130 {p.ceruttiCalc?.metros ? `(${p.ceruttiCalc.metros} mt · Flete $${p.ceruttiCalc.fleteUSD} USD)` : ''}
+                              </span>
+                            )}
                             {p.proveedorForreria && (
                               <span className="text-[10px] font-bold bg-purple-50 border border-purple-200 text-purple-800 px-1.5 py-0.5 rounded">
                                 🪡 {p.proveedorForreria}
