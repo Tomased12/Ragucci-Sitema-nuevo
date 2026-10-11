@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Order } from '../../types';
-import { formatDate, formatMoney, checkBirthdayToday, parseMoney, getTodayString } from '../../utils/formatters';
+import { formatDate, formatMoney, checkBirthdayToday, parseMoney, getTodayString, isCardPaymentMethod, hasOrderAnyCardPayment, isOrderCardPendingAccreditation } from '../../utils/formatters';
 import { OrderDetailModal } from './OrderDetailModal';
 import { OrderSidePanel } from './OrderSidePanel';
 import { PaymentModal } from './PaymentModal';
@@ -53,6 +53,44 @@ export const OrderTable: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null); // Side Panel
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const handleToggleCardAccreditation = async (order: Order, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const isPending = isOrderCardPendingAccreditation(order);
+    const targetAccredited = isPending; // if pending, mark accredited; if accredited, mark pending
+
+    let updatedHistory = order.paymentHistory;
+    if (order.paymentHistory && order.paymentHistory.length > 0) {
+      updatedHistory = order.paymentHistory.map(p => {
+        if (isCardPaymentMethod(p.method)) {
+          return { ...p, acreditado: targetAccredited };
+        }
+        return p;
+      });
+    } else if (order.sena > 0 && isCardPaymentMethod(order.method)) {
+      updatedHistory = [{
+        date: order.date,
+        amount: order.sena,
+        method: order.method,
+        acreditado: targetAccredited
+      }];
+    }
+
+    const updatedOrder: Order = {
+      ...order,
+      paymentHistory: updatedHistory,
+      acreditado: targetAccredited
+    };
+
+    try {
+      await saveOrderData(updatedOrder, order.firestoreId);
+      setToastMsg(targetAccredited ? '✅ Pago con tarjeta marcado como ACREDITADO' : '⏳ Pago con tarjeta marcado como FALTA ACREDITAR');
+      setTimeout(() => setToastMsg(null), 3000);
+    } catch (err) {
+      console.error(err);
+      alert('Error al actualizar el estado de acreditación.');
+    }
+  };
 
   // Sub-Menu Mode inside Registro: Órdenes vs Medidas
   const [registroViewMode, setRegistroViewMode] = useState<'ordenes' | 'medidas'>('ordenes');
@@ -191,13 +229,17 @@ export const OrderTable: React.FC = () => {
 
       const orderMatches = checkStatusMatch(order.status || '');
       const productMatches = order.products?.some(p => checkStatusMatch(p.status || order.status || ''));
-      matchStatus = orderMatches || !!productMatches;
+      const rtwMatches = order.rtwItems?.some(r => checkStatusMatch(r.status || order.status || ''));
+      matchStatus = orderMatches || !!productMatches || !!rtwMatches;
     }
 
     const saldoVal = order.saldo || 0;
     let matchPago = true;
     if (filterPago === 'pendientes') matchPago = saldoVal > 0;
     if (filterPago === 'pagadas') matchPago = saldoVal === 0;
+    if (filterPago === 'falta_acreditar') matchPago = isOrderCardPendingAccreditation(order);
+    if (filterPago === 'con_factura') matchPago = Boolean(order.hasInvoice || order.invoiceNumber);
+    if (filterPago === 'sin_factura') matchPago = !Boolean(order.hasInvoice || order.invoiceNumber);
 
     let matchTipo = true;
     const isArregloDesc = (desc?: string) => {
@@ -240,7 +282,9 @@ export const OrderTable: React.FC = () => {
     const matchSearch =
       !searchTerm.trim() ||
       order.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      productListText.toLowerCase().includes(searchTerm.toLowerCase());
+      productListText.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.invoiceNumber && order.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.invoiceDetails && order.invoiceDetails.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const isDelivered = order.status === '🟢 Entregado' || (order.status && order.status.toLowerCase().includes('entregado'));
     const matchDeliverySort = sortBy !== 'delivery_asc' || !isDelivered;
@@ -251,13 +295,127 @@ export const OrderTable: React.FC = () => {
     return matchMonth && matchStatus && matchPago && matchTipo && matchSearch && matchDeliverySort && matchUpcoming;
   });
 
+  const isArregloProduct = (p?: any): boolean => {
+    if (!p) return false;
+    const desc = (p.description || '').toUpperCase();
+    return desc.includes('ARREGLO') || (Boolean(p.costs?.arreglos && p.costs.arreglos > 0) && !p.costs?.sastre && !p.costs?.camisero && !p.costs?.telas);
+  };
+
+  const isRTWProduct = (p?: any): boolean => {
+    if (!p) return false;
+    const desc = (p.description || '').toUpperCase();
+    return desc.includes('RTW') || desc.includes('TERMINADO') || Boolean(p.costs?.pterminado && p.costs.pterminado > 0);
+  };
+
+  const isMedidaProduct = (p?: any): boolean => {
+    if (!p) return false;
+    return !isArregloProduct(p) && !isRTWProduct(p);
+  };
+
+  const isArregloOrder = (order?: Order | null): boolean => {
+    if (!order) return false;
+    const orderType = (order.type || '').toUpperCase();
+    if (orderType.includes('ARREGLO')) return true;
+    const prods = order.products || [];
+    if (prods.length > 0) {
+      const hasMedidaGarments = prods.some(p => isMedidaProduct(p));
+      if (!hasMedidaGarments && prods.some(p => isArregloProduct(p))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const isRTWOrder = (order?: Order | null): boolean => {
+    if (!order) return false;
+    const prods = order.products || [];
+    const hasMedidaOrArreglo = prods.some(p => isMedidaProduct(p) || isArregloProduct(p));
+    if (hasMedidaOrArreglo) return false;
+    const orig = (order.origin || '').toLowerCase();
+    return orig.includes('tienda nube') || orig.includes('rtw') || Boolean(order.rtwItems && order.rtwItems.length > 0) || prods.some(p => isRTWProduct(p));
+  };
+
+  const recalculateOrderStatus = (order: Order): Order => {
+    const products = order.products || [];
+    const rtwItems = order.rtwItems || [];
+    const totalItems = products.length + rtwItems.length;
+
+    if (totalItems === 0) {
+      return order;
+    }
+
+    const allProductsDelivered = products.length === 0 || products.every(p => (p.status || '').includes('Entregado'));
+    const allRtwDelivered = rtwItems.length === 0 || rtwItems.every(r => (r.status || '').includes('Entregado'));
+
+    if (allProductsDelivered && allRtwDelivered) {
+      return { ...order, status: '🟢 Entregado' };
+    }
+
+    const hasMedida = products.some(p => isMedidaProduct(p));
+    const hasArreglo = products.some(p => isArregloProduct(p));
+
+    if (!hasMedida && !hasArreglo) {
+      // Pure RTW order
+      const anyDespachado = rtwItems.some(r => (r.status || '').includes('Despachado')) || products.some(p => (p.status || '').includes('Despachado'));
+      return { ...order, status: anyDespachado ? '📦 Despachado' : '🔴 Pendiente' };
+    }
+
+    if (hasArreglo && !hasMedida) {
+      // Arreglos dominant order (may also have RTW items)
+      const allArreglosEntregados = products.every(p => (p.status || '').includes('Entregado'));
+      if (allArreglosEntregados && rtwItems.some(r => (r.status || '').includes('Despachado'))) {
+        return { ...order, status: '📦 Despachado' };
+      }
+
+      const anyRealizado = products.some(p => (p.status || '').includes('Realizado') || (p.status || '').includes('Prueba'));
+      const anyInTaller = products.find(p => (p.status || '').includes('Taller'));
+      const anyEnLocal = products.some(p => (p.status || '').includes('Local') || (p.status || '').includes('Pendiente'));
+
+      if (anyRealizado) return { ...order, status: '🔵 Arreglo Realizado' };
+      if (anyInTaller) return { ...order, status: anyInTaller.status || '🟡 En Taller' };
+      if (anyEnLocal) return { ...order, status: '🟠 En el Local' };
+      return { ...order, status: '🟠 En el Local' };
+    }
+
+    // Has Medida garments (and possibly Arreglos and/or RTW)
+    const anyPrueba = products.some(p => (p.status || '') === '🔵 Prueba' || (p.status || '').includes('Realizado'));
+    const anyInTaller = products.find(p => (p.status || '').includes('Taller'));
+    const anyTelaLocal = products.some(p => (p.status || '').includes('Tela en Local') || (p.status || '').includes('En el Local'));
+    const anyTelaPedida = products.some(p => (p.status || '').includes('Tela Pedida'));
+    const anyDespachado = rtwItems.some(r => (r.status || '').includes('Despachado'));
+
+    if (anyPrueba) return { ...order, status: '🔵 Prueba' };
+    if (anyInTaller) return { ...order, status: anyInTaller.status || '🟡 En Taller' };
+    if (anyTelaLocal) return { ...order, status: '🟠 Tela en Local' };
+    if (anyTelaPedida) return { ...order, status: '🟣 Tela Pedida' };
+    if (anyDespachado) return { ...order, status: '📦 Despachado' };
+
+    return { ...order, status: '🔴 Pendiente' };
+  };
+
   const handleStatusChange = async (order: Order, newStatus: string) => {
     try {
+      let modistaToSet: string | undefined = undefined;
+      if (newStatus.includes('María')) modistaToSet = 'MARIA';
+      else if (newStatus.includes('Jesús')) modistaToSet = 'JESUS';
+      else if (newStatus.includes('Arturo')) modistaToSet = 'ARTURO';
+      else if (newStatus.includes('Raúl') || newStatus.includes('Raul')) modistaToSet = 'RAUL';
+      else if (newStatus.includes('Otro')) modistaToSet = 'OTRO';
+
       const updatedProducts = (order.products || []).map(p => ({
         ...p,
-        status: newStatus
+        status: newStatus,
+        modista: modistaToSet || p.modista
       }));
-      const updatedOrder = { ...order, status: newStatus, products: updatedProducts };
+
+      const updatedRtwItems = (order.rtwItems || []).map(r => ({
+        ...r,
+        status: (newStatus.includes('Entregado') || newStatus.includes('Despachado') || newStatus.includes('Pendiente'))
+          ? newStatus
+          : r.status || '🔴 Pendiente'
+      }));
+
+      const updatedOrder = { ...order, status: newStatus, products: updatedProducts, rtwItems: updatedRtwItems };
       await saveOrderData(updatedOrder, order.firestoreId);
       // Sync the selected order in the side panel if it's the same order
       if (selectedOrder && (selectedOrder.firestoreId === order.firestoreId)) {
@@ -270,40 +428,30 @@ export const OrderTable: React.FC = () => {
 
   const handleProductStatusChange = async (order: Order, productIndex: number, newStatus: string) => {
     try {
+      let modistaToSet: string | undefined = undefined;
+      if (newStatus.includes('María')) modistaToSet = 'MARIA';
+      else if (newStatus.includes('Jesús')) modistaToSet = 'JESUS';
+      else if (newStatus.includes('Arturo')) modistaToSet = 'ARTURO';
+      else if (newStatus.includes('Raúl')) modistaToSet = 'RAUL';
+      else if (newStatus.includes('Otro')) modistaToSet = 'OTRO';
+
       const updatedProducts = (order.products || []).map((p, idx) => {
-        const currentPStatus = p.status || order.status || '🔴 Pendiente';
+        const isThisArr = isArregloProduct(p);
+        const currentPStatus = p.status || order.status || (isThisArr ? '🟠 En el Local' : '🔴 Pendiente');
         if (idx === productIndex) {
-          return { ...p, status: newStatus };
+          return {
+            ...p,
+            status: newStatus,
+            modista: modistaToSet !== undefined ? modistaToSet : p.modista
+          };
         }
         return { ...p, status: currentPStatus };
       });
 
-      const allEntregado = updatedProducts.length > 0 && updatedProducts.every(p => p.status === '🟢 Entregado');
-      const anyPrueba = updatedProducts.some(p => p.status === '🔵 Prueba');
-      const anyInTaller = updatedProducts.some(p => p.status === '🟡 En Taller');
-      const anyTelaLocal = updatedProducts.some(p => p.status === '🟠 Tela en Local');
-      const anyTelaPedida = updatedProducts.some(p => p.status === '🟣 Tela Pedida');
-
-      let generalStatus = order.status || '🔴 Pendiente';
-      if (allEntregado) {
-        generalStatus = '🟢 Entregado';
-      } else if (anyPrueba) {
-        generalStatus = '🔵 Prueba';
-      } else if (anyInTaller) {
-        generalStatus = '🟡 En Taller';
-      } else if (anyTelaLocal) {
-        generalStatus = '🟠 Tela en Local';
-      } else if (anyTelaPedida) {
-        generalStatus = '🟣 Tela Pedida';
-      } else if (updatedProducts.every(p => p.status === '🔴 Pendiente')) {
-        generalStatus = '🔴 Pendiente';
-      }
-
-      const updatedOrder: Order = {
+      const updatedOrder = recalculateOrderStatus({
         ...order,
-        products: updatedProducts,
-        status: generalStatus
-      };
+        products: updatedProducts
+      });
 
       await saveOrderData(updatedOrder, order.firestoreId);
       if (selectedOrder && (selectedOrder.firestoreId === order.firestoreId)) {
@@ -311,6 +459,32 @@ export const OrderTable: React.FC = () => {
       }
     } catch (e) {
       alert("Error al actualizar el estado de la prenda.");
+    }
+  };
+
+  const handleRTWItemStatusChange = async (order: Order, rtwIndex: number, newStatus: string) => {
+    try {
+      const updatedRtwItems = (order.rtwItems || []).map((r, idx) => {
+        if (idx === rtwIndex) {
+          return {
+            ...r,
+            status: newStatus
+          };
+        }
+        return { ...r, status: r.status || '🔴 Pendiente' };
+      });
+
+      const updatedOrder = recalculateOrderStatus({
+        ...order,
+        rtwItems: updatedRtwItems
+      });
+
+      await saveOrderData(updatedOrder, order.firestoreId);
+      if (selectedOrder && (selectedOrder.firestoreId === order.firestoreId)) {
+        setSelectedOrder(updatedOrder);
+      }
+    } catch (e) {
+      alert("Error al actualizar el estado del producto RTW.");
     }
   };
 
@@ -336,8 +510,26 @@ export const OrderTable: React.FC = () => {
       if (!selectedOrder) return;
 
       if (e.key === 'k' || e.key === 'K') {
-        const currentIdx = STATUS_STAGES.indexOf(selectedOrder.status || '🔴 Pendiente');
-        const nextStatus = STATUS_STAGES[currentIdx + 1];
+        const isArr = isArregloOrder(selectedOrder);
+        const stages = isRTWOrder(selectedOrder)
+          ? ['🔴 Pendiente', '📦 Despachado', '🟢 Entregado']
+          : isArr
+          ? ['🟠 En el Local', '🟡 En Taller', '🔵 Arreglo Realizado', '🟢 Entregado']
+          : STATUS_STAGES;
+
+        let currentIdx = stages.indexOf(selectedOrder.status || '');
+        if (currentIdx === -1 && isArr) {
+          const cur = (selectedOrder.status || '').toLowerCase();
+          if (cur.includes('local') || cur.includes('pendiente')) currentIdx = 0;
+          else if (cur.includes('taller')) currentIdx = 1;
+          else if (cur.includes('realizado') || cur.includes('prueba')) currentIdx = 2;
+          else if (cur.includes('entregado')) currentIdx = 3;
+          else currentIdx = 0;
+        } else if (currentIdx === -1) {
+          currentIdx = 0;
+        }
+
+        const nextStatus = stages[currentIdx + 1];
         if (nextStatus) {
           handleStatusChange(selectedOrder, nextStatus);
           showToast(`${selectedOrder.client} → ${nextStatus}`);
@@ -644,15 +836,22 @@ export const OrderTable: React.FC = () => {
 
             {/* Status pills */}
             <div className="flex flex-wrap items-center gap-1">
-              {[
-                { val: 'all',            label: 'Todos',   dot: 'bg-gray-400' },
-                { val: '🔴 Pendiente',    label: 'Pend.',   dot: 'bg-red-500' },
-                { val: '🟣 Tela Pedida',  label: 'Pedida',  dot: 'bg-purple-500' },
-                { val: '🟠 Tela en Local',label: 'En Local',dot: 'bg-orange-400' },
-                { val: '🟡 En Taller',    label: 'Taller',  dot: 'bg-yellow-400' },
-                { val: '🔵 Prueba',       label: 'Prueba',  dot: 'bg-blue-500' },
-                { val: '🟢 Entregado',    label: 'Listo',   dot: 'bg-emerald-500' },
-              ].map(({ val, label, dot }) => (
+              {(filterTipo === 'arreglos' ? [
+                { val: 'all',                  label: 'Todos',        dot: 'bg-gray-400' },
+                { val: '🟠 En el Local',       label: 'En Local',     dot: 'bg-orange-400' },
+                { val: '🟡 En Taller',         label: 'Taller',       dot: 'bg-yellow-400' },
+                { val: '🔵 Arreglo Realizado', label: 'Realizado',    dot: 'bg-blue-500' },
+                { val: '🟢 Entregado',          label: 'Listo',        dot: 'bg-emerald-500' },
+              ] : [
+                { val: 'all',            label: 'Todos',      dot: 'bg-gray-400' },
+                { val: '🔴 Pendiente',    label: 'Pend.',      dot: 'bg-red-500' },
+                { val: '📦 Despachado',   label: 'Despachado', dot: 'bg-sky-500' },
+                { val: '🟣 Tela Pedida',  label: 'Pedida',     dot: 'bg-purple-500' },
+                { val: '🟠 Tela en Local',label: 'En Local',   dot: 'bg-orange-400' },
+                { val: '🟡 En Taller',    label: 'Taller',     dot: 'bg-yellow-400' },
+                { val: '🔵 Prueba',       label: 'Prueba',     dot: 'bg-blue-500' },
+                { val: '🟢 Entregado',    label: 'Listo',      dot: 'bg-emerald-500' },
+              ]).map(({ val, label, dot }) => (
                 <button
                   key={val}
                   onClick={() => setFilterStatus(val)}
@@ -691,6 +890,9 @@ export const OrderTable: React.FC = () => {
               <option value="all">Todos los pagos</option>
               <option value="pendientes">Con Saldo</option>
               <option value="pagadas">Pagadas</option>
+              <option value="falta_acreditar">💳 Falta Acreditar</option>
+              <option value="con_factura">🧾 Con Factura</option>
+              <option value="sin_factura">Sin Factura</option>
             </select>
 
             {/* Tipo de Trabajo: A Medida vs Arreglos vs RTW */}
@@ -777,32 +979,84 @@ export const OrderTable: React.FC = () => {
                       ...(order.rtwItems || []).map(r => `${r.desc} ×${r.qty}`),
                     ].join(' · ') || '—';
 
-                    const statusCfg: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-                      '🔴 Pendiente':    { label: 'PENDIENTE',   bg: 'bg-red-50',     text: 'text-red-800',    dot: 'bg-red-500' },
-                      '🟣 Tela Pedida':  { label: 'TELA PEDIDA', bg: 'bg-purple-50',  text: 'text-purple-800', dot: 'bg-purple-500' },
-                      '🟠 Tela en Local':{ label: 'TELA LOCAL',  bg: 'bg-orange-50',  text: 'text-orange-800', dot: 'bg-orange-400' },
-                      '🟡 En Taller':    { label: 'EN TALLER',   bg: 'bg-yellow-50',  text: 'text-yellow-800', dot: 'bg-yellow-400' },
-                      '🔵 Prueba':       { label: 'PRUEBA',      bg: 'bg-blue-50',    text: 'text-blue-800',   dot: 'bg-blue-500' },
-                      '🟢 Entregado':    { label: 'ENTREGADO',   bg: 'bg-emerald-50', text: 'text-emerald-800',dot: 'bg-emerald-500' },
+                    const isArrOrder = isArregloOrder(order);
+
+                    const getGarmentStatusConfig = (rawSt?: string, isArr = false, modista?: string) => {
+                      const s = (rawSt || '').trim();
+                      if (isArr) {
+                        if (!s || s.includes('Local') || s.includes('Pendiente')) {
+                          return { label: 'EN EL LOCAL', bg: 'bg-orange-50', text: 'text-orange-800', dot: 'bg-orange-400' };
+                        }
+                        if (s.includes('Taller')) {
+                          let mLabel = 'EN TALLER';
+                          const m = (s.includes('(') ? s.split('(')[1].replace(')', '').trim() : '') || modista;
+                          if (m) {
+                            const upperM = m.toUpperCase();
+                            if (upperM.includes('MARIA') || upperM.includes('MARÍA')) mLabel = 'TALLER MARÍA';
+                            else if (upperM.includes('JESUS') || upperM.includes('JESÚS')) mLabel = 'TALLER JESÚS';
+                            else if (upperM.includes('ARTURO')) mLabel = 'TALLER ARTURO';
+                            else if (upperM.includes('RAUL') || upperM.includes('RAÚL')) mLabel = 'TALLER RAÚL';
+                            else mLabel = `TALLER (${m.toUpperCase()})`;
+                          }
+                          return { label: mLabel, bg: 'bg-yellow-50', text: 'text-yellow-800', dot: 'bg-yellow-400' };
+                        }
+                        if (s.includes('Realizado') || s.includes('Prueba')) {
+                          return { label: 'ARREGLO REALIZADO', bg: 'bg-blue-50', text: 'text-blue-800', dot: 'bg-blue-500' };
+                        }
+                        if (s.includes('Entregado')) {
+                          return { label: 'ENTREGADO', bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' };
+                        }
+                      }
+
+                      if (s.includes('Despachado')) return { label: 'DESPACHADO', bg: 'bg-sky-50', text: 'text-sky-800', dot: 'bg-sky-500' };
+                      if (s.includes('Tela Pedida') || s.includes('Pedida')) return { label: 'TELA PEDIDA', bg: 'bg-purple-50', text: 'text-purple-800', dot: 'bg-purple-500' };
+                      if (s.includes('Tela en Local')) return { label: 'TELA LOCAL', bg: 'bg-orange-50', text: 'text-orange-800', dot: 'bg-orange-400' };
+                      if (s.includes('En el Local')) return { label: 'EN EL LOCAL', bg: 'bg-orange-50', text: 'text-orange-800', dot: 'bg-orange-400' };
+                      if (s.includes('Taller')) return { label: 'EN TALLER', bg: 'bg-yellow-50', text: 'text-yellow-800', dot: 'bg-yellow-400' };
+                      if (s.includes('Realizado')) return { label: 'ARREGLO REALIZADO', bg: 'bg-blue-50', text: 'text-blue-800', dot: 'bg-blue-500' };
+                      if (s.includes('Prueba')) return { label: 'PRUEBA', bg: 'bg-blue-50', text: 'text-blue-800', dot: 'bg-blue-500' };
+                      if (s.includes('Entregado')) return { label: 'ENTREGADO', bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' };
+                      return { label: 'PENDIENTE', bg: 'bg-red-50', text: 'text-red-800', dot: 'bg-red-500' };
                     };
-                    const scfg = statusCfg[order.status || '🔴 Pendiente'] ?? statusCfg['🔴 Pendiente'];
+
+                    const scfg = getGarmentStatusConfig(order.status, isArrOrder, order.products?.[0]?.modista);
+
+                    const getArregloSelectValue = (st?: string) => {
+                      const s = st || '';
+                      if (s.includes('Local') || s.includes('Pendiente') || !s) return '🟠 En el Local';
+                      if (s.includes('María')) return '🟡 En Taller (María)';
+                      if (s.includes('Jesús')) return '🟡 En Taller (Jesús)';
+                      if (s.includes('Arturo')) return '🟡 En Taller (Arturo)';
+                      if (s.includes('Raúl') || s.includes('Raul')) return '🟡 En Taller (Raúl)';
+                      if (s.includes('Otro')) return '🟡 En Taller (Otro)';
+                      if (s.includes('Taller')) return '🟡 En Taller';
+                      if (s.includes('Realizado') || s.includes('Prueba')) return '🔵 Arreglo Realizado';
+                      if (s.includes('Entregado')) return '🟢 Entregado';
+                      return '🟠 En el Local';
+                    };
 
                     const fullGarmentSummaryTooltip = [
                       `👤 CLIENTE: ${order.client?.toUpperCase()}`,
                       `📅 FECHA: ${formatDate(order.date)}${order.deliveryDate ? ` | ENTREGA: ${formatDate(order.deliveryDate)}` : ''}`,
+                      (order.hasInvoice || order.invoiceNumber)
+                        ? `🧾 FACTURA: ${order.invoiceNumber ? `N° ${order.invoiceNumber}` : 'Emitida'}${order.invoiceDetails ? ` (${order.invoiceDetails})` : ''}`
+                        : '',
                       `────────────────────────────────────────`,
                       ...(order.products || []).map((p, idx) => {
                         const lines = [
-                          `📌 Prenda ${idx + 1}: ${p.description || 'Prenda'}${p.isGift ? ' 🎁 (Regalo / Cortesía)' : ''}`,
+                          `📌 Prenda ${idx + 1}: ${p.description || 'Prenda'}${p.isGift ? ' 🎁 (Regalo / Cortesía)' : ''}${p.price && p.price > 0 ? ` — 💰 Cobrado: $${formatMoney(p.price)}` : ''}`,
                           `🎨 Color: ${p.color || 'No especificado'}`,
                           `🧵 Proveedor Tela: ${p.proveedorTela || 'No especificado'}`,
                           `🪡 Proveedor Forrería: ${p.proveedorForreria || 'No especificado'}`,
                           `✂️ Taller: ${p.modista ? `Modista ${p.modista}` : p.camiseroSelected ? `Camisero ${p.camiseroSelected}` : 'Sastre Santiago'}`,
                           `📊 Estado: ${p.status || order.status || '🔴 Pendiente'}`
                         ];
-                        if (p.catalogoTela) lines.push(`📖 Catálogo Tela: ${p.catalogoTela}${p.ceruttiCalc?.codigoTela ? ` (Cód: ${p.ceruttiCalc.codigoTela})` : ''}`);
+                        if (p.catalogoTela) lines.push(`📖 Catálogo Tela: ${p.catalogoTela}${p.ceruttiCalc?.codigoTela ? ` (Cód: ${p.ceruttiCalc.codigoTela})` : p.redaCalc?.itemCode ? ` (Cód: ${p.redaCalc.itemCode} - ${p.redaCalc.book})` : ''}`);
                         if (p.ceruttiCalc) {
                           lines.push(`📦 Flete Cerutti: ${p.ceruttiCalc.metros} mt · ${p.ceruttiCalc.pesoKg} kg · $${p.ceruttiCalc.fleteUSD} USD`);
+                        }
+                        if (p.redaCalc) {
+                          lines.push(`🇮🇹 REDA ExtraEU: ${p.redaCalc.book} · Art ${p.redaCalc.itemCode} · ${p.redaCalc.metros} mt × $${p.redaCalc.cutlengthUSD} USD/mt · Total USD: $${p.redaCalc.subtotalUSD} (+10,5% IVA: $${formatMoney(p.redaCalc.totalARS)} ARS)`);
                         }
                         if (p.notes) lines.push(`📝 Notas: ${p.notes}`);
                         if (p.costs) {
@@ -810,7 +1064,7 @@ export const OrderTable: React.FC = () => {
                         }
                         return lines.join('\n');
                       }),
-                      ...(order.rtwItems || []).map((r, idx) => `🛍️ RTW ${idx + 1}: ${r.desc} ×${r.qty} ($${formatMoney(r.price * r.qty)})${r.notes ? ` [${r.notes}]` : ''}`)
+                      ...(order.rtwItems || []).map((r, idx) => `🛍️ RTW ${idx + 1}: ${r.desc} ×${r.qty}${r.salePrice ? ` — 💰 Cobrado: $${formatMoney(r.salePrice * r.qty)}` : ` ($${formatMoney(r.price * r.qty)})`}${r.notes ? ` [${r.notes}]` : ''}`)
                     ].join('\n\n');
 
                     return (
@@ -868,6 +1122,16 @@ export const OrderTable: React.FC = () => {
                               <span>WhatsApp</span>
                             </a>
                           )}
+                          {(order.hasInvoice || order.invoiceNumber) && (
+                            <div className="mt-1">
+                              <span
+                                className="inline-flex items-center gap-1 text-[9.5px] font-extrabold bg-blue-50 text-blue-900 border border-blue-200 px-1.5 py-0.5 rounded shadow-2xs max-w-full truncate"
+                                title={`Factura: ${order.invoiceNumber || 'Emitida'}${order.invoiceDetails ? ` - Detalle: ${order.invoiceDetails}` : ''}`}
+                              >
+                                🧾 {order.invoiceNumber ? `Fact. #${order.invoiceNumber}` : 'Con Factura'}
+                              </span>
+                            </div>
+                          )}
                         </td>
 
                         {/* Prenda(s) con Hover Tooltip Detallado */}
@@ -913,88 +1177,257 @@ export const OrderTable: React.FC = () => {
                           ) : (
                             <span className="text-emerald-700 font-black bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px]">✓ Saldado</span>
                           )}
+
+                          {hasOrderAnyCardPayment(order) && (
+                            <div className="mt-1 flex justify-end">
+                              {isOrderCardPendingAccreditation(order) ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleToggleCardAccreditation(order, e)}
+                                  className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs transition-all cursor-pointer animate-pulse"
+                                  title="Pago con tarjeta pendiente de acreditación bancaria. Clic para marcar como Acreditado."
+                                >
+                                  <span>💳 Falta acreditar</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleToggleCardAccreditation(order, e)}
+                                  className="inline-flex items-center gap-1 text-[9.5px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded shadow-2xs transition-all cursor-pointer"
+                                  title="Pago con tarjeta acreditado en cuenta bancaria. Clic para volver a marcar como pendiente si es necesario."
+                                >
+                                  <span>✓ Acreditado</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
 
-                        {/* Estado — StatusPill individual por prenda o global */}
+                        {/* Estado — StatusPill individual por prenda/item o global */}
                         <td className="py-2.5 px-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                          {order.products && order.products.length > 1 ? (
-                            <div className="flex flex-col gap-1.5">
-                              {order.products.map((p, pIdx) => {
-                                const pStatus = p.status || order.status || '🔴 Pendiente';
-                                const pscfg = statusCfg[pStatus] ?? statusCfg['🔴 Pendiente'];
-                                const shortDesc = p.description ? (p.description.length > 15 ? p.description.slice(0, 13) + '…' : p.description) : `P${pIdx + 1}`;
-                                
-                                const singleGarmentTooltip = [
-                                  `📌 Prenda: ${p.description || 'Prenda'}${p.isGift ? ' 🎁' : ''}`,
-                                  `🎨 Color: ${p.color || 'No especificado'}`,
-                                  `🧵 Proveedor Tela: ${p.proveedorTela || 'No especificado'}`,
-                                  `🪡 Proveedor Forrería: ${p.proveedorForreria || 'No especificado'}`,
-                                  `✂️ Taller: ${p.modista ? `Modista ${p.modista}` : p.camiseroSelected ? `Camisero ${p.camiseroSelected}` : 'Sastre Santiago'}`,
-                                  `📊 Estado: ${pStatus}`,
-                                  p.notes ? `📝 Notas: ${p.notes}` : ''
-                                ].filter(Boolean).join('\n');
+                          {(() => {
+                            const prods = order.products || [];
+                            const rtws = order.rtwItems || [];
+                            const totalItemsCount = prods.length + rtws.length;
 
-                                return (
-                                  <div
-                                    key={pIdx}
-                                    className="flex items-center gap-1.5"
-                                    title={singleGarmentTooltip}
-                                  >
-                                    <span
-                                      className="text-[10px] font-bold text-gray-700 uppercase max-w-[80px] truncate cursor-help hover:text-ragucci-primary hover:underline"
-                                      title={singleGarmentTooltip}
-                                    >
-                                      {shortDesc}:
-                                    </span>
-                                    <div className="relative inline-flex" title={singleGarmentTooltip}>
-                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer select-none shadow-2xs ${pscfg.bg} ${pscfg.text}`}>
-                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pscfg.dot}`} />
-                                        {pscfg.label}
-                                      </span>
-                                      <select
-                                        value={pStatus}
-                                        onChange={(e) => handleProductStatusChange(order, pIdx, e.target.value)}
-                                        className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                            if (totalItemsCount > 1) {
+                              return (
+                                <div className="flex flex-col gap-1.5">
+                                  {/* 1. Bespoke / Arreglo Products */}
+                                  {prods.map((p, pIdx) => {
+                                    const isPArr = isArregloProduct(p);
+                                    const isPRtw = isRTWProduct(p);
+                                    const pStatus = p.status || order.status || (isPArr ? '🟠 En el Local' : '🔴 Pendiente');
+                                    const pscfg = getGarmentStatusConfig(pStatus, isPArr, p.modista);
+                                    const shortDesc = p.description ? (p.description.length > 15 ? p.description.slice(0, 13) + '…' : p.description) : `P${pIdx + 1}`;
+
+                                    const singleGarmentTooltip = [
+                                      `📌 Prenda: ${p.description || 'Prenda'}${p.isGift ? ' 🎁' : ''}${p.price && p.price > 0 ? ` (Cobrado: $${formatMoney(p.price)})` : ''}`,
+                                      `🎨 Color: ${p.color || 'No especificado'}`,
+                                      `🧵 Proveedor Tela: ${p.proveedorTela || 'No especificado'}`,
+                                      `🪡 Proveedor Forrería: ${p.proveedorForreria || 'No especificado'}`,
+                                      `✂️ Taller: ${p.modista ? `Modista ${p.modista}` : p.camiseroSelected ? `Camisero ${p.camiseroSelected}` : 'Sastre Santiago'}`,
+                                      `📊 Estado: ${pscfg.label}`,
+                                      p.notes ? `📝 Notas: ${p.notes}` : ''
+                                    ].filter(Boolean).join('\n');
+
+                                    return (
+                                      <div
+                                        key={`prod-${pIdx}`}
+                                        className="flex items-center gap-1.5"
+                                        title={singleGarmentTooltip}
                                       >
+                                        <span
+                                          className="text-[10px] font-bold text-gray-700 uppercase max-w-[85px] truncate cursor-help hover:text-ragucci-primary hover:underline"
+                                          title={singleGarmentTooltip}
+                                        >
+                                          {shortDesc}:
+                                        </span>
+                                        <div className="relative inline-flex" title={singleGarmentTooltip}>
+                                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer select-none shadow-2xs ${pscfg.bg} ${pscfg.text}`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pscfg.dot}`} />
+                                            {pscfg.label}
+                                          </span>
+                                          <select
+                                            value={isPArr ? getArregloSelectValue(pStatus) : pStatus}
+                                            onChange={(e) => handleProductStatusChange(order, pIdx, e.target.value)}
+                                            className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                          >
+                                            {isPArr ? (
+                                              <>
+                                                <option value="🟠 En el Local">🟠 En el Local</option>
+                                                <optgroup label="Taller">
+                                                  <option value="🟡 En Taller">🟡 En Taller (General)</option>
+                                                  <option value="🟡 En Taller (María)">🟡 Taller (María)</option>
+                                                  <option value="🟡 En Taller (Jesús)">🟡 Taller (Jesús)</option>
+                                                  <option value="🟡 En Taller (Arturo)">🟡 Taller (Arturo)</option>
+                                                  <option value="🟡 En Taller (Raúl)">🟡 Taller (Raúl)</option>
+                                                  <option value="🟡 En Taller (Otro)">🟡 Taller (Otro)</option>
+                                                </optgroup>
+                                                <option value="🔵 Arreglo Realizado">🔵 Arreglo Realizado</option>
+                                                <option value="🟢 Entregado">🟢 Entregado</option>
+                                              </>
+                                            ) : isPRtw ? (
+                                              <>
+                                                <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                                <option value="📦 Despachado">📦 Despachado</option>
+                                                <option value="🟢 Entregado">🟢 Entregado</option>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                                <option value="🟣 Tela Pedida">🟣 Tela Pedida</option>
+                                                <option value="🟠 Tela en Local">🟠 Tela en Local</option>
+                                                <option value="🟡 En Taller">🟡 En Taller</option>
+                                                <option value="🔵 Prueba">🔵 Prueba</option>
+                                                <option value="🟢 Entregado">🟢 Entregado</option>
+                                              </>
+                                            )}
+                                          </select>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+
+                                  {/* 2. RTW Items */}
+                                  {rtws.map((rtw, rIdx) => {
+                                    const rStatus = rtw.status || '🔴 Pendiente';
+                                    const rcfg = getGarmentStatusConfig(rStatus, false);
+                                    const shortDesc = rtw.desc ? (rtw.desc.length > 15 ? rtw.desc.slice(0, 13) + '…' : rtw.desc) : `RTW ${rIdx + 1}`;
+                                    const rtwSale = rtw.salePrice !== undefined ? rtw.salePrice : rtw.price;
+                                    const rtwTooltip = `🛍️ RTW: ${rtw.desc} ×${rtw.qty}${rtwSale > 0 ? ` (Cobrado: $${formatMoney(rtwSale * rtw.qty)})` : ''}\n📊 Estado: ${rcfg.label}${rtw.notes ? `\n📝 Notas: ${rtw.notes}` : ''}`;
+
+                                    return (
+                                      <div
+                                        key={`rtw-${rIdx}`}
+                                        className="flex items-center gap-1.5"
+                                        title={rtwTooltip}
+                                      >
+                                        <span
+                                          className="text-[10px] font-bold text-gray-700 uppercase max-w-[85px] truncate cursor-help hover:text-ragucci-primary hover:underline"
+                                          title={rtwTooltip}
+                                        >
+                                          {shortDesc}:
+                                        </span>
+                                        <div className="relative inline-flex" title={rtwTooltip}>
+                                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer select-none shadow-2xs ${rcfg.bg} ${rcfg.text}`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${rcfg.dot}`} />
+                                            {rcfg.label}
+                                          </span>
+                                          <select
+                                            value={rStatus}
+                                            onChange={(e) => handleRTWItemStatusChange(order, rIdx, e.target.value)}
+                                            className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                          >
+                                            <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                            <option value="📦 Despachado">📦 Despachado</option>
+                                            <option value="🟢 Entregado">🟢 Entregado</option>
+                                          </select>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            }
+
+                            // Single Item or fallback
+                            const singleProd = prods.length === 1 ? prods[0] : null;
+                            const singleRtw = (!singleProd && rtws.length === 1) ? rtws[0] : null;
+
+                            if (singleProd) {
+                              const isPArr = isArregloProduct(singleProd);
+                              const isPRtw = isRTWProduct(singleProd);
+                              const pStatus = singleProd.status || order.status || (isPArr ? '🟠 En el Local' : '🔴 Pendiente');
+                              const pscfg = getGarmentStatusConfig(pStatus, isPArr, singleProd.modista);
+
+                              return (
+                                <div className="relative inline-flex" title={fullGarmentSummaryTooltip}>
+                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider cursor-pointer select-none shadow-2xs ${pscfg.bg} ${pscfg.text}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pscfg.dot}`} />
+                                    {pscfg.label}
+                                  </span>
+                                  <select
+                                    value={isPArr ? getArregloSelectValue(pStatus) : pStatus}
+                                    onChange={(e) => handleProductStatusChange(order, 0, e.target.value)}
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                  >
+                                    {isPArr ? (
+                                      <>
+                                        <option value="🟠 En el Local">🟠 En el Local</option>
+                                        <optgroup label="Taller">
+                                          <option value="🟡 En Taller">🟡 En Taller (General)</option>
+                                          <option value="🟡 En Taller (María)">🟡 Taller (María)</option>
+                                          <option value="🟡 En Taller (Jesús)">🟡 Taller (Jesús)</option>
+                                          <option value="🟡 En Taller (Arturo)">🟡 Taller (Arturo)</option>
+                                          <option value="🟡 En Taller (Raúl)">🟡 Taller (Raúl)</option>
+                                          <option value="🟡 En Taller (Otro)">🟡 Taller (Otro)</option>
+                                        </optgroup>
+                                        <option value="🔵 Arreglo Realizado">🔵 Arreglo Realizado</option>
+                                        <option value="🟢 Entregado">🟢 Entregado</option>
+                                      </>
+                                    ) : isPRtw ? (
+                                      <>
+                                        <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                        <option value="📦 Despachado">📦 Despachado</option>
+                                        <option value="🟢 Entregado">🟢 Entregado</option>
+                                      </>
+                                    ) : (
+                                      <>
                                         <option value="🔴 Pendiente">🔴 Pendiente</option>
                                         <option value="🟣 Tela Pedida">🟣 Tela Pedida</option>
                                         <option value="🟠 Tela en Local">🟠 Tela en Local</option>
                                         <option value="🟡 En Taller">🟡 En Taller</option>
                                         <option value="🔵 Prueba">🔵 Prueba</option>
                                         <option value="🟢 Entregado">🟢 Entregado</option>
-                                      </select>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="relative inline-flex" title={fullGarmentSummaryTooltip}>
-                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider cursor-pointer select-none shadow-2xs ${scfg.bg} ${scfg.text}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${scfg.dot}`} />
-                                {scfg.label}
-                              </span>
-                              <select
-                                value={order.products?.[0]?.status || order.status || '🔴 Pendiente'}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (order.products && order.products.length === 1) {
-                                    handleProductStatusChange(order, 0, val);
-                                  } else {
-                                    handleStatusChange(order, val);
-                                  }
-                                }}
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                              >
-                                <option value="🔴 Pendiente">🔴 Pendiente</option>
-                                <option value="🟣 Tela Pedida">🟣 Tela Pedida</option>
-                                <option value="🟠 Tela en Local">🟠 Tela en Local</option>
-                                <option value="🟡 En Taller">🟡 En Taller</option>
-                                <option value="🔵 Prueba">🔵 Prueba</option>
-                                <option value="🟢 Entregado">🟢 Entregado</option>
-                              </select>
-                            </div>
-                          )}
+                                      </>
+                                    )}
+                                  </select>
+                                </div>
+                              );
+                            }
+
+                            if (singleRtw) {
+                              const rStatus = singleRtw.status || order.status || '🔴 Pendiente';
+                              const rcfg = getGarmentStatusConfig(rStatus, false);
+
+                              return (
+                                <div className="relative inline-flex" title={fullGarmentSummaryTooltip}>
+                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider cursor-pointer select-none shadow-2xs ${rcfg.bg} ${rcfg.text}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${rcfg.dot}`} />
+                                    {rcfg.label}
+                                  </span>
+                                  <select
+                                    value={rStatus}
+                                    onChange={(e) => handleRTWItemStatusChange(order, 0, e.target.value)}
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                  >
+                                    <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                    <option value="📦 Despachado">📦 Despachado</option>
+                                    <option value="🟢 Entregado">🟢 Entregado</option>
+                                  </select>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="relative inline-flex" title={fullGarmentSummaryTooltip}>
+                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider cursor-pointer select-none shadow-2xs ${scfg.bg} ${scfg.text}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${scfg.dot}`} />
+                                  {scfg.label}
+                                </span>
+                                <select
+                                  value={order.status || '🔴 Pendiente'}
+                                  onChange={(e) => handleStatusChange(order, e.target.value)}
+                                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                >
+                                  <option value="🔴 Pendiente">🔴 Pendiente</option>
+                                  <option value="📦 Despachado">📦 Despachado</option>
+                                  <option value="🟢 Entregado">🟢 Entregado</option>
+                                </select>
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         {/* Acciones */}
@@ -1067,6 +1500,7 @@ export const OrderTable: React.FC = () => {
             onOpenAddCost={(o) => setAddCostOrder(o)}
             onStatusChange={handleStatusChange}
             onProductStatusChange={handleProductStatusChange}
+            onRTWItemStatusChange={handleRTWItemStatusChange}
           />
         </>
       )}

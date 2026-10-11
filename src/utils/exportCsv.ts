@@ -18,16 +18,20 @@ export const exportOrdersToCSV = (orders: Order[], filename = 'ragucci_registro_
     "Seña / Pagado ($)",
     "Saldo Pendiente ($)",
     "Estado Cobro",
+    "Factura",
+    "N° Factura",
+    "Detalle Factura",
     "Costos Totales ($)",
     "Ganancia ($)"
   ];
 
   const rows = orders.map((o) => {
-    const prodsDesc = (o.products || []).map(p => p.description).join(' + ');
-    const rtwDesc = (o.rtwItems || []).map(r => `${r.desc} (x${r.qty})`).join(' + ');
+    const prodsDesc = (o.products || []).map(p => p.description + (p.price ? ` ($${p.price.toLocaleString('es-AR')})` : '')).join(' + ');
+    const rtwDesc = (o.rtwItems || []).map(r => `${r.desc} (x${r.qty})` + (r.salePrice ? ` ($${(r.salePrice * r.qty).toLocaleString('es-AR')})` : '')).join(' + ');
     const fullDesc = [prodsDesc, rtwDesc].filter(Boolean).join(' | ');
 
     const isPagado = (o.saldo || 0) <= 0;
+    const hasInv = Boolean(o.hasInvoice || o.invoiceNumber);
 
     return [
       o.id || '',
@@ -41,6 +45,9 @@ export const exportOrdersToCSV = (orders: Order[], filename = 'ragucci_registro_
       (o.sale || 0) - (o.saldo || 0),
       o.saldo || 0,
       isPagado ? 'PAGADO' : 'CON SALDO PENDIENTE',
+      hasInv ? 'SÍ' : 'NO',
+      `"${(o.invoiceNumber || '').replace(/"/g, '""')}"`,
+      `"${(o.invoiceDetails || '').replace(/"/g, '""')}"`,
       o.totalCost || 0,
       o.profit || 0
     ];

@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Order, ProductItem, RTWItem, AviosQuantities, ClientMeasurements } from '../../types';
-import { getTodayString, formatMoney, parseMoney } from '../../utils/formatters';
+import { getTodayString, formatMoney, parseMoney, isCardPaymentMethod, formatDate } from '../../utils/formatters';
 import { ProductBlock } from './ProductBlock';
 import { RTWBlock } from './RTWBlock';
 import { MoneyInput } from '../common/MoneyInput';
 import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
-import { Plus, Check, X, Ruler, DollarSign } from 'lucide-react';
+import { Plus, Check, X, Ruler, DollarSign, FileText, History } from 'lucide-react';
 
 export const OrderForm: React.FC = () => {
-  const { orders, config, stockItems, saveStockItemData, editingOrderId, setEditingOrderId, saveOrderData, setActiveTab } = useApp();
+  const { orders, config, stockItems, saveStockItemData, editingOrderId, setEditingOrderId, saveOrderData, setActiveTab, dolarBlueVenta } = useApp();
 
   const [date, setDate] = useState(getTodayString());
   const [deliveryDate, setDeliveryDate] = useState('');
@@ -18,12 +18,16 @@ export const OrderForm: React.FC = () => {
   const [dni, setDni] = useState('');
   const [email, setEmail] = useState('');
   const [birthday, setBirthday] = useState('');
+  const [showClientHistory, setShowClientHistory] = useState(false);
 
   const [sale, setSale] = useState(0);
   const [method, setMethod] = useState('Transferencia');
   const [sena, setSena] = useState(0);
   const [origin, setOrigin] = useState('Local (A Medida)');
   const [status, setStatus] = useState('🔴 Pendiente');
+  const [hasInvoice, setHasInvoice] = useState(false);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceDetails, setInvoiceDetails] = useState('');
 
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [rtwItems, setRtwItems] = useState<RTWItem[]>([]);
@@ -36,7 +40,9 @@ export const OrderForm: React.FC = () => {
     percha: 0,
     funda: 0,
     bolsa: 0,
-    bolsaplastica: 0
+    bolsaplastica: 0,
+    bolsa_ecom_chica: 0,
+    bolsa_ecom_grande: 0
   });
 
   const [clientAutocomplete, setClientAutocomplete] = useState<string[]>([]);
@@ -84,9 +90,10 @@ export const OrderForm: React.FC = () => {
 
     const newSena = (targetOrder.sena || 0) + cobranzaAmount;
     const newSaldo = Math.max(0, (targetOrder.sale || 0) - newSena);
+    const isCard = isCardPaymentMethod(cobranzaMethod);
     const newPaymentHistory = [
       ...(targetOrder.paymentHistory || []),
-      { date: cobranzaDate, amount: cobranzaAmount, method: cobranzaMethod }
+      { date: cobranzaDate, amount: cobranzaAmount, method: cobranzaMethod, acreditado: !isCard }
     ];
 
     const newStatus = newSaldo <= 0 ? '🟢 Entregado' : targetOrder.status;
@@ -96,6 +103,7 @@ export const OrderForm: React.FC = () => {
       sena: newSena,
       saldo: newSaldo,
       paymentHistory: newPaymentHistory,
+      acreditado: isCard ? false : targetOrder.acreditado,
       status: newStatus
     };
 
@@ -147,8 +155,61 @@ export const OrderForm: React.FC = () => {
         setSena(order.sena || 0);
         setOrigin(order.origin || 'Local (A Medida)');
         setStatus(order.status || '🔴 Pendiente');
-        setProducts(order.products || []);
-        setRtwItems(order.rtwItems || []);
+        const sanitizedProds = (order.products || []).map(p => {
+          const isCerutti = p.catalogoTela === 'Cerutti S130' || !!p.ceruttiCalc;
+          const isReda = p.catalogoTela === 'REDA' || !!p.redaCalc;
+          let pCosts = p.costs;
+          let pCerutti = p.ceruttiCalc;
+          let pReda = p.redaCalc;
+
+          if (isCerutti && p.costs?.telas > 0 && p.costs.telas < 5000) {
+            const dBlue = p.ceruttiCalc?.dolarBlue || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1350);
+            const totUSD = p.ceruttiCalc?.totalUSD || p.costs.telas;
+            const totARS = Math.round(totUSD * dBlue);
+            pCerutti = {
+              ...(p.ceruttiCalc || {}),
+              totalUSD: totUSD,
+              dolarBlue: dBlue,
+              totalARS: totARS
+            };
+            pCosts = {
+              ...p.costs,
+              telas: totARS
+            };
+          } else if (isReda && p.costs?.telas > 0 && p.costs.telas < 5000) {
+            const dRate = p.redaCalc?.dolarRate || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1560);
+            const totUSD = p.redaCalc?.subtotalUSD || p.costs.telas;
+            const subARS = Math.round(totUSD * dRate);
+            const totARS = Number((subARS * 1.105).toFixed(2));
+            pReda = {
+              ...(p.redaCalc || {}),
+              subtotalUSD: totUSD,
+              dolarRate: dRate,
+              subtotalARS: subARS,
+              totalARS: totARS
+            };
+            pCosts = {
+              ...p.costs,
+              telas: totARS
+            };
+          }
+
+          return {
+            ...p,
+            price: p.price || 0,
+            status: p.status || order.status || '🔴 Pendiente',
+            costs: pCosts,
+            ceruttiCalc: pCerutti,
+            redaCalc: pReda
+          };
+        });
+        setProducts(sanitizedProds);
+        setRtwItems((order.rtwItems || []).map(r => ({
+          ...r,
+          price: r.price || 0,
+          salePrice: r.salePrice !== undefined ? r.salePrice : r.price,
+          costPrice: r.costPrice !== undefined ? r.costPrice : r.price
+        })));
         setEnvios(order.costs?.envios || 0);
 
         if (order.measurements) {
@@ -165,6 +226,11 @@ export const OrderForm: React.FC = () => {
         if (order.aviosQtys) {
           setAviosQtys(order.aviosQtys);
         }
+
+        const orderHasInvoice = Boolean(order.hasInvoice || order.invoiceNumber);
+        setHasInvoice(orderHasInvoice);
+        setInvoiceNumber(order.invoiceNumber || '');
+        setInvoiceDetails(order.invoiceDetails || '');
       }
     } else {
       resetForm();
@@ -191,6 +257,9 @@ export const OrderForm: React.FC = () => {
     setSena(0);
     setOrigin('Local (A Medida)');
     setStatus('🔴 Pendiente');
+    setHasInvoice(false);
+    setInvoiceNumber('');
+    setInvoiceDetails('');
     setProducts([]);
     setRtwItems([]);
     setEnvios(0);
@@ -198,7 +267,7 @@ export const OrderForm: React.FC = () => {
     setComisionValue(0);
     setMeasurements({});
     setShowMeasurements(false);
-    setAviosQtys({ percha: 0, funda: 0, bolsa: 0, bolsaplastica: 0 });
+    setAviosQtys({ percha: 0, funda: 0, bolsa: 0, bolsaplastica: 0, bolsa_ecom_chica: 0, bolsa_ecom_grande: 0 });
     setEditingOrderId(null);
   };
 
@@ -257,21 +326,55 @@ export const OrderForm: React.FC = () => {
   const calcAviosTotal = () => {
     const prices = config.aviosPrecios || {};
     return (
-      (aviosQtys.percha * (prices.percha || 0)) +
-      (aviosQtys.funda * (prices.funda || 0)) +
-      (aviosQtys.bolsa * (prices.bolsa || 0)) +
-      (aviosQtys.bolsaplastica * (prices.bolsaplastica || 0))
+      ((aviosQtys.percha || 0) * (prices.percha || 0)) +
+      ((aviosQtys.funda || 0) * (prices.funda || 0)) +
+      ((aviosQtys.bolsa || 0) * (prices.bolsa || 0)) +
+      ((aviosQtys.bolsaplastica || 0) * (prices.bolsaplastica || 0)) +
+      ((aviosQtys.bolsa_ecom_chica || 0) * (prices.bolsa_ecom_chica || 0)) +
+      ((aviosQtys.bolsa_ecom_grande || 0) * (prices.bolsa_ecom_grande || 0))
     );
   };
 
   const calcTotalRTW = () => {
-    return rtwItems.reduce((acc, item) => acc + (item.qty * item.price), 0);
+    return rtwItems.reduce((acc, item) => {
+      const unitCost = item.costPrice !== undefined ? item.costPrice : (item.price || 0);
+      return acc + (item.qty * unitCost);
+    }, 0);
   };
+
+  const calcTotalItemsSale = () => {
+    const prodsTotal = products.reduce((acc, p) => acc + (p.isGift ? 0 : (p.price || 0)), 0);
+    const rtwTotal = rtwItems.reduce((acc, r) => {
+      if (r.isGift) return acc;
+      const sPrice = r.salePrice !== undefined ? r.salePrice : r.price;
+      return acc + (sPrice * (r.qty || 1));
+    }, 0);
+    return prodsTotal + rtwTotal;
+  };
+
+  const clientPastOrders = useMemo(() => {
+    if (!client || !client.trim()) return [];
+    const upper = client.trim().toUpperCase();
+    return orders
+      .filter(o => o.client?.toUpperCase() === upper)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [client, orders]);
 
   const calcProductsTotalCosts = () => {
     return products.reduce((acc, p) => {
       const c = p.costs || {};
-      return acc + (c.telas || 0) + (c.forreria || 0) + (c.sastre || 0) + (c.camisero || 0) + (c.arreglos || 0) + (c.otros || 0);
+      let telaCost = c.telas || 0;
+      if ((p.catalogoTela === 'Cerutti S130' || p.ceruttiCalc) && telaCost > 0 && telaCost < 5000) {
+        const dBlue = p.ceruttiCalc?.dolarBlue || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1350);
+        const totUSD = p.ceruttiCalc?.totalUSD || telaCost;
+        telaCost = Math.round(totUSD * dBlue);
+      } else if ((p.catalogoTela === 'REDA' || p.redaCalc) && telaCost > 0 && telaCost < 5000) {
+        const dRate = p.redaCalc?.dolarRate || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1560);
+        const totUSD = p.redaCalc?.subtotalUSD || telaCost;
+        const subARS = Math.round(totUSD * dRate);
+        telaCost = Number((subARS * 1.105).toFixed(2));
+      }
+      return acc + (c.noTelas ? 0 : telaCost) + (c.noForreria ? 0 : (c.forreria || 0)) + (c.sastre || 0) + (c.camisero || 0) + (c.noArreglos ? 0 : (c.arreglos || 0)) + (c.otros || 0);
     }, 0);
   };
 
@@ -295,11 +398,25 @@ export const OrderForm: React.FC = () => {
     }
 
     const aggregatedCosts = {
-      telas: products.reduce((acc, p) => acc + (p.costs?.telas || 0), 0),
-      forreria: products.reduce((acc, p) => acc + (p.costs?.forreria || 0), 0),
+      telas: products.reduce((acc, p) => {
+        if (p.costs?.noTelas) return acc;
+        let telaCost = p.costs?.telas || 0;
+        if ((p.catalogoTela === 'Cerutti S130' || p.ceruttiCalc) && telaCost > 0 && telaCost < 5000) {
+          const dBlue = p.ceruttiCalc?.dolarBlue || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1350);
+          const totUSD = p.ceruttiCalc?.totalUSD || telaCost;
+          telaCost = Math.round(totUSD * dBlue);
+        } else if ((p.catalogoTela === 'REDA' || p.redaCalc) && telaCost > 0 && telaCost < 5000) {
+          const dRate = p.redaCalc?.dolarRate || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1560);
+          const totUSD = p.redaCalc?.subtotalUSD || telaCost;
+          const subARS = Math.round(totUSD * dRate);
+          telaCost = Number((subARS * 1.105).toFixed(2));
+        }
+        return acc + telaCost;
+      }, 0),
+      forreria: products.reduce((acc, p) => acc + (p.costs?.noForreria ? 0 : (p.costs?.forreria || 0)), 0),
       sastre: products.reduce((acc, p) => acc + (p.costs?.sastre || 0), 0),
       camisero: products.reduce((acc, p) => acc + (p.costs?.camisero || 0), 0),
-      arreglos: products.reduce((acc, p) => acc + (p.costs?.arreglos || 0), 0),
+      arreglos: products.reduce((acc, p) => acc + (p.costs?.noArreglos ? 0 : (p.costs?.arreglos || 0)), 0),
       pterminado: calcTotalRTW(),
       envios,
       avios: calcAviosTotal(),
@@ -309,7 +426,13 @@ export const OrderForm: React.FC = () => {
 
     const existing = editingOrderId ? orders.find(o => o.firestoreId === editingOrderId) : null;
     const paidTalleresMap = existing ? (existing.paidTalleresMap || {}) : {};
-    const paymentHistory = existing?.paymentHistory || (sena > 0 ? [{ date, amount: sena, method }] : []);
+    const isCard = isCardPaymentMethod(method);
+    const paymentHistory = existing?.paymentHistory || (sena > 0 ? [{ 
+      date, 
+      amount: sena, 
+      method, 
+      acreditado: !isCard 
+    }] : []);
 
     const cleanMeasurements: Record<string, any> = {};
     if (measurements) {
@@ -324,26 +447,115 @@ export const OrderForm: React.FC = () => {
       });
     }
 
-    const sanitizedProducts = products.map(p => ({
-      ...p,
-      status: p.status || '🔴 Pendiente'
-    }));
+    const isArregloProd = (p: any) => {
+      const desc = (p.description || '').toUpperCase();
+      return desc.includes('ARREGLO') || (Boolean(p.costs?.arreglos && p.costs.arreglos > 0) && !p.costs?.sastre && !p.costs?.camisero && !p.costs?.telas);
+    };
 
-    const allEntregado = sanitizedProducts.length > 0 && sanitizedProducts.every(p => p.status === '🟢 Entregado');
-    const anyPrueba = sanitizedProducts.some(p => p.status === '🔵 Prueba');
-    const anyInTaller = sanitizedProducts.some(p => p.status === '🟡 En Taller');
-    const anyTela = sanitizedProducts.some(p => p.status === '🟠 Tela en Local');
+    const isRTWProd = (p: any) => {
+      const desc = (p.description || '').toUpperCase();
+      return desc.includes('RTW') || desc.includes('TERMINADO');
+    };
+
+    const hasMedidaGarments = products.some(p => {
+      const d = (p.description || '').toUpperCase();
+      return !d.includes('ARREGLO') && !d.includes('RTW') && !d.includes('TERMINADO') && ((p.costs?.sastre ?? 0) > 0 || (p.costs?.camisero ?? 0) > 0 || (p.costs?.telas ?? 0) > 0);
+    });
+
+    const isOrderArreglo = (origin && origin.toLowerCase().includes('arreglo')) ||
+                           (!hasMedidaGarments && products.length > 0 && products.some(p => isArregloProd(p)));
+
+    const sanitizedProducts = products.map(p => {
+      let updatedCosts = { ...p.costs };
+      let updatedCeruttiCalc = p.ceruttiCalc;
+      let updatedRedaCalc = p.redaCalc;
+
+      if ((p.catalogoTela === 'Cerutti S130' || p.ceruttiCalc) && updatedCosts.telas > 0 && updatedCosts.telas < 5000) {
+        const dBlue = p.ceruttiCalc?.dolarBlue || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1350);
+        const totUSD = p.ceruttiCalc?.totalUSD || updatedCosts.telas;
+        const totARS = Math.round(totUSD * dBlue);
+        updatedCosts.telas = totARS;
+        updatedCeruttiCalc = {
+          ...(p.ceruttiCalc || {}),
+          totalUSD: totUSD,
+          dolarBlue: dBlue,
+          totalARS: totARS
+        };
+      } else if ((p.catalogoTela === 'REDA' || p.redaCalc) && updatedCosts.telas > 0 && updatedCosts.telas < 5000) {
+        const dRate = p.redaCalc?.dolarRate || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1560);
+        const totUSD = p.redaCalc?.subtotalUSD || updatedCosts.telas;
+        const subARS = Math.round(totUSD * dRate);
+        const totARS = Number((subARS * 1.105).toFixed(2));
+        updatedCosts.telas = totARS;
+        updatedRedaCalc = {
+          ...(p.redaCalc || {}),
+          subtotalUSD: totUSD,
+          dolarRate: dRate,
+          subtotalARS: subARS,
+          totalARS: totARS
+        };
+      }
+
+      const isThisArr = isArregloProd(p);
+      return {
+        ...p,
+        price: p.isGift ? 0 : (p.price || 0),
+        costs: updatedCosts,
+        ceruttiCalc: updatedCeruttiCalc,
+        redaCalc: updatedRedaCalc,
+        status: p.status || (isThisArr ? '🟠 En el Local' : '🔴 Pendiente')
+      };
+    });
+
+    const sanitizedRtwItems = (rtwItems || []).map(r => {
+      const unitCost = r.costPrice !== undefined ? r.costPrice : (r.price || 0);
+      const unitSale = r.isGift ? 0 : (r.salePrice !== undefined ? r.salePrice : r.price);
+      return {
+        ...r,
+        price: unitCost,
+        salePrice: unitSale,
+        costPrice: unitCost,
+        status: r.status || '🔴 Pendiente'
+      };
+    });
 
     let derivedStatus = '🔴 Pendiente';
-    if (allEntregado) {
-      derivedStatus = '🟢 Entregado';
-    } else if (anyPrueba) {
-      derivedStatus = '🔵 Prueba';
-    } else if (anyInTaller) {
-      derivedStatus = '🟡 En Taller';
-    } else if (anyTela) {
-      derivedStatus = '🟠 Tela en Local';
-    } else if (sanitizedProducts.length === 0 && (sale - sena <= 0)) {
+    const totalItems = sanitizedProducts.length + sanitizedRtwItems.length;
+
+    if (totalItems > 0) {
+      const allProdsDelivered = sanitizedProducts.length === 0 || sanitizedProducts.every(p => (p.status || '').includes('Entregado'));
+      const allRtwDelivered = sanitizedRtwItems.length === 0 || sanitizedRtwItems.every(r => (r.status || '').includes('Entregado'));
+
+      if (allProdsDelivered && allRtwDelivered) {
+        derivedStatus = '🟢 Entregado';
+      } else if (hasMedidaGarments) {
+        const anyPrueba = sanitizedProducts.some(p => (p.status || '') === '🔵 Prueba' || (p.status || '').includes('Realizado'));
+        const anyInTaller = sanitizedProducts.find(p => (p.status || '').includes('Taller'));
+        const anyTelaLocal = sanitizedProducts.some(p => (p.status || '').includes('Tela en Local') || (p.status || '').includes('En el Local'));
+        const anyTelaPedida = sanitizedProducts.some(p => (p.status || '').includes('Tela Pedida'));
+        const anyDespachado = sanitizedRtwItems.some(r => (r.status || '').includes('Despachado'));
+
+        if (anyPrueba) derivedStatus = '🔵 Prueba';
+        else if (anyInTaller) derivedStatus = anyInTaller.status || '🟡 En Taller';
+        else if (anyTelaLocal) derivedStatus = '🟠 Tela en Local';
+        else if (anyTelaPedida) derivedStatus = '🟣 Tela Pedida';
+        else if (anyDespachado) derivedStatus = '📦 Despachado';
+        else derivedStatus = '🔴 Pendiente';
+      } else if (isOrderArreglo) {
+        const anyRealizado = sanitizedProducts.some(p => (p.status || '').includes('Realizado') || (p.status || '').includes('Prueba'));
+        const anyInTaller = sanitizedProducts.find(p => (p.status || '').includes('Taller'));
+        const anyEnLocal = sanitizedProducts.some(p => (p.status || '').includes('Local') || (p.status || '').includes('Pendiente'));
+
+        if (anyRealizado) derivedStatus = '🔵 Arreglo Realizado';
+        else if (anyInTaller) derivedStatus = anyInTaller.status || '🟡 En Taller';
+        else if (anyEnLocal) derivedStatus = '🟠 En el Local';
+        else if (sanitizedRtwItems.some(r => (r.status || '').includes('Despachado'))) derivedStatus = '📦 Despachado';
+        else derivedStatus = '🟠 En el Local';
+      } else {
+        const anyDespachado = sanitizedRtwItems.some(r => (r.status || '').includes('Despachado')) || sanitizedProducts.some(p => (p.status || '').includes('Despachado'));
+        derivedStatus = anyDespachado ? '📦 Despachado' : '🔴 Pendiente';
+      }
+    } else if (sale - sena <= 0) {
       derivedStatus = '🟢 Entregado';
     }
 
@@ -357,7 +569,7 @@ export const OrderForm: React.FC = () => {
       email,
       birthday,
       products: sanitizedProducts,
-      rtwItems,
+      rtwItems: sanitizedRtwItems,
       sale,
       method,
       sena,
@@ -370,7 +582,11 @@ export const OrderForm: React.FC = () => {
       paidTalleresMap,
       measurements: Object.keys(cleanMeasurements).length > 0 ? cleanMeasurements : undefined,
       totalCost: totalCostos,
-      profit: ganancia
+      profit: ganancia,
+      acreditado: existing?.acreditado !== undefined ? existing.acreditado : !isCard,
+      hasInvoice,
+      invoiceNumber: hasInvoice ? (invoiceNumber.trim() || undefined) : undefined,
+      invoiceDetails: hasInvoice ? (invoiceDetails.trim() || undefined) : undefined
     };
 
     try {
@@ -535,6 +751,7 @@ export const OrderForm: React.FC = () => {
                 <option value="Efectivo">Efectivo (Caja)</option>
                 <option value="MercadoPago">MercadoPago</option>
                 <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                <option value="Tarjeta de Débito">Tarjeta de Débito</option>
                 <option value="Dólares">Dólares (USD)</option>
               </select>
             </div>
@@ -594,7 +811,7 @@ export const OrderForm: React.FC = () => {
               value={client.toUpperCase()}
               onChange={(e) => handleClientInput(e.target.value)}
               onKeyDown={handleClientKeydown}
-              placeholder="EJ: SANCHEZ GALÁN BLAS MANUEL"
+              placeholder=""
               className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-ragucci-gold font-bold uppercase"
               style={{ textTransform: 'uppercase' }}
             />
@@ -715,12 +932,157 @@ export const OrderForm: React.FC = () => {
           )}
         </div>
 
+        {/* Historial de Compras y Precios Anteriores del Cliente */}
+        {clientPastOrders.length > 0 && (
+          <div className="mb-4 pt-2 border-t border-dashed border-ragucci-gold-light">
+            <button
+              type="button"
+              onClick={() => setShowClientHistory(!showClientHistory)}
+              className="flex items-center justify-between w-full text-xs font-extrabold uppercase text-ragucci-primary bg-amber-50 hover:bg-amber-100/80 p-2.5 rounded border border-amber-300 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>📜 Historial de Precios y Prendas Anteriores ({clientPastOrders.length} {clientPastOrders.length === 1 ? 'orden' : 'órdenes'})</span>
+              </div>
+              <span className="text-amber-950 font-bold text-xs bg-amber-200/80 px-2 py-0.5 rounded">
+                {showClientHistory ? '▲ Ocultar Historial' : '▼ Ver qué le cobramos antes'}
+              </span>
+            </button>
+
+            {showClientHistory && (
+              <div className="mt-2.5 p-3 bg-white border border-amber-200 rounded-lg text-xs space-y-3 max-h-64 overflow-y-auto">
+                {clientPastOrders.map((pastOrd, oIdx) => (
+                  <div key={oIdx} className="border-b border-gray-100 pb-2.5 last:border-none">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-extrabold text-ragucci-primary flex items-center gap-1.5">
+                        <span>🗓️ {formatDate(pastOrd.date)}</span>
+                        {pastOrd.status && (
+                          <span className="text-[10px] text-gray-500 font-bold">({pastOrd.status})</span>
+                        )}
+                      </span>
+                      <span className="font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px]">
+                        Total Venta: ${formatMoney(pastOrd.sale)}
+                      </span>
+                    </div>
+
+                    {pastOrd.products && pastOrd.products.length > 0 && (
+                      <div className="space-y-1 ml-1 mt-1">
+                        {pastOrd.products.map((pp, ppIdx) => {
+                          const itemChargedPrice = pp.price && pp.price > 0 
+                            ? pp.price 
+                            : (pastOrd.products.length === 1 && pastOrd.sale > 0 ? pastOrd.sale : 0);
+
+                          return (
+                            <div key={ppIdx} className="flex items-center justify-between text-[11px] bg-gray-50/80 border border-gray-200 p-1.5 rounded">
+                              <div>
+                                <strong className="text-gray-800">• {pp.description || 'Prenda a Medida'}</strong>
+                                {pp.color && <span className="text-gray-600 ml-1">🎨 {pp.color}</span>}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-black text-emerald-700">
+                                  {itemChargedPrice > 0 
+                                    ? `Cobrado: $${formatMoney(itemChargedPrice)}` 
+                                    : 'Sin precio unitario'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setProducts([
+                                      ...products,
+                                      {
+                                        ...pp,
+                                        price: itemChargedPrice,
+                                        status: '🔴 Pendiente'
+                                      }
+                                    ]);
+                                  }}
+                                  className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-black px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                                  title="Copiar esta prenda y precio a la orden actual"
+                                >
+                                  + Cargar prenda
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {pastOrd.rtwItems && pastOrd.rtwItems.length > 0 && (
+                      <div className="space-y-1 ml-1 mt-1">
+                        {pastOrd.rtwItems.map((rr, rrIdx) => {
+                          const rtwChargedPrice = (rr.salePrice || rr.price || 0) * (rr.qty || 1);
+                          return (
+                            <div key={rrIdx} className="flex items-center justify-between text-[11px] bg-gray-50/80 border border-gray-200 p-1.5 rounded">
+                              <div>
+                                <strong className="text-gray-800">📦 {rr.desc} (x{rr.qty})</strong>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-black text-emerald-700">
+                                  {rtwChargedPrice > 0 ? `Cobrado: $${formatMoney(rtwChargedPrice)}` : 'Sin precio'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRtwItems([
+                                      ...rtwItems,
+                                      {
+                                        ...rr,
+                                        salePrice: rr.salePrice || rr.price,
+                                        status: '🔴 Pendiente'
+                                      }
+                                    ]);
+                                  }}
+                                  className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-black px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                                  title="Copiar este producto RTW a la orden actual"
+                                >
+                                  + Cargar RTW
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-dashed border-ragucci-gold-light">
           <div>
-            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
-              Precio de Venta TOTAL ($)
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-ragucci-primary-light">
+                Precio de Venta TOTAL ($)
+              </label>
+              {calcTotalItemsSale() > 0 && (
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <span className="text-gray-500 font-medium">
+                    Suma prendas: <strong>${formatMoney(calcTotalItemsSale())}</strong>
+                  </span>
+                  {sale !== calcTotalItemsSale() && (
+                    <button
+                      type="button"
+                      onClick={() => setSale(calcTotalItemsSale())}
+                      className="text-[10px] font-black bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                      title="Copiar la suma de prendas individuales al total de la venta"
+                    >
+                      ⚡ Copiar suma
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <MoneyInput value={sale} onValueChange={(val) => setSale(val)} />
+            {calcTotalItemsSale() > 0 && sale > 0 && sale !== calcTotalItemsSale() && (
+              <p className="text-[10px] text-gray-500 font-medium mt-1">
+                {sale < calcTotalItemsSale()
+                  ? `* Hay un descuento de $${formatMoney(calcTotalItemsSale() - sale)} respecto a la suma individual de prendas`
+                  : `* La venta total supera en $${formatMoney(sale - calcTotalItemsSale())} la suma individual de prendas`}
+              </p>
+            )}
           </div>
 
           <div>
@@ -734,7 +1096,9 @@ export const OrderForm: React.FC = () => {
             >
               <option value="Transferencia">Transferencia</option>
               <option value="Efectivo">Efectivo</option>
-              <option value="Tarjeta">Tarjeta de Crédito</option>
+              <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+              <option value="Tarjeta de Débito">Tarjeta de Débito</option>
+              {method === 'Tarjeta' && <option value="Tarjeta">Tarjeta de Crédito</option>}
               <option value="Crypto/USD">USDT / Dólares</option>
             </select>
           </div>
@@ -771,6 +1135,68 @@ export const OrderForm: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {/* Facturación Fiscal (Opcional: en caso de hacer factura) */}
+        <div className="pt-3 mt-3 border-t border-dashed border-ragucci-gold-light">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={hasInvoice}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setHasInvoice(checked);
+                  if (!checked) {
+                    setInvoiceNumber('');
+                    setInvoiceDetails('');
+                  }
+                }}
+                className="w-4 h-4 rounded text-ragucci-primary focus:ring-ragucci-gold border-gray-300 cursor-pointer"
+              />
+              <span className="text-xs font-black uppercase text-ragucci-primary flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-ragucci-gold" />
+                <span>¿Lleva Factura?</span>
+              </span>
+            </label>
+            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+              hasInvoice 
+                ? 'bg-blue-100 text-blue-900 border border-blue-200' 
+                : 'bg-gray-100 text-gray-500'
+            }`}>
+              {hasInvoice ? '🧾 Factura habilitada' : 'Sin factura'}
+            </span>
+          </div>
+
+          {hasInvoice && (
+            <div className="mt-3 p-3.5 bg-blue-50/60 border border-blue-200 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-3 transition-all">
+              <div>
+                <label className="block text-xs font-bold text-blue-950 mb-1">
+                  Número de Factura *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: 0001-00001234 o A-0004-1234"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  className="w-full p-2 border border-blue-300 rounded text-xs font-bold focus:outline-none focus:border-ragucci-gold bg-white text-gray-900 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-blue-950 mb-1">
+                  Detalle / Razón Social / Concepto
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Razón Social, CUIT, o detalle facturado..."
+                  value={invoiceDetails}
+                  onChange={(e) => setInvoiceDetails(e.target.value)}
+                  className="w-full p-2 border border-blue-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold bg-white text-gray-900"
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Products A Medida Section */}
@@ -789,6 +1215,8 @@ export const OrderForm: React.FC = () => {
             key={i}
             index={i}
             product={p}
+            origin={origin}
+            clientName={client}
             onChange={(updated) => {
               const newProds = [...products];
               newProds[i] = updated;
@@ -802,12 +1230,14 @@ export const OrderForm: React.FC = () => {
 
         <button
           type="button"
-          onClick={() =>
+          onClick={() => {
+            const isOrderArr = origin.toLowerCase().includes('arreglo') || products.some(p => (p.description || '').toUpperCase().includes('ARREGLO'));
+            const defaultProdStatus = isOrderArr ? '🟠 En el Local' : (status || '🔴 Pendiente');
             setProducts([
               ...products,
-              { description: '', status: status || '🔴 Pendiente', costs: { telas: 0, forreria: 0, sastre: 0, camisero: 0, arreglos: 0 } }
-            ])
-          }
+              { description: '', price: 0, status: defaultProdStatus, costs: { telas: 0, forreria: 0, sastre: 0, camisero: 0, arreglos: 0 } }
+            ]);
+          }}
           className="w-full py-2.5 bg-ragucci-primary-light hover:bg-ragucci-primary text-ragucci-gold-light hover:text-ragucci-gold font-bold text-xs uppercase tracking-wider rounded transition-colors flex items-center justify-center gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -825,6 +1255,7 @@ export const OrderForm: React.FC = () => {
           <RTWBlock
             key={i}
             item={item}
+            clientName={client}
             onChange={(updated) => {
               const newRtw = [...rtwItems];
               newRtw[i] = updated;
@@ -836,7 +1267,7 @@ export const OrderForm: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setRtwItems([...rtwItems, { desc: '', qty: 1, price: 0 }])}
+          onClick={() => setRtwItems([...rtwItems, { desc: '', qty: 1, price: 0, salePrice: 0, costPrice: 0, status: '🔴 Pendiente' }])}
           className="bg-ragucci-primary text-ragucci-gold hover:bg-ragucci-primary-light text-xs font-bold py-2 px-3 rounded transition-colors mb-4 flex items-center gap-1"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -878,28 +1309,35 @@ export const OrderForm: React.FC = () => {
           Avíos / Embalaje
         </h4>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-          {(['percha', 'funda', 'bolsa', 'bolsaplastica'] as const).map((key) => {
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
+          {([
+            { key: 'percha', label: 'Percha' },
+            { key: 'funda', label: 'Funda' },
+            { key: 'bolsa', label: 'Bolsa' },
+            { key: 'bolsaplastica', label: 'Bolsa Plástica' },
+            { key: 'bolsa_ecom_chica', label: 'Bolsa E-Comers (Chica)' },
+            { key: 'bolsa_ecom_grande', label: 'Bolsa E-Comers (Grande)' }
+          ] as const).map(({ key, label }) => {
             const unitPrice = config.aviosPrecios?.[key] || 0;
-            const subtotal = aviosQtys[key] * unitPrice;
-            const labelMap = { percha: 'Percha', funda: 'Funda', bolsa: 'Bolsa', bolsaplastica: 'Bolsa Plástica' };
+            const currentQty = aviosQtys[key] || 0;
+            const subtotal = currentQty * unitPrice;
 
             return (
               <div key={key}>
-                <label className="block font-bold text-ragucci-primary-light mb-1 capitalize">
-                  {labelMap[key]} (Cant / Subtotal)
+                <label className="block font-bold text-ragucci-primary-light mb-1 truncate text-[11px]" title={`${label} (Precio unitario: $${formatMoney(unitPrice)})`}>
+                  {label}
                 </label>
                 <div className="flex gap-1.5 items-center">
                   <input
                     type="number"
                     min="0"
-                    value={aviosQtys[key]}
+                    value={currentQty}
                     onChange={(e) =>
                       setAviosQtys({ ...aviosQtys, [key]: Math.max(0, parseInt(e.target.value) || 0) })
                     }
-                    className="w-16 p-2 border border-gray-300 rounded text-center font-bold"
+                    className="w-14 p-1.5 border border-gray-300 rounded text-center font-bold text-xs"
                   />
-                  <div className="flex-1 p-2 bg-gray-100 border border-gray-300 rounded text-right font-bold text-ragucci-primary">
+                  <div className="flex-1 p-1.5 bg-gray-100 border border-gray-300 rounded text-right font-bold text-ragucci-primary text-xs" title={`Subtotal: ${currentQty} x $${formatMoney(unitPrice)}`}>
                     ${subtotal.toLocaleString('es-AR')}
                   </div>
                 </div>

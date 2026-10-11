@@ -2,6 +2,7 @@ export interface PaymentRecord {
   date: string;
   amount: number;
   method: string;
+  acreditado?: boolean;
 }
 
 export interface ArregloDetalleItem {
@@ -32,7 +33,23 @@ export interface CeruttiFreightCalculation {
   subtotalEUR?: number;
   subtotalUSD?: number;
   totalUSD?: number;
+  dolarBlue?: number;
+  totalARS?: number;
   codigoTela?: string;
+}
+
+export interface RedaCalculation {
+  book?: string;
+  itemCode?: string;
+  description?: string;
+  cutlengthUSD?: number;
+  metros?: number;
+  subtotalUSD?: number;
+  dolarRate?: number;
+  subtotalARS?: number;
+  ivaPercent?: number;
+  ivaARS?: number;
+  totalARS?: number;
 }
 
 export interface ProductItem {
@@ -45,24 +62,40 @@ export interface ProductItem {
   proveedorTela?: string;
   catalogoTela?: string;
   ceruttiCalc?: CeruttiFreightCalculation;
+  redaCalc?: RedaCalculation;
   proveedorForreria?: string;
   arreglosDetalle?: ArregloDetalleItem[];
   costs: ProductCosts;
+  price?: number;
   isGift?: boolean;
   status?: string;
+  taskNote?: string;
+  fechaTelaPedida?: string;
+  fechaTelaEnLocal?: string;
+  postergarAvisoHasta?: string;
+  statusForreria?: string;
+  fechaForreriaPedida?: string;
+  fechaForreriaEnLocal?: string;
+  postergarForreriaHasta?: string;
+  taskNoteForreria?: string;
+  colorForreria?: string;
+  codigoForreria?: string;
 }
 
 export interface RTWItem {
   desc: string;
   qty: number;
   price: number;
+  salePrice?: number;
+  costPrice?: number;
   notes?: string;
   isGift?: boolean;
   status?: string;
 }
 
-export type AviosQuantities = Record<'percha' | 'funda' | 'bolsa' | 'bolsaplastica', number>;
-export type AviosPrices = Record<'percha' | 'funda' | 'bolsa' | 'bolsaplastica', number>;
+export type AviosKey = 'percha' | 'funda' | 'bolsa' | 'bolsaplastica' | 'bolsa_ecom_chica' | 'bolsa_ecom_grande';
+export type AviosQuantities = Partial<Record<AviosKey, number>>;
+export type AviosPrices = Partial<Record<AviosKey, number>>;
 
 export interface CostsBreakdown {
   telas: number;
@@ -168,6 +201,36 @@ export interface ExpensePaymentDetail {
   descontarDeCaja?: boolean;
 }
 
+export interface FabricSupplierPayment {
+  id: string;
+  firestoreId?: string;
+  provider: string;
+  date: string;
+  amount: number;
+  account: 'efectivo' | 'banco' | 'dolar';
+  notes?: string;
+  descontarDeCaja?: boolean;
+  movementId?: string;
+  createdAt?: number | string;
+  createdBy?: UserInitial;
+  updatedBy?: UserInitial;
+}
+
+export interface WorkshopPayment {
+  id: string;
+  firestoreId?: string;
+  workshopGroup: string;
+  date: string;
+  amount: number;
+  account: 'efectivo' | 'banco' | 'dolar';
+  notes?: string;
+  descontarDeCaja?: boolean;
+  movementId?: string;
+  createdAt?: number | string;
+  createdBy?: UserInitial;
+  updatedBy?: UserInitial;
+}
+
 export interface Order {
   firestoreId?: string;
   id?: number;
@@ -185,6 +248,8 @@ export interface Order {
   paymentHistory?: PaymentRecord[];
   origin: string;
   status: string;
+  type?: string;
+  notes?: string;
   products: ProductItem[];
   rtwItems?: RTWItem[];
   pterminadoDesc?: string;
@@ -199,6 +264,10 @@ export interface Order {
   measurements?: ClientMeasurements;
   totalCost: number;
   profit: number;
+  acreditado?: boolean;
+  hasInvoice?: boolean;
+  invoiceNumber?: string;
+  invoiceDetails?: string;
   createdBy?: UserInitial;
   updatedBy?: UserInitial;
 }
@@ -211,6 +280,7 @@ export interface AppConfig {
   pantalon: number;
   sobretodo: number;
   smoking: number;
+  smoking_chaleco?: number;
   chaleco: number;
   diego: number;
   guillermo: number;
@@ -224,6 +294,8 @@ export interface AppConfig {
   gasto_publicidad?: number;
   gasto_alquiler_usd?: number;
   saldo_anterior_comision_tomy?: number;
+  sueldo_charly?: number;
+  sueldo_lu?: number;
 }
 
 export interface CashMovement {
@@ -312,4 +384,4 @@ export interface FinancialCommitment {
   updatedBy?: UserInitial;
 }
 
-export type TabType = 'carga' | 'registro' | 'talleres' | 'telas' | 'balance' | 'saldos' | 'agenda' | 'stock' | 'crm' | 'capitales' | 'configuracion' | 'backup';
+export type TabType = 'carga' | 'registro' | 'tareas' | 'talleres' | 'telas' | 'balance' | 'saldos' | 'agenda' | 'stock' | 'crm' | 'capitales' | 'configuracion' | 'backup';

@@ -5,7 +5,7 @@ import { Modal } from '../common/Modal';
 import { UserBadge } from '../common/UserBadge';
 import { InteractiveMeasuresSheet } from '../common/InteractiveMeasuresSheet';
 import { ProductCostBadges } from '../common/ProductCostBadges';
-import { formatDate, formatMoney } from '../../utils/formatters';
+import { formatDate, formatMoney, isCardPaymentMethod } from '../../utils/formatters';
 import { MessageCircle } from 'lucide-react';
 
 interface ClientHistoryModalProps {
@@ -89,6 +89,11 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
                         🎨 {p.color}
                       </span>
                     )}
+                    {p.price !== undefined && p.price > 0 && (
+                      <span className="ml-1.5 inline-flex items-center bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10.5px] font-black px-1.5 py-0.2 rounded">
+                        💰 Cobrado: ${formatMoney(p.price)}
+                      </span>
+                    )}
                     {p.modista ? ` (Modista: ${p.modista})` : ''}
                     {p.arreglosDetalle && p.arreglosDetalle.length > 0 && (
                       <span className="text-gray-600 font-normal">
@@ -109,12 +114,15 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
                   />
                 </div>
               ))}
-              {o.rtwItems && o.rtwItems.map((rtw, rIdx) => (
-                <div key={rIdx}>
-                  • {rtw.desc} (x{rtw.qty}) - ${formatMoney(rtw.price * rtw.qty)}
-                  {rtw.notes && <span className="text-gray-500 font-normal italic ml-2">({rtw.notes})</span>}
-                </div>
-              ))}
+              {o.rtwItems && o.rtwItems.map((rtw, rIdx) => {
+                const rtwSale = rtw.salePrice !== undefined ? rtw.salePrice : rtw.price;
+                return (
+                  <div key={rIdx}>
+                    • {rtw.desc} (x{rtw.qty}) {rtwSale > 0 && <span className="text-emerald-800 font-bold">— Cobrado: ${formatMoney(rtwSale * rtw.qty)}</span>}
+                    {rtw.notes && <span className="text-gray-500 font-normal italic ml-2">({rtw.notes})</span>}
+                  </div>
+                );
+              })}
             </div>
 
             {o.measurements && (
@@ -134,8 +142,19 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ clientNa
               <div className="text-ragucci-primary-light font-bold mb-1">Historial de Pagos:</div>
               {o.paymentHistory && o.paymentHistory.length > 0 ? (
                 o.paymentHistory.map((p, pIdx) => (
-                  <div key={pIdx} className="ml-2">
-                    🗓️ {formatDate(p.date)}: <strong className="text-emerald-600">${formatMoney(p.amount)}</strong> <em>({p.method})</em>
+                  <div key={pIdx} className="ml-2 flex flex-wrap items-center gap-1.5">
+                    <span>🗓️ {formatDate(p.date)}: <strong className="text-emerald-600">${formatMoney(p.amount)}</strong> <em>({p.method})</em></span>
+                    {isCardPaymentMethod(p.method) && (
+                      p.acreditado === true ? (
+                        <span className="text-[9.5px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300 px-1.5 py-0.2 rounded">
+                          ✓ Acreditado
+                        </span>
+                      ) : (
+                        <span className="text-[9.5px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded animate-pulse">
+                          💳 Falta acreditar
+                        </span>
+                      )
+                    )}
                   </div>
                 ))
               ) : (

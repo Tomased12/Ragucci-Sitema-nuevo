@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProductItem, ArregloDetalleItem } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { STANDARD_PRODUCTS } from '../../utils/constants';
 import { MoneyInput } from '../common/MoneyInput';
-import { formatMoney } from '../../utils/formatters';
+import { formatMoney, getTodayString } from '../../utils/formatters';
+import { REDA_BOOKS, REDA_FABRICS, findRedaFabric, getFabricsForBook, getDefaultTailoringMeters } from '../../data/redaFabrics';
 import { Trash2, Gift } from 'lucide-react';
 
 export const detectColorHex = (text: string): string => {
@@ -71,6 +72,8 @@ const CLASSIC_COLOR_PRESETS = [
 interface ProductBlockProps {
   index: number;
   product: ProductItem;
+  origin?: string;
+  clientName?: string;
   onChange: (updated: ProductItem) => void;
   onRemove: () => void;
 }
@@ -78,10 +81,12 @@ interface ProductBlockProps {
 export const ProductBlock: React.FC<ProductBlockProps> = ({
   index,
   product,
+  origin,
+  clientName,
   onChange,
   onRemove
 }) => {
-  const { config } = useApp();
+  const { config, dolarBlueVenta, orders } = useApp();
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [showColorDropdown, setShowColorDropdown] = useState(false);
   const [focusedProdIdx, setFocusedProdIdx] = useState<number>(-1);
@@ -89,12 +94,129 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
   const [customArregloPrice, setCustomArregloPrice] = useState(0);
 
   const upperDesc = product.description.toUpperCase();
-  const isArreglo = upperDesc.includes('ARREGLO');
+  const isArreglo = upperDesc.includes('ARREGLO') || (origin && origin.toLowerCase().includes('arreglo')) || (Boolean(product.costs?.arreglos && product.costs.arreglos > 0) && !product.costs?.sastre && !product.costs?.camisero && !product.costs?.telas);
   const isRTW = upperDesc.includes('RTW') || upperDesc.includes('TERMINADO');
   const isMedida = !isArreglo && !isRTW;
   const isSastreria = /TRAJE|AMBO|PANTALON|PANTALÓN|SOBRETODO|SMOKING|CHALECO|SACO/.test(upperDesc);
   const isForreriaApplicable = isMedida && /SACO|AMBO|SOBRETODO|SMOKING|TRAJE/.test(upperDesc);
   const isCamiseria = /CAMISA/.test(upperDesc);
+
+  // Buscar precio histórico de referencia para esta prenda
+  const pastPriceReference = React.useMemo(() => {
+    if (!product.description || product.description.trim().length < 2) return null;
+    const cleanDesc = product.description.trim().toUpperCase();
+
+    // 1. Prioridad: ¿Se le cobró previamente esta prenda a este cliente?
+    if (clientName && clientName.trim()) {
+      const cUpper = clientName.trim().toUpperCase();
+      for (const o of orders) {
+        if (o.client?.toUpperCase() === cUpper) {
+          const matchP = (o.products || []).find(p =>
+            p.description &&
+            p.price &&
+            p.price > 0 &&
+            (p.description.toUpperCase().includes(cleanDesc) || cleanDesc.includes(p.description.toUpperCase()))
+          );
+          if (matchP && matchP.price) {
+            return {
+              label: `Último cobrado a ${clientName}`,
+              price: matchP.price
+            };
+          }
+        }
+      }
+    }
+
+    // 2. Referencia general: ¿Cuánto se cobró por esta prenda en compras recientes?
+    for (const o of orders) {
+      const matchP = (o.products || []).find(p =>
+        p.description &&
+        p.price &&
+        p.price > 0 &&
+        (p.description.toUpperCase().includes(cleanDesc) || cleanDesc.includes(p.description.toUpperCase()))
+      );
+      if (matchP && matchP.price) {
+        return {
+          label: `Último cobrado en sistema (${o.client || 'Cliente'})`,
+          price: matchP.price
+        };
+      }
+    }
+
+    return null;
+  }, [product.description, clientName, orders]);
+
+  // Auto-sync Cerutti S130 & REDA fabric cost in ARS if it was stored in USD (< 5000) or missing totalARS
+  useEffect(() => {
+    if (product.catalogoTela === 'Cerutti S130' || (product.proveedorTela === 'Juan Martín' && product.catalogoTela === 'Cerutti S130')) {
+      const curM = product.ceruttiCalc?.metros ?? getDefaultTailoringMeters(product.description);
+      const curPEUR = product.ceruttiCalc?.precioEUR ?? 94;
+      const curCEURUSD = product.ceruttiCalc?.cambioEURUSD ?? 1.16;
+      const curDolarBlue = product.ceruttiCalc?.dolarBlue || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1350);
+      const curFleteUSD = Number((curM * 9.60).toFixed(2));
+      const curSubtotalEUR = Number((curM * curPEUR).toFixed(2));
+      const curSubtotalUSD = Number((curSubtotalEUR * curCEURUSD).toFixed(2));
+      const curTotalUSD = Number((curSubtotalUSD + curFleteUSD).toFixed(2));
+      const curTotalARS = Math.round(curTotalUSD * curDolarBlue);
+
+      if (product.costs.telas !== curTotalARS && (product.costs.telas < 5000 || product.costs.telas === curTotalUSD || !product.ceruttiCalc?.totalARS)) {
+        onChange({
+          ...product,
+          ceruttiCalc: {
+            ...(product.ceruttiCalc || {}),
+            metros: curM,
+            pesoKg: Number((curM * 0.24).toFixed(3)),
+            fleteUSD: curFleteUSD,
+            precioEUR: curPEUR,
+            cambioEURUSD: curCEURUSD,
+            subtotalEUR: curSubtotalEUR,
+            subtotalUSD: curSubtotalUSD,
+            totalUSD: curTotalUSD,
+            dolarBlue: curDolarBlue,
+            totalARS: curTotalARS,
+            codigoTela: product.ceruttiCalc?.codigoTela || ''
+          },
+          costs: {
+            ...product.costs,
+            telas: curTotalARS
+          }
+        });
+      }
+    } else if (product.catalogoTela === 'REDA' || (product.proveedorTela === 'Capetown' && product.catalogoTela === 'REDA')) {
+      const curM = product.redaCalc?.metros ?? getDefaultTailoringMeters(product.description);
+      const curCutUSD = product.redaCalc?.cutlengthUSD ?? 91;
+      const curDolar = product.redaCalc?.dolarRate || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1560);
+      const subUSD = Number((curM * curCutUSD).toFixed(2));
+      const subARS = Math.round(subUSD * curDolar);
+      const iva = Number((subARS * 0.105).toFixed(2));
+      const totARS = Number((subARS * 1.105).toFixed(2));
+
+      if (product.costs.telas !== totARS && (product.costs.telas < 5000 || product.costs.telas === subUSD || !product.redaCalc?.totalARS)) {
+        onChange({
+          ...product,
+          redaCalc: {
+            ...(product.redaCalc || {
+              book: 'Ceremony Selection',
+              itemCode: '50.23',
+              description: 'Ceremony / Glamour gabardine'
+            }),
+            metros: curM,
+            cutlengthUSD: curCutUSD,
+            subtotalUSD: subUSD,
+            dolarRate: curDolar,
+            subtotalARS: subARS,
+            ivaPercent: 10.5,
+            ivaARS: iva,
+            totalARS: totARS
+          },
+          costs: {
+            ...product.costs,
+            telas: totARS
+          }
+        });
+      }
+    }
+  }, [product.catalogoTela, product.proveedorTela, product.costs.telas, dolarBlueVenta]);
 
   // Filter autocomplete
   const filteredProducts = STANDARD_PRODUCTS.filter(p =>
@@ -107,7 +229,9 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
     const upper = val.toUpperCase();
 
     let detectedType = '';
-    if (upper.includes('TRAJE')) detectedType = 'traje';
+    if (upper.includes('SMOKING') && (upper.includes('CHALECO') || upper.includes('C/CHALECO') || upper.includes('C/ CHALECO'))) {
+      detectedType = 'smoking_chaleco';
+    } else if (upper.includes('TRAJE')) detectedType = 'traje';
     else if (upper.includes('AMBO')) detectedType = 'ambo';
     else if (upper.includes('SOBRETODO')) detectedType = 'sobretodo';
     else if (upper.includes('SMOKING')) detectedType = 'smoking';
@@ -115,11 +239,62 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
     else if (upper.includes('PANTALON') || upper.includes('PANTALÓN')) detectedType = 'pantalon';
     else if (upper.includes('CHALECO')) detectedType = 'chaleco';
 
-    if (detectedType && config[detectedType as keyof typeof config]) {
-      const basePrice = (config[detectedType as keyof typeof config] as number) || 0;
+    if (detectedType) {
+      const basePrice = (config[detectedType as keyof typeof config] as number) || (detectedType === 'smoking_chaleco' ? 440000 : 0);
       updated.costs = { ...updated.costs, sastre: basePrice };
     } else if (!upper.includes('ARREGLO')) {
       updated.costs = { ...updated.costs, sastre: 0 };
+    }
+
+    // Auto-update tailoring fabric meterage if REDA or Cerutti is active
+    const newM = getDefaultTailoringMeters(val);
+    if (updated.catalogoTela === 'REDA' && updated.redaCalc) {
+      const curReda = updated.redaCalc;
+      const cutUSD = curReda.cutlengthUSD || 91;
+      const dRate = curReda.dolarRate || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1560);
+      const subUSD = Number((newM * cutUSD).toFixed(2));
+      const subARS = Math.round(subUSD * dRate);
+      const iva = Number((subARS * 0.105).toFixed(2));
+      const totARS = Number((subARS * 1.105).toFixed(2));
+
+      updated.redaCalc = {
+        ...curReda,
+        metros: newM,
+        subtotalUSD: subUSD,
+        dolarRate: dRate,
+        subtotalARS: subARS,
+        ivaARS: iva,
+        totalARS: totARS
+      };
+      updated.costs = {
+        ...updated.costs,
+        telas: totARS
+      };
+    } else if (updated.catalogoTela === 'Cerutti S130' && updated.ceruttiCalc) {
+      const curC = updated.ceruttiCalc;
+      const curPEUR = curC.precioEUR ?? 94;
+      const curCEURUSD = curC.cambioEURUSD ?? 1.16;
+      const curDolarBlue = curC.dolarBlue || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1350);
+      const curFleteUSD = Number((newM * 9.60).toFixed(2));
+      const curSubtotalEUR = Number((newM * curPEUR).toFixed(2));
+      const curSubtotalUSD = Number((curSubtotalEUR * curCEURUSD).toFixed(2));
+      const curTotalUSD = Number((curSubtotalUSD + curFleteUSD).toFixed(2));
+      const curTotalARS = Math.round(curTotalUSD * curDolarBlue);
+
+      updated.ceruttiCalc = {
+        ...curC,
+        metros: newM,
+        pesoKg: Number((newM * 0.24).toFixed(3)),
+        fleteUSD: curFleteUSD,
+        subtotalEUR: curSubtotalEUR,
+        subtotalUSD: curSubtotalUSD,
+        totalUSD: curTotalUSD,
+        totalARS: curTotalARS
+      };
+      updated.costs = {
+        ...updated.costs,
+        telas: curTotalARS
+      };
     }
 
     onChange(updated);
@@ -219,7 +394,9 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
   const handleTalleEspecial = (checked: boolean) => {
     let detectedType = '';
     const upper = product.description.toUpperCase();
-    if (upper.includes('TRAJE')) detectedType = 'traje';
+    if (upper.includes('SMOKING') && (upper.includes('CHALECO') || upper.includes('C/CHALECO') || upper.includes('C/ CHALECO'))) {
+      detectedType = 'smoking_chaleco';
+    } else if (upper.includes('TRAJE')) detectedType = 'traje';
     else if (upper.includes('AMBO')) detectedType = 'ambo';
     else if (upper.includes('SOBRETODO')) detectedType = 'sobretodo';
     else if (upper.includes('SMOKING')) detectedType = 'smoking';
@@ -227,7 +404,7 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
     else if (upper.includes('PANTALON') || upper.includes('PANTALÓN')) detectedType = 'pantalon';
     else if (upper.includes('CHALECO')) detectedType = 'chaleco';
 
-    const basePrice = (config[detectedType as keyof typeof config] as number) || product.costs.sastre;
+    const basePrice = (config[detectedType as keyof typeof config] as number) || (detectedType === 'smoking_chaleco' ? 440000 : product.costs.sastre);
     const finalSastre = checked ? Math.round(basePrice * 1.15) : basePrice;
 
     onChange({
@@ -266,23 +443,91 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
           {/* Garment Status Selector */}
           <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2 py-1 rounded-md">
             <span className="text-[10px] font-black text-gray-500 uppercase">Estado Prenda:</span>
-            <select
-              value={product.status || '🔴 Pendiente'}
-              onChange={(e) => onChange({ ...product, status: e.target.value })}
-              className="text-xs font-black bg-white border border-gray-300 rounded px-2 py-0.5 text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
-            >
-              <option value="🔴 Pendiente">🔴 Pendiente de Tela</option>
-              <option value="🟣 Tela Pedida">🟣 Tela Pedida</option>
-              <option value="🟠 Tela en Local">🟠 Tela en Local</option>
-              <option value="🟡 En Taller">🟡 En Taller</option>
-              <option value="🔵 Prueba">🔵 Prueba</option>
-              <option value="🟢 Entregado">🟢 Entregado</option>
-            </select>
+            {(() => {
+              if (isArreglo) {
+                const getArregloVal = (s?: string) => {
+                  if (!s || s.includes('Local') || s.includes('Pendiente')) return '🟠 En el Local';
+                  if (s.includes('María')) return '🟡 En Taller (María)';
+                  if (s.includes('Jesús')) return '🟡 En Taller (Jesús)';
+                  if (s.includes('Arturo')) return '🟡 En Taller (Arturo)';
+                  if (s.includes('Raúl') || s.includes('Raul')) return '🟡 En Taller (Raúl)';
+                  if (s.includes('Otro')) return '🟡 En Taller (Otro)';
+                  if (s.includes('Taller')) return '🟡 En Taller';
+                  if (s.includes('Realizado') || s.includes('Prueba')) return '🔵 Arreglo Realizado';
+                  if (s.includes('Entregado')) return '🟢 Entregado';
+                  return '🟠 En el Local';
+                };
+
+                return (
+                  <select
+                    value={getArregloVal(product.status)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      let modistaToSet: string | undefined = undefined;
+                      if (val.includes('María')) modistaToSet = 'MARIA';
+                      else if (val.includes('Jesús')) modistaToSet = 'JESUS';
+                      else if (val.includes('Arturo')) modistaToSet = 'ARTURO';
+                      else if (val.includes('Raúl')) modistaToSet = 'RAUL';
+                      else if (val.includes('Otro')) modistaToSet = 'OTRO';
+
+                      onChange({
+                        ...product,
+                        status: val,
+                        modista: modistaToSet || product.modista
+                      });
+                    }}
+                    className="text-xs font-black bg-white border border-gray-300 rounded px-2 py-0.5 text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
+                  >
+                    <option value="🟠 En el Local">🟠 En el Local</option>
+                    <optgroup label="Taller">
+                      <option value="🟡 En Taller">🟡 En Taller (General)</option>
+                      <option value="🟡 En Taller (María)">🟡 Taller (María)</option>
+                      <option value="🟡 En Taller (Jesús)">🟡 Taller (Jesús)</option>
+                      <option value="🟡 En Taller (Arturo)">🟡 Taller (Arturo)</option>
+                      <option value="🟡 En Taller (Raúl)">🟡 Taller (Raúl)</option>
+                      <option value="🟡 En Taller (Otro)">🟡 Taller (Otro)</option>
+                    </optgroup>
+                    <option value="🔵 Arreglo Realizado">🔵 Arreglo Realizado</option>
+                    <option value="🟢 Entregado">🟢 Entregado</option>
+                  </select>
+                );
+              }
+
+              const isRTWItem = isRTW || (Boolean(origin && (origin.includes('Tienda Nube') || origin.includes('RTW'))) && !isSastreria && !isCamiseria);
+              if (isRTWItem) {
+                return (
+                  <select
+                    value={product.status || '🔴 Pendiente'}
+                    onChange={(e) => onChange({ ...product, status: e.target.value })}
+                    className="text-xs font-black bg-white border border-gray-300 rounded px-2 py-0.5 text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
+                  >
+                    <option value="🔴 Pendiente">🔴 Pendiente</option>
+                    <option value="📦 Despachado">📦 Despachado</option>
+                    <option value="🟢 Entregado">🟢 Entregado</option>
+                  </select>
+                );
+              }
+
+              return (
+                <select
+                  value={product.status || '🔴 Pendiente'}
+                  onChange={(e) => onChange({ ...product, status: e.target.value })}
+                  className="text-xs font-black bg-white border border-gray-300 rounded px-2 py-0.5 text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
+                >
+                  <option value="🔴 Pendiente">🔴 Pendiente de Tela</option>
+                  <option value="🟣 Tela Pedida">🟣 Tela Pedida</option>
+                  <option value="🟠 Tela en Local">🟠 Tela en Local</option>
+                  <option value="🟡 En Taller">🟡 En Taller</option>
+                  <option value="🔵 Prueba">🔵 Prueba</option>
+                  <option value="🟢 Entregado">🟢 Entregado</option>
+                </select>
+              );
+            })()}
           </div>
 
           <button
             type="button"
-            onClick={() => onChange({ ...product, isGift: !product.isGift })}
+            onClick={() => onChange({ ...product, isGift: !product.isGift, price: !product.isGift ? 0 : product.price })}
             className={`flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded transition-all cursor-pointer border ${
               product.isGift
                 ? 'bg-purple-700 text-white border-purple-800 shadow-xs'
@@ -349,23 +594,56 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
           )}
         </div>
 
-        {isArreglo && (
-          <div>
-            <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
-              Modista de Arreglos
-            </label>
-            <select
-              value={product.modista || ''}
-              onChange={(e) => handleModistaChange(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
-            >
-              <option value="MARIA">María (Modista Arreglos)</option>
-              <option value="JESUS">Jesús (Modista Arreglos)</option>
-              <option value="ARTURO">Arturo (Modista Arreglos)</option>
-            </select>
-          </div>
-        )}
+        <div>
+          <label className="block text-xs font-bold text-ragucci-primary-light mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <span>💰 Precio Cobrado al Cliente ($)</span>
+            </span>
+            <span className="text-[10px] text-gray-500 font-normal">
+              {product.isGift ? 'Prenda de Regalo ($0)' : 'Lo que se le cobra por esta prenda'}
+            </span>
+          </label>
+          <MoneyInput
+            value={product.price || 0}
+            onValueChange={(val) => onChange({ ...product, price: val })}
+            disabled={product.isGift}
+          />
+          {pastPriceReference && !product.isGift && (
+            <div className="mt-1 flex items-center justify-between text-[11px] bg-amber-50/90 border border-amber-300 px-2 py-1 rounded shadow-2xs">
+              <span className="text-amber-950 font-medium truncate">
+                💡 {pastPriceReference.label}: <strong className="text-emerald-800">${formatMoney(pastPriceReference.price)}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange({ ...product, price: pastPriceReference.price })}
+                className="text-[10px] bg-amber-200 hover:bg-amber-300 text-amber-900 font-black px-1.5 py-0.5 rounded shrink-0 ml-1.5 transition-colors cursor-pointer"
+                title="Copiar este precio de referencia"
+              >
+                Usar este precio
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {isArreglo && (
+        <div className="mb-3">
+          <label className="block text-xs font-bold text-ragucci-primary-light mb-1">
+            Modista de Arreglos
+          </label>
+          <select
+            value={product.modista || ''}
+            onChange={(e) => handleModistaChange(e.target.value)}
+            className="w-full md:w-1/2 p-2 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-ragucci-gold"
+          >
+            <option value="MARIA">María (Modista Arreglos)</option>
+            <option value="JESUS">Jesús (Modista Arreglos)</option>
+            <option value="ARTURO">Arturo (Modista Arreglos)</option>
+            <option value="RAUL">Raúl (Modista Arreglos)</option>
+            <option value="OTRO">Otro / Taller externo</option>
+          </select>
+        </div>
+      )}
 
       {/* Color Selector with Auto-Detect & Live Color Pill */}
       {isMedida && (
@@ -604,8 +882,24 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
               </div>
             ) : (
               <>
+                {product.catalogoTela === 'Cerutti S130' && (
+                  <div className="mb-1 flex items-center justify-between text-[9.5px] font-black text-amber-900 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-300">
+                    <span>🇮🇹 Auto-Calculado Cerutti S130</span>
+                    <span>$ ARS (Dólar Blue)</span>
+                  </div>
+                )}
+                {product.catalogoTela === 'REDA' && (
+                  <div className="mb-1 flex items-center justify-between text-[9.5px] font-black text-blue-900 bg-blue-100/80 px-1.5 py-0.5 rounded border border-blue-300">
+                    <span>🇮🇹 Auto-Calculado REDA MTM (+10,5% IVA)</span>
+                    <span>$ ARS</span>
+                  </div>
+                )}
                 <MoneyInput
-                  value={product.costs.telas}
+                  value={
+                    product.catalogoTela === 'Cerutti S130' && product.costs.telas > 0 && product.costs.telas < 5000
+                      ? Math.round((product.ceruttiCalc?.totalUSD || product.costs.telas) * (product.ceruttiCalc?.dolarBlue || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1350)))
+                      : product.costs.telas
+                  }
                   onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, telas: val, noTelas: val > 0 ? false : product.costs.noTelas } })}
                 />
                 <div className="mt-1.5">
@@ -618,6 +912,7 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
                     className="w-full p-1.5 border border-gray-300 rounded text-xs font-bold bg-white text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
                   >
                     <option value="">-- Seleccionar Proveedor --</option>
+                    <option value="RAGUCCI">🧵 RAGUCCI (Tela Propia)</option>
                     {isCamiseria ? (
                       <>
                         <option value="Costa (Perú)">Costa (Perú)</option>
@@ -635,6 +930,12 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
                     )}
                     <option value="Otro / Sin Especificar">Otro / Sin Especificar</option>
                   </select>
+                  {product.proveedorTela === 'RAGUCCI' && (
+                    <div className="mt-1 flex items-center justify-between text-[9.5px] font-bold text-amber-900 bg-amber-50/90 px-2 py-0.5 rounded border border-amber-200">
+                      <span>🏷️ Tela Propia RAGUCCI</span>
+                      <span>Costo opcional ($0 o costo interno)</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Catálogo Juan Martín Selector */}
@@ -654,10 +955,12 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
                         );
                         const precioEUR = product.ceruttiCalc?.precioEUR ?? 94;
                         const cambioEURUSD = product.ceruttiCalc?.cambioEURUSD ?? 1.16;
+                        const dolarBlueRate = product.ceruttiCalc?.dolarBlue || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1350);
                         const fleteUSD = Number((defaultMeters * 9.60).toFixed(2));
                         const subtotalEUR = Number((defaultMeters * precioEUR).toFixed(2));
                         const subtotalUSD = Number((subtotalEUR * cambioEURUSD).toFixed(2));
                         const totalUSD = Number((subtotalUSD + fleteUSD).toFixed(2));
+                        const totalARS = Math.round(totalUSD * dolarBlueRate);
 
                         onChange({
                           ...product,
@@ -671,11 +974,13 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
                             subtotalEUR,
                             subtotalUSD,
                             totalUSD,
+                            dolarBlue: dolarBlueRate,
+                            totalARS,
                             codigoTela: product.ceruttiCalc?.codigoTela || ''
                           } : undefined,
                           costs: {
                             ...product.costs,
-                            telas: cat === 'Cerutti S130' ? totalUSD : product.costs.telas
+                            telas: cat === 'Cerutti S130' ? totalARS : product.costs.telas
                           }
                         });
                       }}
@@ -687,181 +992,568 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
                     </select>
 
                     {/* Desglose y Calculadora Cerutti Prestige S130 */}
-                    {product.catalogoTela === 'Cerutti S130' && (
-                      <div className="mt-2.5 p-3 bg-gradient-to-br from-amber-50/90 to-stone-50 border border-ragucci-gold rounded-lg shadow-xs text-xs space-y-2">
-                        <div className="flex items-center justify-between border-b border-ragucci-gold/30 pb-1.5">
-                          <span className="font-black text-ragucci-primary text-[11px] uppercase flex items-center gap-1">
-                            <span>📦 Regla Flete Cerutti Prestige S130</span>
-                          </span>
-                          <span className="text-[9px] font-black bg-ragucci-primary text-ragucci-gold px-1.5 py-0.5 rounded">
-                            240g/m · $40 USD/kg
-                          </span>
-                        </div>
+                    {product.catalogoTela === 'Cerutti S130' && (() => {
+                      const curM = product.ceruttiCalc?.metros ?? 3.5;
+                      const curPEUR = product.ceruttiCalc?.precioEUR ?? 94;
+                      const curCEURUSD = product.ceruttiCalc?.cambioEURUSD ?? 1.16;
+                      const curDolarBlue = product.ceruttiCalc?.dolarBlue || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1350);
+                      const curFleteUSD = Number((curM * 9.60).toFixed(2));
+                      const curSubtotalEUR = Number((curM * curPEUR).toFixed(2));
+                      const curSubtotalUSD = Number((curSubtotalEUR * curCEURUSD).toFixed(2));
+                      const curTotalUSD = Number((curSubtotalUSD + curFleteUSD).toFixed(2));
+                      const curTotalARS = Math.round(curTotalUSD * curDolarBlue);
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          <div>
-                            <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
-                              Código Tela
-                            </label>
-                            <input
-                              type="text"
-                              value={product.ceruttiCalc?.codigoTela || ''}
-                              onChange={(e) => {
-                                const cod = e.target.value;
-                                onChange({
-                                  ...product,
-                                  ceruttiCalc: {
-                                    ...(product.ceruttiCalc || {}),
-                                    codigoTela: cod
-                                  }
-                                });
-                              }}
-                              placeholder="Ej: 26A4C2"
-                              className="w-full p-1 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
-                              Metros (mt)
-                            </label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              min="0.1"
-                              value={product.ceruttiCalc?.metros ?? 3.5}
-                              onChange={(e) => {
-                                const m = parseFloat(e.target.value) || 0;
-                                const pEUR = product.ceruttiCalc?.precioEUR ?? 94;
-                                const cEURUSD = product.ceruttiCalc?.cambioEURUSD ?? 1.16;
-                                const fUSD = Number((m * 9.60).toFixed(2));
-                                const sEUR = Number((m * pEUR).toFixed(2));
-                                const sUSD = Number((sEUR * cEURUSD).toFixed(2));
-                                const totUSD = Number((sUSD + fUSD).toFixed(2));
-
-                                onChange({
-                                  ...product,
-                                  ceruttiCalc: {
-                                    ...(product.ceruttiCalc || {}),
-                                    metros: m,
-                                    pesoKg: Number((m * 0.24).toFixed(3)),
-                                    fleteUSD: fUSD,
-                                    precioEUR: pEUR,
-                                    cambioEURUSD: cEURUSD,
-                                    subtotalEUR: sEUR,
-                                    subtotalUSD: sUSD,
-                                    totalUSD: totUSD
-                                  },
-                                  costs: {
-                                    ...product.costs,
-                                    telas: totUSD
-                                  }
-                                });
-                              }}
-                              className="w-full p-1 border border-gray-300 rounded text-xs font-black text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold text-center"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
-                              Precio (€/mt)
-                            </label>
-                            <input
-                              type="number"
-                              step="1"
-                              value={product.ceruttiCalc?.precioEUR ?? 94}
-                              onChange={(e) => {
-                                const pEUR = parseFloat(e.target.value) || 0;
-                                const m = product.ceruttiCalc?.metros ?? 3.5;
-                                const cEURUSD = product.ceruttiCalc?.cambioEURUSD ?? 1.16;
-                                const fUSD = Number((m * 9.60).toFixed(2));
-                                const sEUR = Number((m * pEUR).toFixed(2));
-                                const sUSD = Number((sEUR * cEURUSD).toFixed(2));
-                                const totUSD = Number((sUSD + fUSD).toFixed(2));
-
-                                onChange({
-                                  ...product,
-                                  ceruttiCalc: {
-                                    ...(product.ceruttiCalc || {}),
-                                    precioEUR: pEUR,
-                                    subtotalEUR: sEUR,
-                                    subtotalUSD: sUSD,
-                                    totalUSD: totUSD
-                                  },
-                                  costs: {
-                                    ...product.costs,
-                                    telas: totUSD
-                                  }
-                                });
-                              }}
-                              className="w-full p-1 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold text-center"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
-                              Cambio EUR/USD
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={product.ceruttiCalc?.cambioEURUSD ?? 1.16}
-                              onChange={(e) => {
-                                const cEURUSD = parseFloat(e.target.value) || 0;
-                                const m = product.ceruttiCalc?.metros ?? 3.5;
-                                const pEUR = product.ceruttiCalc?.precioEUR ?? 94;
-                                const fUSD = Number((m * 9.60).toFixed(2));
-                                const sEUR = Number((m * pEUR).toFixed(2));
-                                const sUSD = Number((sEUR * cEURUSD).toFixed(2));
-                                const totUSD = Number((sUSD + fUSD).toFixed(2));
-
-                                onChange({
-                                  ...product,
-                                  ceruttiCalc: {
-                                    ...(product.ceruttiCalc || {}),
-                                    cambioEURUSD: cEURUSD,
-                                    subtotalEUR: sEUR,
-                                    subtotalUSD: sUSD,
-                                    totalUSD: totUSD
-                                  },
-                                  costs: {
-                                    ...product.costs,
-                                    telas: totUSD
-                                  }
-                                });
-                              }}
-                              className="w-full p-1 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold text-center"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Formato de Salida Obligatorio */}
-                        <div className="bg-white/95 p-2.5 rounded-md border border-ragucci-gold/40 text-[11px] font-medium space-y-1 shadow-2xs">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600 font-bold">Metros solicitados:</span>
-                            <span className="font-extrabold text-ragucci-primary">{product.ceruttiCalc?.metros ?? 3.5} mt</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600 font-bold">Peso estimado:</span>
-                            <span className="font-extrabold text-ragucci-primary">{((product.ceruttiCalc?.metros ?? 3.5) * 0.24).toFixed(3)} kg</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600 font-bold">Flete por peso:</span>
-                            <span className="font-black text-amber-800">${((product.ceruttiCalc?.metros ?? 3.5) * 9.60).toFixed(2)} USD</span>
-                          </div>
-                          <div className="flex justify-between border-t border-dashed border-gray-200 pt-1 text-[10px]">
-                            <span className="text-gray-500">Subtotal Tela (€{product.ceruttiCalc?.precioEUR ?? 94}/mt):</span>
-                            <span className="font-bold text-gray-700">
-                              €{((product.ceruttiCalc?.metros ?? 3.5) * (product.ceruttiCalc?.precioEUR ?? 94)).toFixed(2)} EUR (${(((product.ceruttiCalc?.metros ?? 3.5) * (product.ceruttiCalc?.precioEUR ?? 94)) * (product.ceruttiCalc?.cambioEURUSD ?? 1.16)).toFixed(2)} USD)
+                      return (
+                        <div className="mt-2.5 p-3 bg-gradient-to-br from-amber-50/90 to-stone-50 border border-ragucci-gold rounded-lg shadow-xs text-xs space-y-2">
+                          <div className="flex items-center justify-between border-b border-ragucci-gold/30 pb-1.5">
+                            <span className="font-black text-ragucci-primary text-[11px] uppercase flex items-center gap-1">
+                              <span>📦 Regla Flete Cerutti Prestige S130</span>
+                            </span>
+                            <span className="text-[9px] font-black bg-ragucci-primary text-ragucci-gold px-1.5 py-0.5 rounded">
+                              240g/m · $40 USD/kg ($9.60 USD/mt)
                             </span>
                           </div>
-                          <div className="flex justify-between border-t border-gray-300 pt-1 font-black text-xs text-ragucci-primary">
-                            <span>PRECIO FINAL TELA + FLETE:</span>
-                            <span className="text-sm font-black text-emerald-800">${(product.ceruttiCalc?.totalUSD ?? ((((product.ceruttiCalc?.metros ?? 3.5) * (product.ceruttiCalc?.precioEUR ?? 94)) * (product.ceruttiCalc?.cambioEURUSD ?? 1.16)) + ((product.ceruttiCalc?.metros ?? 3.5) * 9.60))).toFixed(2)} USD</span>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                            <div>
+                              <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                                Código Tela
+                              </label>
+                              <input
+                                type="text"
+                                value={product.ceruttiCalc?.codigoTela || ''}
+                                onChange={(e) => {
+                                  const cod = e.target.value;
+                                  onChange({
+                                    ...product,
+                                    ceruttiCalc: {
+                                      ...(product.ceruttiCalc || {}),
+                                      metros: curM,
+                                      pesoKg: Number((curM * 0.24).toFixed(3)),
+                                      fleteUSD: curFleteUSD,
+                                      precioEUR: curPEUR,
+                                      cambioEURUSD: curCEURUSD,
+                                      subtotalEUR: curSubtotalEUR,
+                                      subtotalUSD: curSubtotalUSD,
+                                      totalUSD: curTotalUSD,
+                                      dolarBlue: curDolarBlue,
+                                      totalARS: curTotalARS,
+                                      codigoTela: cod
+                                    }
+                                  });
+                                }}
+                                placeholder="Ej: 26A4C2"
+                                className="w-full p-1 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                                Metros (mt)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0.1"
+                                value={product.ceruttiCalc?.metros ?? 3.5}
+                                onChange={(e) => {
+                                  const m = parseFloat(e.target.value) || 0;
+                                  const fUSD = Number((m * 9.60).toFixed(2));
+                                  const sEUR = Number((m * curPEUR).toFixed(2));
+                                  const sUSD = Number((sEUR * curCEURUSD).toFixed(2));
+                                  const totUSD = Number((sUSD + fUSD).toFixed(2));
+                                  const totARS = Math.round(totUSD * curDolarBlue);
+
+                                  onChange({
+                                    ...product,
+                                    ceruttiCalc: {
+                                      ...(product.ceruttiCalc || {}),
+                                      metros: m,
+                                      pesoKg: Number((m * 0.24).toFixed(3)),
+                                      fleteUSD: fUSD,
+                                      precioEUR: curPEUR,
+                                      cambioEURUSD: curCEURUSD,
+                                      subtotalEUR: sEUR,
+                                      subtotalUSD: sUSD,
+                                      totalUSD: totUSD,
+                                      dolarBlue: curDolarBlue,
+                                      totalARS: totARS
+                                    },
+                                    costs: {
+                                      ...product.costs,
+                                      telas: totARS
+                                    }
+                                  });
+                                }}
+                                className="w-full p-1 border border-gray-300 rounded text-xs font-black text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold text-center"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                                Precio (€/mt)
+                              </label>
+                              <input
+                                type="number"
+                                step="1"
+                                value={product.ceruttiCalc?.precioEUR ?? 94}
+                                onChange={(e) => {
+                                  const pEUR = parseFloat(e.target.value) || 0;
+                                  const sEUR = Number((curM * pEUR).toFixed(2));
+                                  const sUSD = Number((sEUR * curCEURUSD).toFixed(2));
+                                  const totUSD = Number((sUSD + curFleteUSD).toFixed(2));
+                                  const totARS = Math.round(totUSD * curDolarBlue);
+
+                                  onChange({
+                                    ...product,
+                                    ceruttiCalc: {
+                                      ...(product.ceruttiCalc || {}),
+                                      metros: curM,
+                                      pesoKg: Number((curM * 0.24).toFixed(3)),
+                                      fleteUSD: curFleteUSD,
+                                      precioEUR: pEUR,
+                                      cambioEURUSD: curCEURUSD,
+                                      subtotalEUR: sEUR,
+                                      subtotalUSD: sUSD,
+                                      totalUSD: totUSD,
+                                      dolarBlue: curDolarBlue,
+                                      totalARS: totARS
+                                    },
+                                    costs: {
+                                      ...product.costs,
+                                      telas: totARS
+                                    }
+                                  });
+                                }}
+                                className="w-full p-1 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold text-center"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                                EUR/USD
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={product.ceruttiCalc?.cambioEURUSD ?? 1.16}
+                                onChange={(e) => {
+                                  const cEURUSD = parseFloat(e.target.value) || 0;
+                                  const sUSD = Number((curSubtotalEUR * cEURUSD).toFixed(2));
+                                  const totUSD = Number((sUSD + curFleteUSD).toFixed(2));
+                                  const totARS = Math.round(totUSD * curDolarBlue);
+
+                                  onChange({
+                                    ...product,
+                                    ceruttiCalc: {
+                                      ...(product.ceruttiCalc || {}),
+                                      metros: curM,
+                                      pesoKg: Number((curM * 0.24).toFixed(3)),
+                                      fleteUSD: curFleteUSD,
+                                      precioEUR: curPEUR,
+                                      cambioEURUSD: cEURUSD,
+                                      subtotalEUR: curSubtotalEUR,
+                                      subtotalUSD: sUSD,
+                                      totalUSD: totUSD,
+                                      dolarBlue: curDolarBlue,
+                                      totalARS: totARS
+                                    },
+                                    costs: {
+                                      ...product.costs,
+                                      telas: totARS
+                                    }
+                                  });
+                                }}
+                                className="w-full p-1 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold text-center"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-bold text-blue-800 uppercase mb-0.5">
+                                Dólar Blue ($)
+                              </label>
+                              <input
+                                type="number"
+                                step="1"
+                                value={product.ceruttiCalc?.dolarBlue ?? curDolarBlue}
+                                onChange={(e) => {
+                                  const dBlue = parseFloat(e.target.value) || 0;
+                                  const totARS = Math.round(curTotalUSD * dBlue);
+
+                                  onChange({
+                                    ...product,
+                                    ceruttiCalc: {
+                                      ...(product.ceruttiCalc || {}),
+                                      metros: curM,
+                                      pesoKg: Number((curM * 0.24).toFixed(3)),
+                                      fleteUSD: curFleteUSD,
+                                      precioEUR: curPEUR,
+                                      cambioEURUSD: curCEURUSD,
+                                      subtotalEUR: curSubtotalEUR,
+                                      subtotalUSD: curSubtotalUSD,
+                                      totalUSD: curTotalUSD,
+                                      dolarBlue: dBlue,
+                                      totalARS: totARS
+                                    },
+                                    costs: {
+                                      ...product.costs,
+                                      telas: totARS
+                                    }
+                                  });
+                                }}
+                                className="w-full p-1 border border-blue-300 bg-blue-50/50 rounded text-xs font-black text-blue-900 focus:outline-none focus:border-blue-500 text-center"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Formato de Salida Obligatorio */}
+                          <div className="bg-white/95 p-2.5 rounded-md border border-ragucci-gold/40 text-[11px] font-medium space-y-1 shadow-2xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 font-bold">Metros solicitados:</span>
+                              <span className="font-extrabold text-ragucci-primary">{curM} mt</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 font-bold">Peso estimado:</span>
+                              <span className="font-extrabold text-ragucci-primary">{(curM * 0.24).toFixed(3)} kg</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 font-bold">Flete por peso ($9.60/mt):</span>
+                              <span className="font-black text-amber-800">${curFleteUSD.toFixed(2)} USD</span>
+                            </div>
+                            <div className="flex justify-between border-t border-dashed border-gray-200 pt-1 text-[10px]">
+                              <span className="text-gray-500">Subtotal Tela (€{curPEUR}/mt):</span>
+                              <span className="font-bold text-gray-700">
+                                €{curSubtotalEUR.toFixed(2)} EUR (${curSubtotalUSD.toFixed(2)} USD)
+                              </span>
+                            </div>
+                            <div className="flex justify-between border-t border-gray-200 pt-1 font-bold text-xs text-gray-700">
+                              <span>Total USD (Tela + Flete):</span>
+                              <span className="font-black text-emerald-800">${curTotalUSD.toFixed(2)} USD</span>
+                            </div>
+                            <div className="flex justify-between text-[11px] text-gray-600">
+                              <span>Cotización Dólar Blue:</span>
+                              <span className="font-bold text-blue-800">${curDolarBlue} ARS</span>
+                            </div>
+                            <div className="flex justify-between border-t-2 border-ragucci-gold pt-1.5 font-black text-sm text-ragucci-primary bg-amber-50/50 -mx-1 px-1 rounded">
+                              <span className="uppercase text-xs tracking-wide">Costo Tela en Pesos ($ ARS):</span>
+                              <span className="text-sm font-black text-ragucci-primary">${curTotalARS.toLocaleString('es-AR')}</span>
+                            </div>
                           </div>
                         </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Catálogo / Sub-proveedor Capetown Selector */}
+                {(product.proveedorTela === 'Capetown' || product.proveedorTela?.includes('Capetown')) && !isCamiseria && (
+                  <div className="mt-2 pt-2 border-t border-dashed border-gray-200">
+                    <label className="block text-[10px] font-extrabold text-ragucci-primary uppercase mb-1">
+                      Marca / Catálogo Capetown
+                    </label>
+                    <select
+                      value={product.catalogoTela || ''}
+                      onChange={(e) => {
+                        const cat = e.target.value;
+                        const defaultMeters = getDefaultTailoringMeters(product.description);
+                        const defaultDolar = dolarBlueVenta ? Math.round(dolarBlueVenta) : 1560;
+
+                        if (cat === 'REDA') {
+                          const initialBook = 'Ceremony Selection';
+                          const initialFabric = REDA_FABRICS.find(f => f.book === initialBook) || REDA_FABRICS[0];
+                          const cutlengthUSD = initialFabric.cutlengthUSD;
+                          const subtotalUSD = Number((defaultMeters * cutlengthUSD).toFixed(2));
+                          const subtotalARS = Math.round(subtotalUSD * defaultDolar);
+                          const ivaARS = Number((subtotalARS * 0.105).toFixed(2));
+                          const totalARS = Number((subtotalARS * 1.105).toFixed(2));
+
+                          onChange({
+                            ...product,
+                            catalogoTela: 'REDA',
+                            redaCalc: {
+                              book: initialFabric.book,
+                              itemCode: initialFabric.code,
+                              description: initialFabric.description,
+                              cutlengthUSD,
+                              metros: defaultMeters,
+                              subtotalUSD,
+                              dolarRate: defaultDolar,
+                              subtotalARS,
+                              ivaPercent: 10.5,
+                              ivaARS,
+                              totalARS
+                            },
+                            costs: {
+                              ...product.costs,
+                              telas: totalARS
+                            }
+                          });
+                        } else if (cat === 'BARRINGTON') {
+                          onChange({
+                            ...product,
+                            catalogoTela: 'BARRINGTON',
+                            redaCalc: undefined
+                          });
+                        } else {
+                          onChange({
+                            ...product,
+                            catalogoTela: cat,
+                            redaCalc: undefined
+                          });
+                        }
+                      }}
+                      className="w-full p-1.5 border border-ragucci-gold/60 rounded text-xs font-black bg-blue-50/50 text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
+                    >
+                      <option value="">-- Seleccionar Marca / Catálogo --</option>
+                      <option value="REDA">🇮🇹 REDA (MTM ExtraEU - Automatizado)</option>
+                      <option value="BARRINGTON">🏴󠁧󠁢󠁥󠁮󠁧󠁿 BARRINGTON (Manual)</option>
+                      <option value="Otro">Otro Catálogo</option>
+                    </select>
+
+                    {/* BARRINGTON Manual Banner */}
+                    {product.catalogoTela === 'BARRINGTON' && (
+                      <div className="mt-2.5 p-2.5 bg-indigo-50/80 border border-indigo-200 rounded-md text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-indigo-950 flex items-center gap-1">
+                            <span>🏴󠁧󠁢󠁥󠁮󠁧󠁿 Barrington (Sastrería Capetown)</span>
+                          </span>
+                          <span className="text-[9.5px] font-bold bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded">
+                            Costo Manual
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-indigo-800">
+                          Todavía sin lista de precios automática. Ingresá el costo final en pesos en el casillero de <strong>Telas ($)</strong>.
+                        </p>
                       </div>
                     )}
+
+                    {/* Desglose y Calculadora REDA MTM ExtraEU */}
+                    {product.catalogoTela === 'REDA' && (() => {
+                      const curM = product.redaCalc?.metros ?? getDefaultTailoringMeters(product.description);
+                      const curBook = product.redaCalc?.book || 'Ceremony Selection';
+                      const curCode = product.redaCalc?.itemCode || '50.23';
+                      const curFabric = findRedaFabric(curBook, curCode);
+                      const curCutUSD = product.redaCalc?.cutlengthUSD ?? (curFabric?.cutlengthUSD ?? 91);
+                      const curDolar = product.redaCalc?.dolarRate || (dolarBlueVenta ? Math.round(dolarBlueVenta) : 1560);
+                      const curSubtotalUSD = Number((curM * curCutUSD).toFixed(2));
+                      const curSubtotalARS = Math.round(curSubtotalUSD * curDolar);
+                      const curIvaARS = Number((curSubtotalARS * 0.105).toFixed(2));
+                      const curTotalARS = Number((curSubtotalARS * 1.105).toFixed(2));
+
+                      const updateReda = (newM: number, newCutUSD: number, newDolar: number, newBook: string, newCode: string, newDesc: string) => {
+                        const sUSD = Number((newM * newCutUSD).toFixed(2));
+                        const sARS = Math.round(sUSD * newDolar);
+                        const iva = Number((sARS * 0.105).toFixed(2));
+                        const totARS = Number((sARS * 1.105).toFixed(2));
+
+                        onChange({
+                          ...product,
+                          redaCalc: {
+                            book: newBook,
+                            itemCode: newCode,
+                            description: newDesc,
+                            cutlengthUSD: newCutUSD,
+                            metros: newM,
+                            subtotalUSD: sUSD,
+                            dolarRate: newDolar,
+                            subtotalARS: sARS,
+                            ivaPercent: 10.5,
+                            ivaARS: iva,
+                            totalARS: totARS
+                          },
+                          costs: {
+                            ...product.costs,
+                            telas: totARS
+                          }
+                        });
+                      };
+
+                      return (
+                        <div className="mt-2.5 p-3 bg-gradient-to-br from-blue-50/80 to-slate-50 border border-blue-300 rounded-lg shadow-xs text-xs space-y-2.5">
+                          <div className="flex items-center justify-between border-b border-blue-200 pb-1.5">
+                            <span className="font-black text-blue-950 text-[11px] uppercase flex items-center gap-1">
+                              <span>🇮🇹 REDA MTM ExtraEU · Capetown</span>
+                            </span>
+                            <span className="text-[9px] font-black bg-blue-900 text-blue-100 px-1.5 py-0.5 rounded">
+                              Cutlength [US$/mt] + 10,5% IVA
+                            </span>
+                          </div>
+
+                          {/* Selector de Libro y Código */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                                Libro (Bunch Book)
+                              </label>
+                              <select
+                                value={curBook}
+                                onChange={(e) => {
+                                  const b = e.target.value;
+                                  const bookFabrics = getFabricsForBook(b);
+                                  const firstFab = bookFabrics[0] || curFabric || REDA_FABRICS[0];
+                                  updateReda(curM, firstFab.cutlengthUSD, curDolar, b, firstFab.code, firstFab.description);
+                                }}
+                                className="w-full p-1.5 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                              >
+                                {REDA_BOOKS.map(b => (
+                                  <option key={b} value={b}>{b}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                                Artículo / Código
+                              </label>
+                              <select
+                                value={curCode}
+                                onChange={(e) => {
+                                  const code = e.target.value;
+                                  const fab = findRedaFabric(curBook, code) || REDA_FABRICS.find(f => f.code === code);
+                                  const cutUSD = fab ? fab.cutlengthUSD : curCutUSD;
+                                  const desc = fab ? fab.description : (curFabric?.description || '');
+                                  updateReda(curM, cutUSD, curDolar, curBook, code, desc);
+                                }}
+                                className="w-full p-1.5 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                              >
+                                {getFabricsForBook(curBook).map(f => (
+                                  <option key={f.code} value={f.code}>
+                                    {f.code} - {f.description} (${f.cutlengthUSD} USD/m)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Ficha técnica compacta de la tela */}
+                          {curFabric && (
+                            <div className="bg-white/90 p-1.5 rounded border border-blue-200 text-[10px] text-gray-700 flex flex-wrap gap-x-3 gap-y-1">
+                              <span><strong>Comp:</strong> {curFabric.composition}</span>
+                              <span><strong>Finura:</strong> {curFabric.fineness}</span>
+                              {curFabric.weightGm && <span><strong>Peso:</strong> {curFabric.weightGm} g/m</span>}
+                              <span><strong>Teñido:</strong> {curFabric.dyeing}</span>
+                              <span><strong>Ancho:</strong> {curFabric.heightCm} cm</span>
+                            </div>
+                          )}
+
+                          {/* Inputs de cálculo: Metros, Cutlength USD, Cotización Dólar */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div>
+                              <div className="flex justify-between items-center mb-0.5">
+                                <label className="block text-[9px] font-bold text-gray-500 uppercase">
+                                  Metros (mt)
+                                </label>
+                                <span className="text-[9px] text-blue-700 font-extrabold truncate max-w-[100px]" title={product.description || 'Prenda'}>
+                                  {product.description || 'Prenda'}
+                                </span>
+                              </div>
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0.1"
+                                value={curM}
+                                onChange={(e) => {
+                                  const m = parseFloat(e.target.value) || 0;
+                                  updateReda(m, curCutUSD, curDolar, curBook, curCode, curFabric?.description || '');
+                                }}
+                                className="w-full p-1.5 border border-gray-300 rounded text-xs font-black text-ragucci-primary bg-white focus:outline-none focus:border-blue-500 text-center"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">
+                                Cutlength [US$/m]
+                              </label>
+                              <input
+                                type="number"
+                                step="1"
+                                min="1"
+                                value={curCutUSD}
+                                onChange={(e) => {
+                                  const cutUSD = parseFloat(e.target.value) || 0;
+                                  updateReda(curM, cutUSD, curDolar, curBook, curCode, curFabric?.description || '');
+                                }}
+                                className="w-full p-1.5 border border-gray-300 rounded text-xs font-black text-ragucci-primary bg-white focus:outline-none focus:border-blue-500 text-center"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-bold text-blue-800 uppercase mb-0.5">
+                                Dólar al Día ($)
+                              </label>
+                              <input
+                                type="number"
+                                step="1"
+                                min="1"
+                                value={curDolar}
+                                onChange={(e) => {
+                                  const d = parseFloat(e.target.value) || 0;
+                                  updateReda(curM, curCutUSD, d, curBook, curCode, curFabric?.description || '');
+                                }}
+                                className="w-full p-1.5 border border-blue-300 bg-blue-50/70 rounded text-xs font-black text-blue-900 focus:outline-none focus:border-blue-500 text-center"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Botones de sugerencia rápida de metros según prenda */}
+                          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                            <span className="text-[9.5px] font-bold text-gray-400 mr-1">Metros sugeridos:</span>
+                            {[
+                              { label: 'Pantalón (1.5 mt)', m: 1.5 },
+                              { label: 'Saco (2.2 mt)', m: 2.2 },
+                              { label: 'Ambo/Traje (3.5 mt)', m: 3.5 },
+                              { label: 'Sobretodo (2.8 mt)', m: 2.8 },
+                              { label: 'Chaleco (0.9 mt)', m: 0.9 }
+                            ].map(item => (
+                              <button
+                                key={item.label}
+                                type="button"
+                                onClick={() => updateReda(item.m, curCutUSD, curDolar, curBook, curCode, curFabric?.description || '')}
+                                className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded border transition-colors ${
+                                  curM === item.m
+                                    ? 'bg-blue-800 text-white border-blue-800 shadow-2xs'
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                                }`}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Desglose de Cálculo */}
+                          <div className="bg-white/95 p-2.5 rounded-md border border-blue-300 text-[11px] font-medium space-y-1 shadow-2xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 font-bold">Metros solicitados:</span>
+                              <span className="font-extrabold text-ragucci-primary">{curM} mt</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 font-bold">Precio Cutlength (USD/m):</span>
+                              <span className="font-extrabold text-blue-900">${curCutUSD} USD/mt</span>
+                            </div>
+                            <div className="flex justify-between border-t border-dashed border-gray-200 pt-1 text-[11px]">
+                              <span className="text-gray-600 font-bold">Subtotal Tela (USD):</span>
+                              <span className="font-black text-emerald-800">${curSubtotalUSD.toFixed(2)} USD</span>
+                            </div>
+                            <div className="flex justify-between text-[11px] text-gray-600">
+                              <span>Cotización Dólar al día:</span>
+                              <span className="font-bold text-blue-800">${curDolar.toLocaleString('es-AR')} ARS</span>
+                            </div>
+                            <div className="flex justify-between text-[11px] text-gray-700">
+                              <span>Subtotal en Pesos (sin IVA):</span>
+                              <span className="font-bold">${formatMoney(curSubtotalARS)} ARS</span>
+                            </div>
+                            <div className="flex justify-between text-[11px] text-amber-800 border-t border-dashed border-gray-200 pt-1">
+                              <span className="font-bold">+ IVA Capetown (10,5%):</span>
+                              <span className="font-extrabold">+ ${formatMoney(curIvaARS)} ARS</span>
+                            </div>
+                            <div className="flex justify-between border-t-2 border-ragucci-gold pt-1.5 font-black text-sm text-ragucci-primary bg-amber-50/60 -mx-1 px-1 rounded">
+                              <span className="uppercase text-xs tracking-wide">Costo Tela en Pesos ($ ARS):</span>
+                              <span className="text-sm font-black text-ragucci-primary">${formatMoney(curTotalARS)} ARS</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </>
@@ -903,19 +1595,83 @@ export const ProductBlock: React.FC<ProductBlockProps> = ({
                   value={product.costs.forreria}
                   onValueChange={(val) => onChange({ ...product, costs: { ...product.costs, forreria: val, noForreria: val > 0 ? false : product.costs.noForreria } })}
                 />
-                <div className="mt-1.5">
-                  <label className="block text-[10px] font-extrabold text-gray-500 uppercase mb-0.5">
-                    Proveedor de Forrería
-                  </label>
-                  <select
-                    value={product.proveedorForreria || ''}
-                    onChange={(e) => onChange({ ...product, proveedorForreria: e.target.value })}
-                    className="w-full p-1.5 border border-gray-300 rounded text-xs font-bold bg-white text-ragucci-primary focus:outline-none focus:border-ragucci-gold cursor-pointer"
-                  >
-                    <option value="">-- Seleccionar Proveedor --</option>
-                    <option value="Capetown">Capetown</option>
-                    <option value="Otro / Sin Especificar">Otro / Sin Especificar</option>
-                  </select>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1.5 items-center">
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-gray-500 uppercase mb-0.5">
+                      Proveedor de Forrería
+                    </label>
+                    <div className="p-1.5 border border-purple-200 bg-purple-50 rounded text-xs font-black text-purple-900 flex items-center gap-1.5">
+                      <span>🪡 Capetown</span>
+                      <span className="text-[9.5px] font-bold text-purple-700 bg-purple-100 px-1.5 rounded">Único Proveedor</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-gray-500 uppercase mb-0.5">
+                      Color / Código Forrería
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Negro, Bordeux 12A..."
+                      value={product.colorForreria || product.codigoForreria || ''}
+                      onChange={(e) => onChange({ ...product, proveedorForreria: 'Capetown', colorForreria: e.target.value, codigoForreria: e.target.value })}
+                      className="w-full p-1.5 border border-gray-300 rounded text-xs font-bold text-ragucci-primary bg-white focus:outline-none focus:border-ragucci-gold"
+                    />
+                  </div>
+                </div>
+
+                {/* Estado de Forrería */}
+                <div className="mt-2 pt-2 border-t border-dashed border-gray-200">
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[10px] font-extrabold text-purple-900 uppercase">
+                      Estado Forrería:
+                    </label>
+                    <span className="text-[10px] font-black text-purple-950">
+                      {product.statusForreria || '🔴 Falta Pedir'}
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    {[
+                      { key: '🔴 Falta Pedir Forrería', label: '🔴 Falta Pedir' },
+                      { key: '🟣 Forrería Pedida', label: '🟣 Pedida' },
+                      { key: '🟠 Forrería en Local', label: '🟠 En Local' }
+                    ].map(st => {
+                      const curSt = product.statusForreria || '🔴 Falta Pedir Forrería';
+                      const isActive = curSt === st.key || (st.key.startsWith('🔴') && (curSt.startsWith('🔴') || curSt === '🔴 Pendiente'));
+                      return (
+                        <button
+                          key={st.key}
+                          type="button"
+                          onClick={() => {
+                            const todayStr = getTodayString();
+                            const updated: ProductItem = {
+                              ...product,
+                              statusForreria: st.key
+                            };
+                            if (st.key === '🟣 Forrería Pedida') {
+                              updated.fechaForreriaPedida = product.fechaForreriaPedida || todayStr;
+                            } else if (st.key === '🟠 Forrería en Local') {
+                              updated.fechaForreriaEnLocal = todayStr;
+                              updated.postergarForreriaHasta = undefined;
+                            } else if (st.key.startsWith('🔴')) {
+                              updated.fechaForreriaPedida = undefined;
+                              updated.fechaForreriaEnLocal = undefined;
+                              updated.postergarForreriaHasta = undefined;
+                            }
+                            onChange(updated);
+                          }}
+                          className={`flex-1 py-1 text-[9px] font-black uppercase rounded transition-all cursor-pointer text-center border ${
+                            isActive
+                              ? 'bg-purple-800 text-white border-purple-900 shadow-2xs font-extrabold'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-purple-50'
+                          }`}
+                        >
+                          {st.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </>
             )}
